@@ -1,0 +1,50 @@
+version: '3.8'
+
+# 🌐 带网络模拟的性能测试
+# 模拟真实云服务器的网络条件：带宽限制、延迟、丢包等
+
+services:
+  # 4核8G + 5Mbps带宽限制（腾讯云标准）
+  room-service-4c8g-5mbps:
+    build: .
+    container_name: room-service-4c8g-5mbps
+    ports:
+      - "9011:9000"
+    environment:
+      - RUST_LOG=info
+      - ROOM_SERVICE_ADDR=0.0.0.0:9000
+      - TICK_RATE=30
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '4.0'
+          memory: 8G
+    cap_add:
+      - NET_ADMIN  # 需要网络管理权限来设置带宽限制
+    networks:
+      - net-5mbps
+    profiles:
+      - network-test
+
+  # 网络模拟器容器
+  # 用于在测试客户端和服务器之间模拟网络条件
+  network-simulator:
+    image: gaiadocker/iproute2:latest
+    container_name: network-simulator
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - net-5mbps
+    command: sleep infinity
+    profiles:
+      - network-test
+
+networks:
+  net-5mbps:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1500

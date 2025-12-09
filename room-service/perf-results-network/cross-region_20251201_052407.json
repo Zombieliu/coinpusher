@@ -1,0 +1,25 @@
+{
+  "test_name": "cross-region",
+  "network": {
+    "bandwidth": "10mbit",
+    "latency": "100ms",
+    "loss": "0.5%"
+  },
+  "metrics": {
+    "elapsed": 24.57758593559265,
+    "room_count": 50,
+    "total_coins": 4000,
+    "messages_sent": 4050,
+    "messages_received": 3457,
+    "errors": 0,
+    "timeouts": 50,
+    "msg_per_sec": 164.78428803436265,
+    "avg_latency": 0.11717660927478178,
+    "p50_latency": 0.05888938903808594,
+    "p95_latency": 0.28395652770996094,
+    "p99_latency": 1.0268688201904297,
+    "avg_connection_time": 0.47118186950683594,
+    "timeout_rate": 1.2345679012345678,
+    "error_rate": 0.0
+  }
+}

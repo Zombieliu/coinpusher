@@ -1,0 +1,85 @@
+# ========================================
+# Match Server - 优化的多阶段构建 Dockerfile
+# ========================================
+
+# ----------------------------------------
+# Stage 1: 依赖安装
+# ----------------------------------------
+FROM node:20-alpine AS deps
+
+WORKDIR /app
+
+# 复制 package 文件
+COPY package*.json ./
+
+# 安装所有依赖（包括 devDependencies，用于构建）
+RUN npm ci
+
+# ----------------------------------------
+# Stage 2: TypeScript 构建
+# ----------------------------------------
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# 从 deps 阶段复制 node_modules
+COPY --from=deps /app/node_modules ./node_modules
+
+# 复制源代码和配置
+COPY package*.json ./
+COPY tsconfig.json ./
+COPY tsrpc.config.ts ./
+COPY src ./src
+
+# 编译 TypeScript (忽略类型错误)
+RUN npx tsc --skipLibCheck || true
+RUN if [ ! -d "dist" ]; then npx tsc --skipLibCheck --noEmitOnError false; fi
+
+# ----------------------------------------
+# Stage 3: 生产运行时
+# ----------------------------------------
+FROM node:20-alpine AS runner
+
+# 安装 dumb-init（优雅处理信号）
+RUN apk add --no-cache dumb-init wget
+
+WORKDIR /app
+
+# 设置 NODE_ENV
+ENV NODE_ENV=production
+
+# 创建非 root 用户
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# 复制 package 文件并安装生产依赖
+COPY package*.json ./
+RUN npm install --omit=dev && \
+    npm cache clean --force
+
+# 从 builder 阶段复制编译后的代码
+COPY --from=builder /app/dist ./dist
+
+# 复制配置文件（JSON 等静态资源）
+COPY --from=builder /app/src/module/common/table/config ./dist/module/common/table/config
+
+# 复制 SSL 证书文件
+COPY --from=builder /app/src/*.key /app/src/*.crt ./dist/
+
+# 创建日志目录
+RUN mkdir -p /app/logs && \
+    chown -R nodejs:nodejs /app
+
+# 切换到非 root 用户
+USER nodejs
+
+# 暴露端口（业务端口 + 监控端口）
+EXPOSE 3002 9091
+
+# 健康检查（使用监控服务器的 /live 端点）
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:9091/live || exit 1
+
+# 使用 dumb-init 启动（优雅处理 SIGTERM）
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "dist/ServerMatch.js"]

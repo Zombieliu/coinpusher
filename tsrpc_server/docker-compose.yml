@@ -1,0 +1,335 @@
+# ========================================
+# Coin Pusher Game - Complete Docker Compose Configuration
+# ========================================
+# 使用方法：
+# 1. 复制 .env.example 为 .env 并配置环境变量
+# 2. 启动所有服务：docker-compose up -d
+# 3. 查看日志：docker-compose logs -f [service-name]
+# 4. 停止服务：docker-compose down
+# ========================================
+
+version: '3.8'
+
+services:
+  # ========================================
+  # 数据库服务
+  # ========================================
+
+  # MongoDB 数据库
+  mongodb:
+    image: mongo:7.0.0
+    container_name: coinpusher-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER:-coinpusher_app}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-REPLACE_WITH_STRONG_PASSWORD}
+      MONGO_INITDB_DATABASE: coinpusher_game
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+      # 初始化脚本（可选）
+      # - ./scripts/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - coinpusher-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  # DragonflyDB 缓存服务
+  dragonflydb:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    container_name: coinpusher-dragonflydb
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: >
+      dragonfly
+      --logtostderr
+      --cache_mode=true
+      --maxmemory=3gb
+    volumes:
+      - dragonflydb_data:/data
+    networks:
+      - coinpusher-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # ========================================
+  # 应用服务
+  # ========================================
+
+  # Gate Server - 网关服务
+  gate-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.gate
+    container_name: coinpusher-gate
+    restart: unless-stopped
+    ports:
+      - "${GATE_PORT:-3000}:3000"
+      - "${MONITORING_PORT:-9090}:9090"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      GATE_PORT: ${GATE_PORT:-3000}
+      MONITORING_PORT: ${MONITORING_PORT:-9090}
+      MONGO_URI: mongodb://${MONGODB_USER:-coinpusher_app}:${MONGODB_PASSWORD:-REPLACE_WITH_STRONG_PASSWORD}@mongodb:27017/coinpusher_game?authSource=admin
+      DB_NAME: coinpusher_game
+      COLLECTION_NAME: users
+      REDIS_HOST: dragonflydb
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      INTERNAL_SECRET_KEY: ${INTERNAL_SECRET_KEY}
+      ENABLE_SECURITY: ${ENABLE_SECURITY:-false}
+      CACHE_KEY_PREFIX: ${CACHE_KEY_PREFIX:-coinpusher}
+      PROMETHEUS_ENABLED: ${PROMETHEUS_ENABLED:-true}
+    volumes:
+      - ./logs/gate:/app/logs
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      dragonflydb:
+        condition: service_healthy
+    networks:
+      - coinpusher-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  # Match Server - 匹配服务
+  match-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.match
+    container_name: coinpusher-match
+    restart: unless-stopped
+    ports:
+      - "${MATCH_PORT:-3002}:3002"
+      - "${MATCH_MONITORING_PORT:-9091}:9091"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      MATCH_PORT: ${MATCH_PORT:-3002}
+      MONITORING_PORT: ${MATCH_MONITORING_PORT:-9091}
+      MONGO_URI: mongodb://${MONGODB_USER:-coinpusher_app}:${MONGODB_PASSWORD:-REPLACE_WITH_STRONG_PASSWORD}@mongodb:27017/coinpusher_game?authSource=admin
+      DB_NAME: coinpusher_game
+      REDIS_HOST: dragonflydb
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      INTERNAL_SECRET_KEY: ${INTERNAL_SECRET_KEY}
+      CACHE_KEY_PREFIX: ${CACHE_KEY_PREFIX:-coinpusher}
+      PROMETHEUS_ENABLED: ${PROMETHEUS_ENABLED:-true}
+    volumes:
+      - ./logs/match:/app/logs
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      dragonflydb:
+        condition: service_healthy
+    networks:
+      - coinpusher-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9091/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  # Room Server - 房间服务
+  room-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.room
+    container_name: coinpusher-room
+    restart: unless-stopped
+    ports:
+      - "${ROOM_PORT:-3001}:3001"
+      - "${ROOM_MONITORING_PORT:-9092}:9092"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      ROOM_PORT: ${ROOM_PORT:-3001}
+      MONITORING_PORT: ${ROOM_MONITORING_PORT:-9092}
+      MONGO_URI: mongodb://${MONGODB_USER:-coinpusher_app}:${MONGODB_PASSWORD:-REPLACE_WITH_STRONG_PASSWORD}@mongodb:27017/coinpusher_game?authSource=admin
+      DB_NAME: coinpusher_game
+      REDIS_HOST: dragonflydb
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      INTERNAL_SECRET_KEY: ${INTERNAL_SECRET_KEY}
+      CACHE_KEY_PREFIX: ${CACHE_KEY_PREFIX:-coinpusher}
+      PROMETHEUS_ENABLED: ${PROMETHEUS_ENABLED:-true}
+    volumes:
+      - ./logs/room:/app/logs
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      dragonflydb:
+        condition: service_healthy
+    networks:
+      - coinpusher-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9092/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  # Admin Dashboard - 管理后台
+  admin-dashboard:
+    build:
+      context: ../admin-dashboard
+      dockerfile: Dockerfile
+    container_name: coinpusher-admin
+    restart: unless-stopped
+    ports:
+      - "3005:3003"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: https://localhost:3000
+      NODE_TLS_REJECT_UNAUTHORIZED: 0
+    depends_on:
+      - gate-server
+    networks:
+      - coinpusher-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3003"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  # ========================================
+  # 监控服务
+  # ========================================
+
+  # Prometheus - 指标收集
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: coinpusher-prometheus
+    restart: unless-stopped
+    ports:
+      - "9093:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - gate-server
+      - match-server
+      - room-server
+    networks:
+      - coinpusher-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Grafana - 可视化仪表板
+  grafana:
+    image: grafana/grafana:latest
+    container_name: coinpusher-grafana
+    restart: unless-stopped
+    ports:
+      - "3004:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_SERVER_ROOT_URL: http://localhost:3004
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana-dashboard.json:/etc/grafana/provisioning/dashboards/dashboard.json:ro
+      - ./monitoring/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+    depends_on:
+      - prometheus
+    networks:
+      - coinpusher-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Alertmanager - 告警管理
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: coinpusher-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9094:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - coinpusher-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Node Exporter - 系统指标
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: coinpusher-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - coinpusher-network
+
+# ========================================
+# 数据卷
+# ========================================
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  dragonflydb_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+
+# ========================================
+# 网络配置
+# ========================================
+networks:
+  coinpusher-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

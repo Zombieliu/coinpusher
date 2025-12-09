@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:unit": "jest --testPathPattern=__tests__/.*\\.test\\.ts$",
+    "test:integration": "jest --testPathPattern=integration/.*\\.test\\.ts$",
+    "test:e2e": "jest --testPathPattern=e2e/.*\\.test\\.ts$",
+    "test:performance": "jest --testPathPattern=performance\\.test\\.ts$",
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e && npm run test:performance",
+    "test:ci": "jest --ci --coverage --maxWorkers=2"
+  }
+}

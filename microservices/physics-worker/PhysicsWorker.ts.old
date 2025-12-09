@@ -1,0 +1,407 @@
+/**
+ * ⚡ Physics Worker Service
+ *
+ * 独立的物理计算服务
+ * - 从消息队列接收物理请求
+ * - 执行物理模拟（Rapier3D）
+ * - 发送响应和广播物理帧
+ */
+
+import { MessageQueue, PhysicsRequest, PhysicsResponse, PhysicsFrame } from '../shared/MessageQueue';
+import { DragonflyClientManager } from '../../tsrpc_server/src/server/utils/DragonflyRateLimiter';
+
+// 简化的物理世界接口（实际应导入完整的 PhysicsWorld）
+interface IPhysicsWorld {
+    dropCoin(x: number, z?: number): number;
+    step(dt: number): {
+        coins: Array<{id: number; x: number; y: number; z: number}>;
+        collected: number[];
+        removed: number[];
+    };
+    destroy(): void;
+}
+
+/**
+ * 房间管理器（简化版）
+ */
+class RoomInstance {
+    roomId: string;
+    players: Set<string> = new Set();
+    physicsWorld: any;  // 实际应该是 PhysicsWorld 类型
+    frameId: number = 0;
+    lastUpdateTime: number = Date.now();
+    isActive: boolean = true;
+
+    constructor(roomId: string) {
+        this.roomId = roomId;
+        // 这里应该初始化实际的 PhysicsWorld
+        // this.physicsWorld = new PhysicsWorld();
+        console.log(`[Room ${roomId}] Created`);
+    }
+
+    addPlayer(userId: string): void {
+        this.players.add(userId);
+        console.log(`[Room ${this.roomId}] Player ${userId} joined (${this.players.size} players)`);
+    }
+
+    removePlayer(userId: string): void {
+        this.players.delete(userId);
+        console.log(`[Room ${this.roomId}] Player ${userId} left (${this.players.size} players)`);
+    }
+
+    isEmpty(): boolean {
+        return this.players.size === 0;
+    }
+
+    destroy(): void {
+        this.isActive = false;
+        if (this.physicsWorld) {
+            this.physicsWorld.destroy();
+        }
+        console.log(`[Room ${this.roomId}] Destroyed`);
+    }
+}
+
+/**
+ * Physics Worker 配置
+ */
+export interface PhysicsWorkerConfig {
+    workerId: string;
+    maxRooms: number;
+    updateFPS: number;
+    dragonflyHost: string;
+    dragonflyPort: number;
+}
+
+/**
+ * Physics Worker 服务
+ */
+export class PhysicsWorkerService {
+    private config: PhysicsWorkerConfig;
+    private messageQueue!: MessageQueue;
+    private rooms: Map<string, RoomInstance> = new Map();
+    private updateTimer?: NodeJS.Timeout;
+    private heartbeatTimer?: NodeJS.Timeout;
+    private isRunning: boolean = false;
+
+    constructor(config: PhysicsWorkerConfig) {
+        this.config = config;
+    }
+
+    /**
+     * 启动 Worker
+     */
+    async start(): Promise<void> {
+        console.log(`
+╔══════════════════════════════════════════════════════════╗
+║                                                          ║
+║       ⚡ Physics Worker Service Starting                ║
+║                                                          ║
+║   Worker ID: ${this.config.workerId.padEnd(42)} ║
+║   Max Rooms: ${this.config.maxRooms.toString().padEnd(42)} ║
+║   Update FPS: ${this.config.updateFPS.toString().padEnd(41)} ║
+║                                                          ║
+╚══════════════════════════════════════════════════════════╝
+        `);
+
+        // 初始化 DragonflyDB 连接
+        console.log('[Worker] Connecting to DragonflyDB...');
+        const client = DragonflyClientManager.initialize({
+            host: this.config.dragonflyHost,
+            port: this.config.dragonflyPort,
+        });
+
+        const health = await DragonflyClientManager.healthCheck();
+        if (!health.connected) {
+            throw new Error('Failed to connect to DragonflyDB');
+        }
+        console.log(`[Worker] Connected to DragonflyDB (latency: ${health.latency}ms)`);
+
+        // 初始化消息队列
+        this.messageQueue = new MessageQueue(client, this.config.workerId);
+        console.log('[Worker] Message queue initialized');
+
+        // 开始消费物理请求
+        this.isRunning = true;
+        console.log('[Worker] Starting to consume physics requests...');
+        await this.messageQueue.consumePhysicsRequests(
+            this.handlePhysicsRequest.bind(this)
+        );
+
+        // 启动物理更新循环
+        this.startPhysicsLoop();
+
+        // 启动心跳
+        this.startHeartbeat();
+
+        console.log('[Worker] ✅ Worker started successfully\n');
+    }
+
+    /**
+     * 处理物理请求
+     */
+    private async handlePhysicsRequest(request: PhysicsRequest, msgId: string): Promise<void> {
+        const { requestId, roomId, userId, action, payload } = request;
+
+        try {
+            // 确保房间存在
+            if (!this.rooms.has(roomId)) {
+                if (this.rooms.size >= this.config.maxRooms) {
+                    throw new Error(`Worker is at max capacity (${this.config.maxRooms} rooms)`);
+                }
+                this.createRoom(roomId);
+            }
+
+            const room = this.rooms.get(roomId)!;
+
+            // 处理不同的操作
+            let responseData: any;
+
+            switch (action) {
+                case 'join_room':
+                    room.addPlayer(userId);
+                    responseData = { success: true };
+                    break;
+
+                case 'leave_room':
+                    room.removePlayer(userId);
+                    responseData = { success: true };
+                    break;
+
+                case 'drop_coin':
+                    const x = payload.x || 0;
+                    const z = payload.z || -6;
+                    // const coinId = room.physicsWorld.dropCoin(x, z);
+                    // 模拟返回
+                    const coinId = Math.floor(Math.random() * 100000);
+                    responseData = { coinId, x, y: 5, z };
+                    console.log(`[Room ${roomId}] Player ${userId} dropped coin ${coinId} at x=${x}`);
+                    break;
+
+                case 'collect_coin':
+                    const collectCoinId = payload.coinId;
+                    // 实际应该调用物理引擎的收集逻辑
+                    responseData = { collected: true, coinId: collectCoinId };
+                    console.log(`[Room ${roomId}] Player ${userId} collected coin ${collectCoinId}`);
+                    break;
+
+                default:
+                    throw new Error(`Unknown action: ${action}`);
+            }
+
+            // 发送响应
+            const response: PhysicsResponse = {
+                requestId,
+                roomId,
+                success: true,
+                data: responseData,
+                timestamp: Date.now(),
+            };
+
+            await this.messageQueue.publishPhysicsResponse(response);
+
+        } catch (error: any) {
+            console.error(`[Worker] Error handling request ${requestId}:`, error.message);
+
+            // 发送错误响应
+            const errorResponse: PhysicsResponse = {
+                requestId,
+                roomId,
+                success: false,
+                error: error.message,
+                timestamp: Date.now(),
+            };
+
+            await this.messageQueue.publishPhysicsResponse(errorResponse);
+        }
+    }
+
+    /**
+     * 创建房间
+     */
+    private createRoom(roomId: string): void {
+        const room = new RoomInstance(roomId);
+        this.rooms.set(roomId, room);
+    }
+
+    /**
+     * 启动物理更新循环
+     */
+    private startPhysicsLoop(): void {
+        const updateInterval = 1000 / this.config.updateFPS;
+
+        this.updateTimer = setInterval(() => {
+            this.updatePhysics();
+        }, updateInterval);
+
+        console.log(`[Worker] Physics loop started (${this.config.updateFPS} FPS)`);
+    }
+
+    /**
+     * 更新所有房间的物理状态
+     */
+    private async updatePhysics(): Promise<void> {
+        const now = Date.now();
+
+        for (const [roomId, room] of this.rooms.entries()) {
+            if (!room.isActive) continue;
+
+            try {
+                // 计算 delta time
+                const dt = (now - room.lastUpdateTime) / 1000;
+                room.lastUpdateTime = now;
+
+                // 执行物理步进
+                // const result = room.physicsWorld.step(dt);
+
+                // 模拟物理结果
+                const result = {
+                    coins: [],
+                    collected: [],
+                    removed: [],
+                };
+
+                // 广播物理帧（只有变化时才广播）
+                if (result.coins.length > 0 || result.collected.length > 0 || result.removed.length > 0) {
+                    const frame: PhysicsFrame = {
+                        roomId,
+                        frameId: room.frameId++,
+                        timestamp: now,
+                        coins: result.coins,
+                        collected: result.collected,
+                        removed: result.removed,
+                    };
+
+                    await this.messageQueue.broadcastPhysicsFrame(frame);
+                }
+
+                // 清理空房间
+                if (room.isEmpty() && now - room.lastUpdateTime > 60000) {
+                    console.log(`[Worker] Removing empty room: ${roomId}`);
+                    room.destroy();
+                    this.rooms.delete(roomId);
+                }
+
+            } catch (error: any) {
+                console.error(`[Worker] Error updating room ${roomId}:`, error.message);
+            }
+        }
+    }
+
+    /**
+     * 启动心跳
+     */
+    private startHeartbeat(): void {
+        this.heartbeatTimer = setInterval(async () => {
+            try {
+                const roomIds = Array.from(this.rooms.keys());
+                await this.messageQueue.sendWorkerHeartbeat(
+                    this.config.workerId,
+                    roomIds
+                );
+            } catch (error: any) {
+                console.error('[Worker] Heartbeat error:', error.message);
+            }
+        }, 5000);  // 每 5 秒一次心跳
+
+        console.log('[Worker] Heartbeat started (5s interval)');
+    }
+
+    /**
+     * 停止 Worker
+     */
+    async stop(): Promise<void> {
+        console.log('[Worker] Stopping...');
+
+        this.isRunning = false;
+
+        // 停止定时器
+        if (this.updateTimer) {
+            clearInterval(this.updateTimer);
+        }
+        if (this.heartbeatTimer) {
+            clearInterval(this.heartbeatTimer);
+        }
+
+        // 停止消息队列
+        if (this.messageQueue) {
+            this.messageQueue.stop();
+        }
+
+        // 清理所有房间
+        for (const room of this.rooms.values()) {
+            room.destroy();
+        }
+        this.rooms.clear();
+
+        // 断开 DragonflyDB
+        await DragonflyClientManager.disconnect();
+
+        console.log('[Worker] ✅ Worker stopped');
+    }
+
+    /**
+     * 获取状态
+     */
+    getStatus() {
+        return {
+            workerId: this.config.workerId,
+            isRunning: this.isRunning,
+            roomCount: this.rooms.size,
+            maxRooms: this.config.maxRooms,
+            rooms: Array.from(this.rooms.entries()).map(([roomId, room]) => ({
+                roomId,
+                playerCount: room.players.size,
+                frameId: room.frameId,
+            })),
+        };
+    }
+}
+
+// ============ 启动脚本 ============
+
+async function main() {
+    const config: PhysicsWorkerConfig = {
+        workerId: process.env.WORKER_ID || `worker-${process.pid}`,
+        maxRooms: parseInt(process.env.MAX_ROOMS || '20', 10),
+        updateFPS: parseInt(process.env.UPDATE_FPS || '30', 10),
+        dragonflyHost: process.env.DRAGONFLY_HOST || 'localhost',
+        dragonflyPort: parseInt(process.env.DRAGONFLY_PORT || '6379', 10),
+    };
+
+    const worker = new PhysicsWorkerService(config);
+
+    // 优雅退出
+    process.on('SIGINT', async () => {
+        console.log('\n[Worker] Received SIGINT, shutting down...');
+        await worker.stop();
+        process.exit(0);
+    });
+
+    process.on('SIGTERM', async () => {
+        console.log('\n[Worker] Received SIGTERM, shutting down...');
+        await worker.stop();
+        process.exit(0);
+    });
+
+    try {
+        await worker.start();
+
+        // 定期输出状态
+        setInterval(() => {
+            const status = worker.getStatus();
+            console.log(`[Worker] Status: ${status.roomCount}/${status.maxRooms} rooms, ${status.rooms.reduce((sum, r) => sum + r.playerCount, 0)} players`);
+        }, 30000);
+
+    } catch (error: any) {
+        console.error('[Worker] Fatal error:', error);
+        process.exit(1);
+    }
+}
+
+// 如果直接运行此文件，则启动 Worker
+if (require.main === module) {
+    main().catch(console.error);
+}
+
+export { PhysicsWorkerService };

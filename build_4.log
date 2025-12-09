@@ -1,0 +1,393 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 844B done
+#1 DONE 0.0s
+
+#2 [admin-dashboard internal] load build definition from Dockerfile
+#2 transferring dockerfile: 979B done
+#2 DONE 0.0s
+
+#3 [gate-server internal] load build definition from Dockerfile.gate
+#3 transferring dockerfile: 2.38kB done
+#3 DONE 0.0s
+
+#4 [gate-server internal] load metadata for docker.io/library/node:20-alpine
+#4 DONE 1.1s
+
+#5 [admin-dashboard internal] load .dockerignore
+#5 transferring context: 166B done
+#5 DONE 0.0s
+
+#6 [gate-server internal] load .dockerignore
+#6 transferring context: 2B done
+#6 DONE 0.0s
+
+#7 [admin-dashboard base 1/2] FROM docker.io/library/node:20-alpine@sha256:643e7036aa985317ebfee460005e322aa550c6b6883000d01daefb58689a58e2
+#7 DONE 0.0s
+
+#8 [admin-dashboard internal] load build context
+#8 transferring context: 16.11kB done
+#8 DONE 0.0s
+
+#9 [admin-dashboard deps 2/3] COPY package.json pnpm-lock.yaml ./
+#9 CACHED
+
+#10 [admin-dashboard base 2/2] RUN corepack enable && corepack prepare pnpm@latest --activate
+#10 CACHED
+
+#11 [admin-dashboard deps 1/3] WORKDIR /app
+#11 CACHED
+
+#12 [admin-dashboard deps 3/3] RUN pnpm install --frozen-lockfile
+#12 CACHED
+
+#13 [admin-dashboard builder 2/4] COPY --from=deps /app/node_modules ./node_modules
+#13 CACHED
+
+#14 [admin-dashboard builder 3/4] COPY . .
+#14 DONE 0.0s
+
+#15 [gate-server internal] load build context
+#15 transferring context: 29.15kB 1.0s done
+#15 DONE 1.0s
+
+#16 [gate-server deps 2/4] WORKDIR /app
+#16 CACHED
+
+#17 [gate-server deps 3/4] COPY package*.json ./
+#17 CACHED
+
+#18 [admin-dashboard builder 4/4] RUN pnpm run build
+#18 0.425 
+#18 0.425 > oops-coinpusher-admin@1.0.0 build /app
+#18 0.425 > next build
+#18 0.425 
+#18 0.808 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#18 0.808 This information is used to shape Next.js' roadmap and prioritize features.
+#18 0.808 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#18 0.808 https://nextjs.org/telemetry
+#18 0.808 
+#18 0.869    ▲ Next.js 15.5.6
+#18 0.869 
+#18 0.940    Creating an optimized production build ...
+#18 ...
+
+#19 [gate-server deps 4/4] RUN npm ci
+#19 3.545 npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+#19 7.907 npm warn deprecated eslint@8.57.1: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+#19 10.40 npm warn deprecated @humanwhocodes/config-array@0.13.0: Use @eslint/config-array instead
+#19 10.41 npm warn deprecated @humanwhocodes/object-schema@2.0.3: Use @eslint/object-schema instead
+#19 12.95 npm warn deprecated uuid@3.4.0: Please upgrade  to version 7 or higher.  Older versions may use Math.random() in certain circumstances, which is known to be problematic.  See https://v8.dev/blog/math-random for details.
+#19 ...
+
+#18 [admin-dashboard builder 4/4] RUN pnpm run build
+#18 14.00  ✓ Compiled successfully in 11.3s
+#18 14.00    Linting and checking validity of types ...
+#18 19.06    Collecting page data ...
+#18 ...
+
+#19 [gate-server deps 4/4] RUN npm ci
+#19 13.13 npm warn deprecated uuid@3.4.0: Please upgrade  to version 7 or higher.  Older versions may use Math.random() in certain circumstances, which is known to be problematic.  See https://v8.dev/blog/math-random for details.
+#19 17.94 
+#19 17.94 added 736 packages, and audited 737 packages in 18s
+#19 17.94 
+#19 17.94 98 packages are looking for funding
+#19 17.94   run `npm fund` for details
+#19 17.96 
+#19 17.96 23 vulnerabilities (4 low, 6 moderate, 11 high, 2 critical)
+#19 17.96 
+#19 17.96 To address issues that do not require attention, run:
+#19 17.96   npm audit fix
+#19 17.96 
+#19 17.96 To address all issues (including breaking changes), run:
+#19 17.96   npm audit fix --force
+#19 17.96 
+#19 17.96 Run `npm audit` for details.
+#19 17.96 npm notice
+#19 17.96 npm notice New major version of npm available! 10.8.2 -> 11.6.4
+#19 17.96 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.4
+#19 17.96 npm notice To update run: npm install -g npm@11.6.4
+#19 17.96 npm notice
+#19 DONE 18.3s
+
+#18 [admin-dashboard builder 4/4] RUN pnpm run build
+#18 ...
+
+#16 [gate-server deps 2/4] WORKDIR /app
+#16 CACHED
+
+#20 [gate-server builder 3/9] COPY --from=deps /app/node_modules ./node_modules
+#20 DONE 1.2s
+
+#18 [admin-dashboard builder 4/4] RUN pnpm run build
+#18 20.66    Generating static pages (0/19) ...
+#18 21.08    Generating static pages (4/19) 
+#18 21.15    Generating static pages (9/19) 
+#18 21.15    Generating static pages (14/19) 
+#18 21.15  ✓ Generating static pages (19/19)
+#18 ...
+
+#21 [gate-server builder 4/9] COPY package*.json ./
+#21 DONE 0.0s
+
+#22 [gate-server builder 5/9] COPY tsconfig.json ./
+#22 DONE 0.0s
+
+#23 [gate-server builder 6/9] COPY tsrpc.config.ts ./
+#23 DONE 0.0s
+
+#24 [gate-server builder 7/9] COPY src ./src
+#24 DONE 0.0s
+
+#25 [gate-server builder 8/9] RUN npx tsc --skipLibCheck || true
+#25 6.960 src/module/common/math/vec3.ts(641,13): error TS2322: Type 'number | Vec3' is not assignable to type 'number'.
+#25 6.960   Type 'Vec3' is not assignable to type 'number'.
+#25 6.961 src/module/common/math/vec3.ts(679,13): error TS2322: Type 'number | Vec3' is not assignable to type 'number'.
+#25 6.961   Type 'Vec3' is not assignable to type 'number'.
+#25 6.961 src/module/role/Role.ts(67,37): error TS2339: Property 'broadcastMsg' does not exist on type 'Room'.
+#25 6.961 src/module/role/bll/RoleLeaveRoom.ts(18,14): error TS2339: Property 'broadcastMsg' does not exist on type 'Room'.
+#25 6.961 src/module/role/bll/RoleLeaveRoom.ts(24,14): error TS2339: Property 'removeRole' does not exist on type 'Room'.
+#25 6.961 src/module/role/bll/msg/MsgRoleAttack.ts(38,35): error TS2339: Property 'broadcastMsg' does not exist on type 'Room'.
+#25 6.961 src/module/role/bll/msg/MsgRoleMove.ts(15,35): error TS2339: Property 'broadcastMsg' does not exist on type 'Room'.
+#25 6.961 src/module/room/bll/RoomBroadcastRoleState.ts(30,19): error TS2339: Property 'broadcastMsg' does not exist on type 'Room'.
+#25 6.961 src/server/gate/api/ApiGetInviteInfo.ts(10,17): error TS2339: Property 'userId' does not exist on type 'ReqGetInviteInfo'.
+#25 6.961 src/server/gate/api/ApiGetMailList.ts(18,28): error TS2339: Property 'page' does not exist on type 'ReqGetMailList'.
+#25 6.961 src/server/gate/api/ApiGetMailList.ts(19,32): error TS2339: Property 'pageSize' does not exist on type 'ReqGetMailList'.
+#25 6.961 src/server/gate/api/ApiGetShareStats.ts(10,17): error TS2339: Property 'userId' does not exist on type 'ReqGetShareStats'.
+#25 6.961 src/server/gate/api/ApiGetShopProducts.ts(33,41): error TS2339: Property 'getAvailableProducts' does not exist on type 'typeof ShopSystem'.
+#25 6.961 src/server/gate/api/ApiGetSignInInfo.ts(39,37): error TS2339: Property 'consecutiveDays' does not exist on type '{ record: SignInRecord; todaySigned: boolean; canSignIn: boolean; nextReward: SignInConfig; monthlyCalendar: { date: number; signed: boolean; }[]; }'.
+#25 6.961 src/server/gate/api/ApiGetSignInInfo.ts(40,31): error TS2339: Property 'totalDays' does not exist on type '{ record: SignInRecord; todaySigned: boolean; canSignIn: boolean; nextReward: SignInConfig; monthlyCalendar: { date: number; signed: boolean; }[]; }'.
+#25 6.961 src/server/gate/api/admin/ApiAdminLogin.ts(14,17): error TS2345: Argument of type '{ success: false; message: string; }' is not assignable to parameter of type 'ResAdminLogin'.
+#25 6.961   Object literal may only specify known properties, and 'message' does not exist in type 'ResAdminLogin'.
+#25 6.961 src/server/gate/api/admin/ApiAdminLogin_RoleRestriction.example.ts(12,46): error TS2307: Cannot find module '../../../../../shared/protocols/admin/PtlAdminLogin' or its corresponding type declarations.
+#25 6.962 src/server/gate/api/admin/ApiAdminLogin_RoleRestriction.example.ts(90,48): error TS2307: Cannot find module '../../utils/TwoFactorAuth' or its corresponding type declarations.
+#25 6.962 src/server/gate/api/admin/ApiBatchBanUsers.ts(87,38): error TS2339: Property 'NotificationType' does not exist on type 'typeof NotificationSystem'.
+#25 6.962 src/server/gate/api/admin/ApiBatchSendMail.ts(47,34): error TS2554: Expected 4-7 arguments, but got 1.
+#25 6.962 src/server/gate/api/admin/ApiGetConfigHistory.ts(36,13): error TS2322: Type '{ historyId: string; version: any; config: any; savedAt: any; savedBy: any; comment: any; }[]' is not assignable to type '{ historyId: string; version: number; config: any; updatedBy: string; updatedAt: number; comment: string; }[]'.
+#25 6.962   Type '{ historyId: string; version: any; config: any; savedAt: any; savedBy: any; comment: any; }' is missing the following properties from type '{ historyId: string; version: number; config: any; updatedBy: string; updatedAt: number; comment: string; }': updatedBy, updatedAt
+#25 6.962 src/server/gate/api/admin/ApiGetEvents.ts(21,33): error TS2339: Property 'page' does not exist on type 'ReqGetEvents'.
+#25 6.962 src/server/gate/api/admin/ApiGetEvents.ts(21,43): error TS2339: Property 'limit' does not exist on type 'ReqGetEvents'.
+#25 6.962 src/server/gate/api/admin/ApiGetEvents.ts(86,13): error TS2345: Argument of type '{ events: { eventId: string; eventType: any; title: any; description: any; startTime: any; endTime: any; status: "ended" | "active" | "upcoming"; config: any; rewards: any; createdAt: any; createdBy: any; updatedAt: any; updatedBy: any; }[]; total: number; page: any; limit: any; }' is not assignable to parameter of type 'ResGetEvents'.
+#25 6.962   Object literal may only specify known properties, and 'total' does not exist in type 'ResGetEvents'.
+#25 6.962 src/server/gate/api/admin/ApiGetLogs.ts(52,21): error TS2345: Argument of type '{ logs: any[]; total: number; page: number; limit: number; }' is not assignable to parameter of type 'ResGetLogs'.
+#25 6.962   Object literal may only specify known properties, and 'page' does not exist in type 'ResGetLogs'.
+#25 6.962 src/server/gate/api/admin/ApiGetLogs.ts(78,13): error TS2345: Argument of type '{ logs: any[]; total: number; page: number; limit: number; }' is not assignable to parameter of type 'ResGetLogs'.
+#25 6.962   Object literal may only specify known properties, and 'page' does not exist in type 'ResGetLogs'.
+#25 6.962 src/server/gate/api/admin/ApiGetNotifications.ts(41,13): error TS2345: Argument of type '{ notifications: Notification[]; hasMore: boolean; listenerCount: number; }' is not assignable to parameter of type 'ResGetNotifications'.
+#25 6.962   Object literal may only specify known properties, and 'hasMore' does not exist in type 'ResGetNotifications'.
+#25 6.962 src/server/gate/api/admin/ApiGetUserDetail.ts(28,25): error TS2339: Property 'getUserLevel' does not exist on type 'typeof LevelSystem'.
+#25 6.962 src/server/gate/api/admin/ApiGetUserDetail.ts(29,23): error TS2339: Property 'getUserVIP' does not exist on type 'typeof VIPSystem'.
+#25 6.962 src/server/gate/api/admin/ApiGrantReward.ts(22,34): error TS2339: Property 'reason' does not exist on type 'ReqGrantReward'.
+#25 6.962 src/server/gate/api/admin/ApiGrantReward.ts(59,21): error TS2339: Property 'skins' does not exist on type '{ gold?: number; tickets?: number; exp?: number; items?: { itemId: string; quantity: number; }[]; }'.
+#25 6.962 src/server/gate/api/admin/ApiGrantReward.ts(59,38): error TS2339: Property 'skins' does not exist on type '{ gold?: number; tickets?: number; exp?: number; items?: { itemId: string; quantity: number; }[]; }'.
+#25 6.962 src/server/gate/api/admin/ApiGrantReward.ts(61,42): error TS2339: Property 'skins' does not exist on type '{ gold?: number; tickets?: number; exp?: number; items?: { itemId: string; quantity: number; }[]; }'.
+#25 6.962 src/server/gate/api/admin/ApiGrantReward.ts(67,21): error TS2339: Property 'vipDays' does not exist on type '{ gold?: number; tickets?: number; exp?: number; items?: { itemId: string; quantity: number; }[]; }'.
+#25 6.963 src/server/gate/api/admin/ApiGrantReward.ts(67,40): error TS2339: Property 'vipDays' does not exist on type '{ gold?: number; tickets?: number; exp?: number; items?: { itemId: string; quantity: number; }[]; }'.
+#25 6.963 src/server/gate/api/admin/ApiGrantReward.ts(70,60): error TS2339: Property 'vipDays' does not exist on type '{ gold?: number; tickets?: number; exp?: number; items?: { itemId: string; quantity: number; }[]; }'.
+#25 6.963 src/server/gate/api/admin/ApiSendMail.ts(61,34): error TS2554: Expected 4-7 arguments, but got 1.
+#25 6.963 src/server/gate/api/admin/ApiUpdateEvent.ts(52,21): error TS2339: Property 'enabled' does not exist on type '{ __ssoToken?: string; title?: string; description?: string; startTime?: number; endTime?: number; status?: string; config?: any; rewards?: any; }'.
+#25 6.963 src/server/gate/api/admin/ApiUpdateEvent.ts(52,75): error TS2339: Property 'enabled' does not exist on type '{ __ssoToken?: string; title?: string; description?: string; startTime?: number; endTime?: number; status?: string; config?: any; rewards?: any; }'.
+#25 6.963 src/server/gate/api/internal/ApiCollectWithReward.ts(21,49): error TS2339: Property 'getTransaction' does not exist on type 'typeof TransactionLog'.
+#25 6.963 src/server/gate/api/internal/ApiCollectWithReward.ts(62,30): error TS2339: Property 'recordTransaction' does not exist on type 'typeof TransactionLog'.
+#25 6.963 src/server/gate/bll/AchievementSystem.ts(379,13): error TS2367: This condition will always return 'false' since the types 'AchievementStatus.Unlocked' and 'AchievementStatus.Claimed' have no overlap.
+#25 6.963 src/server/gate/bll/AdminUserSystem.ts(256,13): error TS2739: Type '{ passwordHash: string; _id: ObjectId; }' is missing the following properties from type 'AdminUser': adminId, username, role, status, createdAt
+#25 6.963 src/server/gate/bll/AdminUserSystem.ts(274,9): error TS2740: Type 'WithId<Document>' is missing the following properties from type 'AdminSession': adminId, username, role, token, and 2 more.
+#25 6.963 src/server/gate/bll/AuditLogSystem.ts(7,28): error TS2307: Cannot find module '../GateServer' or its corresponding type declarations.
+#25 6.963 src/server/gate/bll/BattlePassSystem.ts(43,13): error TS2322: Type '{ userId: string; seasonId: string; level: number; exp: number; isPremium: false; claimedRewards: undefined[]; }' is not assignable to type 'WithId<BattlePassData>'.
+#25 6.963   Property '_id' is missing in type '{ userId: string; seasonId: string; level: number; exp: number; isPremium: false; claimedRewards: undefined[]; }' but required in type '{ _id: ObjectId; }'.
+#25 6.963 src/server/gate/bll/CdkSystem.ts(153,56): error TS2554: Expected 2 arguments, but got 3.
+#25 6.963 src/server/gate/bll/EventSystem.ts(61,13): error TS2322: Type '{ userId: string; eventId: string; progress: {}; claimedRewards: undefined[]; }' is not assignable to type 'WithId<UserEventProgress>'.
+#25 6.963   Property '_id' is missing in type '{ userId: string; eventId: string; progress: {}; claimedRewards: undefined[]; }' but required in type '{ _id: ObjectId; }'.
+#25 6.963 src/server/gate/bll/FraudDetectionEngine.ts(315,51): error TS2341: Property 'collection' is private and only accessible within class 'TransactionLog'.
+#25 6.963 src/server/gate/bll/FraudDetectionEngine.ts(369,29): error TS2339: Property 'timestamp' does not exist on type 'WithId<TransactionData>'.
+#25 6.963 src/server/gate/bll/FraudDetectionEngine.ts(445,17): error TS2345: Argument of type '{ banned: boolean; banReason: string; banTime: number; }' is not assignable to parameter of type 'Partial<UserData>'.
+#25 6.963   Object literal may only specify known properties, and 'banned' does not exist in type 'Partial<UserData>'.
+#25 6.963 src/server/gate/bll/FraudDetectionEngine.ts(460,17): error TS2345: Argument of type '{ rewardRestricted: boolean; restrictionReason: string; restrictionTime: number; }' is not assignable to parameter of type 'Partial<UserData>'.
+#25 6.963   Object literal may only specify known properties, and 'rewardRestricted' does not exist in type 'Partial<UserData>'.
+#25 6.963 src/server/gate/bll/FraudDetectionEngine.ts(497,52): error TS2341: Property 'collection' is private and only accessible within class 'TransactionLog'.
+#25 6.963 src/server/gate/bll/GuildSystem.ts(226,49): error TS2339: Property 'getUserLevel' does not exist on type 'typeof LevelSystem'.
+#25 6.963 src/server/gate/bll/InventorySystem.ts(15,25): error TS2459: Module '"./LotterySystem"' declares 'InventoryItem' locally, but it is not exported.
+#25 6.963 src/server/gate/bll/InventorySystem.ts(93,13): error TS2322: Type '{ userId: string; maxSlots: number; usedSlots: number; expandCount: number; }' is not assignable to type 'WithId<InventoryConfig>'.
+#25 6.963   Property '_id' is missing in type '{ userId: string; maxSlots: number; usedSlots: number; expandCount: number; }' but required in type '{ _id: ObjectId; }'.
+#25 6.963 src/server/gate/bll/InventorySystem.ts(138,50): error TS2339: Property 'getUserInventory' does not exist on type 'typeof LotterySystem'.
+#25 6.963 src/server/gate/bll/InviteSystem.ts(90,13): error TS2322: Type '{ userId: string; totalInvites: number; validInvites: number; totalRewards: number; inviteCode: string; inviteLink: string; }' is not assignable to type 'WithId<InviteStats>'.
+#25 6.963   Property '_id' is missing in type '{ userId: string; totalInvites: number; validInvites: number; totalRewards: number; inviteCode: string; inviteLink: string; }' but required in type '{ _id: ObjectId; }'.
+#25 6.963 src/server/gate/bll/LevelSystem.ts(89,17): error TS2322: Type '{ userId: string; level: number; exp: number; expToNext: number; totalExp: number; lastLevelUpTime: number; levelUpCount: number; }' is not assignable to type 'WithId<LevelData>'.
+#25 6.963   Property '_id' is missing in type '{ userId: string; level: number; exp: number; expToNext: number; totalExp: number; lastLevelUpTime: number; levelUpCount: number; }' but required in type '{ _id: ObjectId; }'.
+#25 6.963 src/server/gate/bll/LevelSystem.ts(195,17): error TS2322: Type '{ userId: string; level: number; exp: number; expToNext: number; totalExp: number; lastLevelUpTime: number; levelUpCount: number; }' is not assignable to type 'WithId<LevelData>'.
+#25 6.963   Property '_id' is missing in type '{ userId: string; level: number; exp: number; expToNext: number; totalExp: number; lastLevelUpTime: number; levelUpCount: number; }' but required in type '{ _id: ObjectId; }'.
+#25 6.963 src/server/gate/bll/LevelSystem.ts(355,38): error TS2339: Property 'zadd' does not exist on type 'typeof DragonflyDBService'.
+#25 6.963 src/server/gate/bll/MailSystem.ts(501,42): error TS2339: Property 'filter' does not exist on type '{ mails: Mail[]; total: number; page: number; pageSize: number; hasMore: boolean; }'.
+#25 6.963 src/server/gate/bll/SeasonSystem.ts(433,30): error TS2554: Expected 4-7 arguments, but got 1.
+#25 6.963 src/server/gate/bll/ShopSystem.ts(361,49): error TS2339: Property 'getUserLevel' does not exist on type 'typeof LevelSystem'.
+#25 6.963 src/server/gate/bll/ShopSystem.ts(467,41): error TS2339: Property 'vipDuration' does not exist on type 'ProductContent'.
+#25 6.963 src/server/gate/bll/ShopSystem.ts(469,49): error TS2345: Argument of type 'number' is not assignable to parameter of type 'VIPLevel'.
+#25 6.963 src/server/gate/bll/ShopSystem.ts(469,75): error TS2339: Property 'vipDuration' does not exist on type 'ProductContent'.
+#25 6.963 src/server/gate/bll/ShopSystem.ts(473,21): error TS2339: Property 'skins' does not exist on type 'ProductContent'.
+#25 6.963 src/server/gate/bll/ShopSystem.ts(473,38): error TS2339: Property 'skins' does not exist on type 'ProductContent'.
+#25 6.963 src/server/gate/bll/ShopSystem.ts(475,42): error TS2339: Property 'skins' does not exist on type 'ProductContent'.
+#25 6.963 src/server/gate/bll/SignInSystem.ts(280,30): error TS2339: Property 'consumeGold' does not exist on type 'typeof UserDB'.
+#25 6.963 src/server/gate/bll/SkinSystem.ts(58,13): error TS2322: Type '{ userId: string; ownedSkins: string[]; equippedSkins: {}; }' is not assignable to type 'WithId<UserSkin>'.
+#25 6.963   Property '_id' is missing in type '{ userId: string; ownedSkins: string[]; equippedSkins: {}; }' but required in type '{ _id: ObjectId; }'.
+#25 6.963 src/server/gate/bll/SocialSystem.ts(454,61): error TS2345: Argument of type 'Friend' is not assignable to parameter of type 'string'.
+#25 6.963 src/server/gate/bll/SocialSystem.ts(462,54): error TS2345: Argument of type 'Friend' is not assignable to parameter of type 'string'.
+#25 6.963 src/server/gate/bll/SocialSystem.ts(463,40): error TS2345: Argument of type 'Friend' is not assignable to parameter of type 'string'.
+#25 6.963 src/server/gate/bll/SocialSystem.ts(498,13): error TS2322: Type '{ userId: string; friends: undefined[]; blacklist: undefined[]; sentRequests: undefined[]; receivedRequests: undefined[]; dailyGiftsSent: number; dailyGiftsReceived: number; lastGiftReset: string; }' is not assignable to type 'WithId<UserSocialData>'.
+#25 6.963   Property '_id' is missing in type '{ userId: string; friends: undefined[]; blacklist: undefined[]; sentRequests: undefined[]; receivedRequests: undefined[]; dailyGiftsSent: number; dailyGiftsReceived: number; lastGiftReset: string; }' but required in type '{ _id: ObjectId; }'.
+#25 6.964 src/server/gate/bll/TaskSystem.ts(259,47): error TS2339: Property 'createdAt' does not exist on type 'UserTask'.
+#25 6.964 src/server/gate/bll/TaskSystem.ts(360,13): error TS2367: This condition will always return 'false' since the types 'TaskStatus.Completed' and 'TaskStatus.Claimed' have no overlap.
+#25 6.964 src/server/gate/bll/VIPSystem.ts(297,17): error TS2322: Type '{ userId: string; vipLevel: 0; vipExpireAt: number; totalRecharge: number; lastRechargeTime: number; privileges: VIPPrivileges; purchaseHistory: undefined[]; }' is not assignable to type 'WithId<VIPData>'.
+#25 6.964   Property '_id' is missing in type '{ userId: string; vipLevel: 0; vipExpireAt: number; totalRecharge: number; lastRechargeTime: number; privileges: VIPPrivileges; purchaseHistory: undefined[]; }' but required in type '{ _id: ObjectId; }'.
+#25 6.964 src/server/gate/data/TransactionLog.ts(181,9): error TS2739: Type 'Document' is missing the following properties from type '{ totalDeducted: number; totalAdded: number; transactionCount: number; }': totalDeducted, totalAdded, transactionCount
+#25 6.964 src/server/gate/db/DragonflyDBService.ts(235,13): error TS2345: Argument of type '[string, number, number, { REV: boolean; }]' is not assignable to parameter of type '[key: RedisCommandArgument, min: string | number, max: string | number, options?: ZRangeByScoreOptions] | [options: CommandOptions<ClientCommandOptions>, key: RedisCommandArgument, min: string | number, max: string | number, options?: ZRangeByScoreOptions]'.
+#25 6.964   Type '[string, number, number, { REV: boolean; }]' is not assignable to type '[options: CommandOptions<ClientCommandOptions>, key: RedisCommandArgument, min: string | number, max: string | number, options?: ZRangeByScoreOptions]'.
+#25 6.964     Type at position 0 in source is not compatible with type at position 0 in target.
+#25 6.964       Type 'string' is not assignable to type 'CommandOptions<ClientCommandOptions>'.
+#25 6.964         Type 'string' is not assignable to type '{ readonly [symbol]: true; }'.
+#25 6.964 src/server/gate/middleware/AuditLogMiddleware.ts(20,28): error TS2339: Property 'res' does not exist on type 'ApiCall<any, any, any>'.
+#25 6.964 src/server/gate/middleware/AuditLogMiddleware.ts(133,33): error TS2339: Property 'res' does not exist on type 'ApiCall<any, any, any>'.
+#25 6.964 src/server/gate/middleware/AuditLogMiddleware.ts(134,39): error TS2339: Property 'res' does not exist on type 'ApiCall<any, any, any>'.
+#25 6.964 src/server/gate/middleware/AuditLogMiddleware.ts(151,58): error TS2339: Property 'res' does not exist on type 'ApiCall<any, any, any>'.
+#25 6.964 src/server/room/api/ApiRoomChat.ts(16,10): error TS2339: Property 'broadcastMsg' does not exist on type 'Room'.
+#25 6.964 src/server/room/api/ApiRoomJoin.ts(48,19): error TS2339: Property 'addRole' does not exist on type 'Room'.
+#25 6.964 src/server/room/api/ApiRoomJoin.ts(53,49): error TS2339: Property 'id' does not exist on type 'DbUser'.
+#25 6.964 src/server/room/api/ApiRoomJoin.ts(54,34): error TS2339: Property 'id' does not exist on type 'DbUser'.
+#25 6.964 src/server/room/api/ApiRoomJoin.ts(64,10): error TS2339: Property 'broadcastMsg' does not exist on type 'Room'.
+#25 6.964 src/server/room/api/admin/ApiRoomCreate.ts(35,10): error TS2339: Property 'addNpc' does not exist on type 'Room'.
+#25 6.964 src/server/room/api/admin/ApiRoomCreate.ts(36,10): error TS2339: Property 'addNpc' does not exist on type 'Room'.
+#25 6.964 src/server/room/api/admin/ApiRoomCreate.ts(37,10): error TS2339: Property 'addNpc' does not exist on type 'Room'.
+#25 6.964 src/server/room/api/game/ApiDropCoin.ts(56,31): error TS2339: Property 'id' does not exist on type 'Role'.
+#25 6.964 src/server/room/api/game/ApiDropCoin.ts(103,35): error TS2339: Property 'id' does not exist on type 'RoomModelComp'.
+#25 6.964 src/server/room/bll/physics/PhysicsSystem.ts(25,91): error TS2339: Property 'id' does not exist on type 'RoomModelComp'.
+#25 6.964 src/server/utils/AuditLogger.ts(88,25): error TS2352: Conversion of type 'WithId<Document>' to type 'AuditLogEntry' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+#25 6.964   Type 'WithId<Document>' is missing the following properties from type 'AuditLogEntry': id, sequenceNumber, timestamp, adminId, and 7 more.
+#25 6.964 src/server/utils/AuditLogger.ts(257,22): error TS2352: Conversion of type 'WithId<Document>[]' to type 'AuditLogEntry[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+#25 6.964   Type 'WithId<Document>' is not comparable to type 'AuditLogEntry'.
+#25 6.965 src/server/utils/AuditLogger.ts(322,16): error TS2352: Conversion of type 'WithId<Document>[]' to type 'AuditLogEntry[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+#25 6.965 src/server/utils/AuditLogger.ts(338,25): error TS2352: Conversion of type 'WithId<Document>' to type 'AuditLogEntry' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+#25 6.965 src/server/utils/ErrorHandler.ts(80,27): error TS2339: Property 'DUPLICATE_ENTRY' does not exist on type 'typeof ErrorCode'.
+#25 6.965 src/server/utils/ErrorHandler.ts(95,23): error TS2339: Property 'DATABASE_ERROR' does not exist on type 'typeof ErrorCode'.
+#25 6.965 src/server/utils/ErrorHandler.ts(106,37): error TS2339: Property 'BUSINESS_ERROR' does not exist on type 'typeof ErrorCode'.
+#25 6.965 src/server/utils/ErrorHandler.ts(130,44): error TS2551: Property 'INVALID_PARAM' does not exist on type 'typeof ErrorCode'. Did you mean 'INVALID_PARAMETER'?
+#25 6.965 src/server/utils/ErrorHandler.ts(144,44): error TS2339: Property 'SERVICE_UNAVAILABLE' does not exist on type 'typeof ErrorCode'.
+#25 6.965 src/server/utils/HealthCheck.ts(191,39): error TS2339: Property 'getDatabase' does not exist on type 'typeof MongoDBService'.
+#25 6.965 src/server/utils/InputValidator.ts(1,28): error TS2307: Cannot find module 'validator' or its corresponding type declarations.
+#25 6.965 src/server/utils/PrometheusMetrics.ts(8,21): error TS2307: Cannot find module 'express' or its corresponding type declarations.
+#25 6.988 npm notice
+#25 6.988 npm notice New major version of npm available! 10.8.2 -> 11.6.4
+#25 6.988 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.4
+#25 6.988 npm notice To update run: npm install -g npm@11.6.4
+#25 6.988 npm notice
+#25 DONE 7.0s
+
+#26 [gate-server builder 9/9] RUN if [ ! -d "dist" ]; then npx tsc --skipLibCheck --noEmitOnError false; fi
+#26 DONE 0.1s
+
+#18 [admin-dashboard builder 4/4] RUN pnpm run build
+#18 21.74    Finalizing page optimization ...
+#18 21.74    Collecting build traces ...
+#18 ...
+
+#27 [gate-server runner  2/10] RUN apk add --no-cache dumb-init wget
+#27 CACHED
+
+#28 [gate-server runner  3/10] WORKDIR /app
+#28 CACHED
+
+#29 [gate-server runner  4/10] RUN addgroup -g 1001 -S nodejs &&     adduser -S nodejs -u 1001
+#29 CACHED
+
+#30 [gate-server runner  5/10] COPY package*.json ./
+#30 CACHED
+
+#31 [gate-server runner  6/10] RUN npm install --omit=dev &&     npm cache clean --force
+#31 CACHED
+
+#32 [gate-server runner  7/10] COPY --from=builder /app/dist ./dist
+#32 DONE 0.0s
+
+#33 [gate-server runner  8/10] COPY --from=builder /app/src/module/common/table/config ./dist/module/common/table/config
+#33 DONE 0.0s
+
+#34 [gate-server runner  9/10] COPY --from=builder /app/src/*.key /app/src/*.crt ./dist/
+#34 DONE 0.0s
+
+#35 [gate-server runner 10/10] RUN mkdir -p /app/logs &&     chown -R nodejs:nodejs /app
+#35 DONE 7.4s
+
+#18 [admin-dashboard builder 4/4] RUN pnpm run build
+#18 ...
+
+#36 [gate-server] exporting to image
+#36 exporting layers
+#36 exporting layers 0.3s done
+#36 writing image sha256:693ccf1c08c5607c005ae75a666e2de3489f745d6283a8d54edc5bbc08b47af2
+#36 writing image sha256:693ccf1c08c5607c005ae75a666e2de3489f745d6283a8d54edc5bbc08b47af2 done
+#36 naming to docker.io/library/oops-coinpusher-gate-server done
+#36 DONE 0.3s
+
+#37 [gate-server] resolving provenance for metadata file
+#37 DONE 0.0s
+
+#18 [admin-dashboard builder 4/4] RUN pnpm run build
+#18 37.45 
+#18 37.45 Route (app)                                 Size  First Load JS
+#18 37.45 ┌ ○ /                                      461 B         102 kB
+#18 37.45 ├ ○ /_not-found                            994 B         103 kB
+#18 37.45 ├ ○ /dashboard                           3.67 kB         113 kB
+#18 37.45 ├ ○ /dashboard/admins                    3.61 kB         113 kB
+#18 37.45 ├ ○ /dashboard/analytics                 4.78 kB         107 kB
+#18 37.45 ├ ○ /dashboard/announcements             6.31 kB         154 kB
+#18 37.45 ├ ○ /dashboard/audit                     4.43 kB         106 kB
+#18 37.45 ├ ○ /dashboard/cdk                       6.27 kB         154 kB
+#18 37.45 ├ ○ /dashboard/config                    4.51 kB         106 kB
+#18 37.45 ├ ○ /dashboard/events                    4.78 kB         107 kB
+#18 37.45 ├ ○ /dashboard/finance                   9.09 kB         153 kB
+#18 37.45 ├ ○ /dashboard/logs                       1.5 kB         103 kB
+#18 37.45 ├ ○ /dashboard/mails                     3.35 kB         105 kB
+#18 37.45 ├ ○ /dashboard/monitor                   4.61 kB         114 kB
+#18 37.45 ├ ○ /dashboard/users                     3.63 kB         113 kB
+#18 37.45 ├ ƒ /dashboard/users/[userId]            10.1 kB         141 kB
+#18 37.45 ├ ○ /dashboard/users/batch               8.05 kB         122 kB
+#18 37.45 └ ○ /login                               2.49 kB         104 kB
+#18 37.45 + First Load JS shared by all             102 kB
+#18 37.45   ├ chunks/52354350-b97add9366503fa8.js  54.2 kB
+#18 37.45   ├ chunks/996-05b7de92418afb81.js       45.8 kB
+#18 37.45   └ other shared chunks (total)          1.93 kB
+#18 37.45 
+#18 37.45 
+#18 37.45 ○  (Static)   prerendered as static content
+#18 37.45 ƒ  (Dynamic)  server-rendered on demand
+#18 37.45 
+#18 DONE 37.6s
+
+#38 [admin-dashboard runner 2/5] RUN addgroup --system --gid 1001 nodejs
+#38 CACHED
+
+#39 [admin-dashboard runner 3/5] RUN adduser --system --uid 1001 nextjs
+#39 CACHED
+
+#40 [admin-dashboard runner 4/5] COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+#40 DONE 0.2s
+
+#41 [admin-dashboard runner 5/5] COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+#41 DONE 0.0s
+
+#42 [admin-dashboard] exporting to image
+#42 exporting layers 0.2s done
+#42 writing image sha256:1e64fb978cbf19cfcf45e7decf20b6258830233dee9902e8a20a22c4faaf1c81
+#42 writing image sha256:1e64fb978cbf19cfcf45e7decf20b6258830233dee9902e8a20a22c4faaf1c81 done
+#42 naming to docker.io/library/oops-coinpusher-admin-dashboard done
+#42 DONE 0.2s
+
+#43 [admin-dashboard] resolving provenance for metadata file
+#43 DONE 0.0s
+ admin-dashboard  Built
+ gate-server  Built
+ Container oops-coinpusher-mongodb  Creating
+ Container oops-coinpusher-mongodb  Created
+ Container oops-coinpusher-gate  Creating
+ Container oops-coinpusher-gate  Created
+ Container oops-coinpusher-admin  Creating
+ Container oops-coinpusher-admin  Created
+ Container oops-coinpusher-mongodb  Starting
+Error response from daemon: driver failed programming external connectivity on endpoint oops-coinpusher-mongodb (0c69a6fd4a410dba99f192438484ba664d8a9dbf1f6af6a117fcccea7808cbfe): Bind for 0.0.0.0:27017 failed: port is already allocated

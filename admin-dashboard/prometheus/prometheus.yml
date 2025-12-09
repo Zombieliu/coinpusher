@@ -1,0 +1,48 @@
+# Prometheus 配置文件
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'coinpusher'
+    environment: 'production'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - '/etc/prometheus/rules/*.yml'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'gate-server'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['gate-server:2000']
+        labels:
+          service: 'gate'
+
+  - job_name: 'match-server'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['match-server:3001']
+        labels:
+          service: 'match'
+
+  - job_name: 'room-server'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['room-server:3002']
+        labels:
+          service: 'room'
+
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+        labels:
+          service: 'mongodb'

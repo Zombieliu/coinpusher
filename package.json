@@ -1,0 +1,31 @@
+{
+  "creator": {
+    "version": "3.8.7"
+  },
+  "dependencies": {
+    "@sentry/browser": "^10.27.0",
+    "@tsrpc/browser": "^0.0.1",
+    "@types/uuid": "^11.0.0",
+    "@types/ws": "^8.18.1",
+    "crypto-es": "^2.1.0",
+    "ioredis": "^5.8.2",
+    "mongodb": "^4.4.0",
+    "seedrandom": "^3.0.5",
+    "tsrpc-browser": "^3.4.16",
+    "tsrpc-miniapp": "^3.4.5",
+    "uuid": "^13.0.0",
+    "ws": "^8.18.3"
+  },
+  "description": "推币机游戏",
+  "name": "oops-coinpusher",
+  "uuid": "ab894822-b162-4951-8c6e-ba5e78c4fb9a",
+  "version": "3.7.0",
+  "_sourceId": "dd3bb6a5-a8e2-4095-95c7-80710684efc3",
+  "_storeId": "ae981d3052f8a731fc5f1e47becacc0e",
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,61 @@
+# Prometheus 配置文件
+# 用于抓取 Coin Pusher Game 服务器的 metrics
+
+global:
+  scrape_interval: 15s     # 每15秒抓取一次指标
+  evaluation_interval: 15s # 每15秒评估一次告警规则
+  external_labels:
+    cluster: 'coin-pusher-game'
+    env: 'production'
+
+# 告警管理器配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager:9093'
+
+# 告警规则文件（临时禁用，因为告警规则中有模板语法错误）
+# rule_files:
+#   - 'alert_rules.yml'
+
+# 抓取配置
+scrape_configs:
+  # Gate Server
+  - job_name: 'gate-server'
+    static_configs:
+      - targets: ['gate-server:9090']
+        labels:
+          service: 'gate'
+          server_type: 'backend'
+
+  # Match Server
+  - job_name: 'match-server'
+    static_configs:
+      - targets: ['match-server:9091']
+        labels:
+          service: 'match'
+          server_type: 'backend'
+
+  # Room Server
+  - job_name: 'room-server'
+    static_configs:
+      - targets: ['room-server:9092']
+        labels:
+          service: 'room'
+          server_type: 'backend'
+
+  # Node Exporter (系统指标)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # MongoDB Exporter (可选，如果安装了)
+  # - job_name: 'mongodb-exporter'
+  #   static_configs:
+  #     - targets: ['mongodb-exporter:9216']
+
+  # Redis Exporter (可选，如果安装了)
+  # - job_name: 'redis-exporter'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']

@@ -1,0 +1,16 @@
+{
+  "profile": "4c8g",
+  "config": "4\u68388G",
+  "elapsed": 46.79683828353882,
+  "room_count": 100,
+  "coins_per_room": 100,
+  "total_coins": 10000,
+  "messages_sent": 10100,
+  "messages_received": 410902,
+  "snapshots": 9421,
+  "errors": 100,
+  "msg_per_sec": 215.82654663130864,
+  "avg_latency": 9.77074405934551,
+  "p95_latency": 41.233062744140625,
+  "p99_latency": 71.75087928771973
+}

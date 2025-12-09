@@ -1,0 +1,113 @@
+version: '3.8'
+
+# 🛡️ 高级安全模块 - 一键部署
+# 包含: DragonflyDB + Prometheus + Grafana + Alertmanager
+
+services:
+  # ===== DragonflyDB (Redis兼容，性能25x) =====
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    container_name: oops-dragonfly
+    ports:
+      - "${DRAGONFLY_PORT:-6379}:6379"
+    volumes:
+      - dragonfly_data:/data
+    command:
+      - --maxmemory=${DRAGONFLY_MAX_MEMORY:-4gb}
+      - --dir=/data
+      - --snapshot_cron=0 */6 * * *  # 每6小时快照
+      - --requirepass=${DRAGONFLY_PASSWORD:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - oops_network
+
+  # ===== Prometheus (监控数据采集) =====
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: oops-prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    depends_on:
+      - dragonfly
+    networks:
+      - oops_network
+
+  # ===== Grafana (可视化面板) =====
+  grafana:
+    image: grafana/grafana:latest
+    container_name: oops-grafana
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=redis-datasource,yesoreyeram-infinity-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - oops_network
+
+  # ===== Alertmanager (告警管理) =====
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: oops-alertmanager
+    ports:
+      - "${ALERTMANAGER_PORT:-9093}:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    restart: unless-stopped
+    networks:
+      - oops_network
+
+  # ===== Node Exporter (系统指标) =====
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: oops-node-exporter
+    ports:
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
+    command:
+      - '--path.rootfs=/host'
+    volumes:
+      - '/:/host:ro,rslave'
+    restart: unless-stopped
+    networks:
+      - oops_network
+
+volumes:
+  dragonfly_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+
+networks:
+  oops_network:
+    driver: bridge

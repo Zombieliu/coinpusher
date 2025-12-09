@@ -1,0 +1,207 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 844B done
+#1 DONE 0.0s
+
+#2 [gate-server internal] load build definition from Dockerfile.gate
+#2 transferring dockerfile: 2.38kB done
+#2 DONE 0.0s
+
+#3 [admin-dashboard internal] load build definition from Dockerfile
+#3 transferring dockerfile: 979B done
+#3 DONE 0.0s
+
+#4 [gate-server internal] load metadata for docker.io/library/node:20-alpine
+#4 DONE 1.4s
+
+#5 [gate-server internal] load .dockerignore
+#5 transferring context: 2B done
+#5 DONE 0.0s
+
+#6 [admin-dashboard internal] load .dockerignore
+#6 transferring context: 166B done
+#6 DONE 0.0s
+
+#7 [gate-server base 1/2] FROM docker.io/library/node:20-alpine@sha256:643e7036aa985317ebfee460005e322aa550c6b6883000d01daefb58689a58e2
+#7 DONE 0.0s
+
+#8 [admin-dashboard internal] load build context
+#8 transferring context: 12.19kB done
+#8 DONE 0.0s
+
+#9 [admin-dashboard base 2/2] RUN corepack enable && corepack prepare pnpm@latest --activate
+#9 CACHED
+
+#10 [admin-dashboard deps 1/3] WORKDIR /app
+#10 CACHED
+
+#11 [admin-dashboard deps 2/3] COPY package.json pnpm-lock.yaml ./
+#11 CACHED
+
+#12 [admin-dashboard deps 3/3] RUN pnpm install --frozen-lockfile
+#12 CACHED
+
+#13 [admin-dashboard builder 2/4] COPY --from=deps /app/node_modules ./node_modules
+#13 CACHED
+
+#14 [admin-dashboard builder 3/4] COPY . .
+#14 DONE 0.0s
+
+#15 [gate-server internal] load build context
+#15 transferring context: 29.15kB 1.8s done
+#15 DONE 1.8s
+
+#16 [gate-server runner  3/10] WORKDIR /app
+#16 CACHED
+
+#17 [gate-server runner  6/10] RUN npm install --omit=dev &&     npm cache clean --force
+#17 CACHED
+
+#18 [gate-server runner  9/10] COPY --from=builder /app/src/*.key /app/src/*.crt ./dist/
+#18 CACHED
+
+#19 [gate-server builder 8/9] RUN npx tsc --skipLibCheck || true
+#19 CACHED
+
+#20 [gate-server builder 3/9] COPY --from=deps /app/node_modules ./node_modules
+#20 CACHED
+
+#21 [gate-server builder 4/9] COPY package*.json ./
+#21 CACHED
+
+#22 [gate-server builder 9/9] RUN if [ ! -d "dist" ]; then npx tsc --skipLibCheck --noEmitOnError false; fi
+#22 CACHED
+
+#23 [gate-server deps 3/4] COPY package*.json ./
+#23 CACHED
+
+#24 [gate-server builder 6/9] COPY tsrpc.config.ts ./
+#24 CACHED
+
+#25 [gate-server runner  5/10] COPY package*.json ./
+#25 CACHED
+
+#26 [gate-server runner  8/10] COPY --from=builder /app/src/module/common/table/config ./dist/module/common/table/config
+#26 CACHED
+
+#27 [gate-server runner  7/10] COPY --from=builder /app/dist ./dist
+#27 CACHED
+
+#28 [gate-server deps 2/4] WORKDIR /app
+#28 CACHED
+
+#29 [gate-server builder 5/9] COPY tsconfig.json ./
+#29 CACHED
+
+#30 [gate-server runner  4/10] RUN addgroup -g 1001 -S nodejs &&     adduser -S nodejs -u 1001
+#30 CACHED
+
+#31 [gate-server deps 4/4] RUN npm ci
+#31 CACHED
+
+#32 [gate-server builder 7/9] COPY src ./src
+#32 CACHED
+
+#33 [gate-server runner  2/10] RUN apk add --no-cache dumb-init wget
+#33 CACHED
+
+#34 [gate-server runner 10/10] RUN mkdir -p /app/logs &&     chown -R nodejs:nodejs /app
+#34 CACHED
+
+#35 [gate-server] exporting to image
+#35 exporting layers done
+#35 writing image sha256:693ccf1c08c5607c005ae75a666e2de3489f745d6283a8d54edc5bbc08b47af2 done
+#35 naming to docker.io/library/oops-coinpusher-gate-server done
+#35 DONE 0.0s
+
+#36 [gate-server] resolving provenance for metadata file
+#36 DONE 0.0s
+
+#37 [admin-dashboard builder 4/4] RUN pnpm run build
+#37 0.384 
+#37 0.384 > oops-coinpusher-admin@1.0.0 build /app
+#37 0.384 > next build
+#37 0.384 
+#37 0.772 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#37 0.773 This information is used to shape Next.js' roadmap and prioritize features.
+#37 0.773 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#37 0.773 https://nextjs.org/telemetry
+#37 0.773 
+#37 0.834    ▲ Next.js 15.5.6
+#37 0.834 
+#37 0.904    Creating an optimized production build ...
+#37 13.98  ✓ Compiled successfully in 11.4s
+#37 13.99    Linting and checking validity of types ...
+#37 18.91    Collecting page data ...
+#37 20.28    Generating static pages (0/19) ...
+#37 20.67    Generating static pages (4/19) 
+#37 20.74    Generating static pages (9/19) 
+#37 20.74    Generating static pages (14/19) 
+#37 20.74  ✓ Generating static pages (19/19)
+#37 21.31    Finalizing page optimization ...
+#37 21.31    Collecting build traces ...
+#37 36.66 
+#37 36.66 Route (app)                                 Size  First Load JS
+#37 36.66 ┌ ○ /                                      461 B         102 kB
+#37 36.66 ├ ○ /_not-found                            994 B         103 kB
+#37 36.66 ├ ○ /dashboard                           3.67 kB         113 kB
+#37 36.66 ├ ○ /dashboard/admins                    3.61 kB         113 kB
+#37 36.66 ├ ○ /dashboard/analytics                 4.78 kB         107 kB
+#37 36.66 ├ ○ /dashboard/announcements             6.31 kB         154 kB
+#37 36.66 ├ ○ /dashboard/audit                     4.43 kB         106 kB
+#37 36.66 ├ ○ /dashboard/cdk                       6.27 kB         154 kB
+#37 36.66 ├ ○ /dashboard/config                    4.51 kB         106 kB
+#37 36.66 ├ ○ /dashboard/events                    4.78 kB         107 kB
+#37 36.66 ├ ○ /dashboard/finance                   9.09 kB         153 kB
+#37 36.66 ├ ○ /dashboard/logs                       1.5 kB         103 kB
+#37 36.66 ├ ○ /dashboard/mails                     3.35 kB         105 kB
+#37 36.66 ├ ○ /dashboard/monitor                   4.61 kB         114 kB
+#37 36.66 ├ ○ /dashboard/users                     3.63 kB         113 kB
+#37 36.66 ├ ƒ /dashboard/users/[userId]            10.1 kB         141 kB
+#37 36.66 ├ ○ /dashboard/users/batch               8.05 kB         122 kB
+#37 36.66 └ ○ /login                               2.49 kB         104 kB
+#37 36.66 + First Load JS shared by all             102 kB
+#37 36.66   ├ chunks/52354350-b97add9366503fa8.js  54.2 kB
+#37 36.66   ├ chunks/996-05b7de92418afb81.js       45.8 kB
+#37 36.66   └ other shared chunks (total)          1.93 kB
+#37 36.66 
+#37 36.66 
+#37 36.66 ○  (Static)   prerendered as static content
+#37 36.66 ƒ  (Dynamic)  server-rendered on demand
+#37 36.66 
+#37 DONE 36.8s
+
+#38 [admin-dashboard runner 2/5] RUN addgroup --system --gid 1001 nodejs
+#38 CACHED
+
+#39 [admin-dashboard runner 3/5] RUN adduser --system --uid 1001 nextjs
+#39 CACHED
+
+#40 [admin-dashboard runner 4/5] COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+#40 DONE 0.2s
+
+#41 [admin-dashboard runner 5/5] COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+#41 DONE 0.0s
+
+#42 [admin-dashboard] exporting to image
+#42 exporting layers
+#42 exporting layers 0.2s done
+#42 writing image sha256:535ab7dc8c2005fa4252c6adb6f376b5326ed7472321d072cb2b8b4db00b08b1
+#42 writing image sha256:535ab7dc8c2005fa4252c6adb6f376b5326ed7472321d072cb2b8b4db00b08b1 done
+#42 naming to docker.io/library/oops-coinpusher-admin-dashboard done
+#42 DONE 0.2s
+
+#43 [admin-dashboard] resolving provenance for metadata file
+#43 DONE 0.0s
+ gate-server  Built
+ admin-dashboard  Built
+ Container oops-coinpusher-mongodb  Running
+ Container oops-coinpusher-gate  Recreate
+ Container oops-coinpusher-gate  Recreated
+ Container oops-coinpusher-admin  Recreate
+ Container oops-coinpusher-admin  Recreated
+ Container oops-coinpusher-mongodb  Waiting
+ Container oops-coinpusher-mongodb  Healthy
+ Container oops-coinpusher-gate  Starting
+ Container oops-coinpusher-gate  Started
+ Container oops-coinpusher-admin  Starting
+ Container oops-coinpusher-admin  Started

@@ -1,0 +1,203 @@
+# Prometheus 告警规则
+
+groups:
+  # ===== 安全告警 =====
+  - name: security_alerts
+    interval: 30s
+    rules:
+      # 高频投币告警
+      - alert: HighDropCoinRate
+        expr: rate(drop_coin_total[1m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "High drop coin rate detected"
+          description: "User is dropping coins at {{ $value | humanize }} req/min (threshold: 100)"
+
+      # 欺诈评分异常
+      - alert: HighFraudScore
+        expr: fraud_score > 70
+        for: 1m
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "High fraud score detected"
+          description: "User {{ $labels.userId }} has fraud score {{ $value }}"
+
+      # 大量用户触发限流
+      - alert: MassRateLimitHits
+        expr: rate(rate_limit_hits_total[5m]) > 50
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "High rate limit violation rate"
+          description: "{{ $value | humanize }} rate limit hits per second"
+
+      # 可疑登录激增
+      - alert: SuspiciousLoginSpike
+        expr: rate(suspicious_logins_total[10m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "Spike in suspicious logins"
+          description: "{{ $value | humanize }} suspicious logins per second"
+
+      # 封禁用户数突增
+      - alert: MassBanDetected
+        expr: increase(banned_users_total[5m]) > 10
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "Mass ban detected"
+          description: "{{ $value }} users banned in 5 minutes (possible false positive)"
+
+  # ===== 业务告警 =====
+  - name: business_alerts
+    interval: 30s
+    rules:
+      # 奖励发放异常
+      - alert: AbnormalRewardRate
+        expr: rate(reward_amount_total[5m]) > 1000
+        for: 5m
+        labels:
+          severity: critical
+          category: business
+        annotations:
+          summary: "Abnormal reward payout rate"
+          description: "Paying out {{ $value | humanize }} gold/second (normal: <100)"
+
+      # 活跃用户骤降
+      - alert: ActiveUsersDropped
+        expr: (active_users - active_users offset 1h) / active_users offset 1h < -0.5
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "Active users dropped significantly"
+          description: "Active users dropped by {{ $value | humanizePercentage }}"
+
+      # 房间创建失败率高
+      - alert: HighRoomCreationFailureRate
+        expr: rate(room_creations_total{success="false"}[5m]) / rate(room_creations_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "High room creation failure rate"
+          description: "{{ $value | humanizePercentage }} of room creations failing"
+
+      # 交易失败率异常
+      - alert: HighTransactionFailureRate
+        expr: rate(transaction_total{success="false"}[5m]) / rate(transaction_total[5m]) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "High transaction failure rate"
+          description: "{{ $value | humanizePercentage }} of transactions failing"
+
+  # ===== 性能告警 =====
+  - name: performance_alerts
+    interval: 30s
+    rules:
+      # API响应时间过长
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High API latency"
+          description: "P95 latency is {{ $value }}s (threshold: 1s)"
+
+      # 物理引擎tick慢
+      - alert: SlowPhysicsTick
+        expr: histogram_quantile(0.95, rate(physics_tick_duration_ms_bucket[5m])) > 33
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "Physics engine running slow"
+          description: "P95 tick duration is {{ $value }}ms (should be <33ms for 30fps)"
+
+      # DragonflyDB延迟高
+      - alert: HighDragonflyLatency
+        expr: histogram_quantile(0.95, rate(dragonfly_latency_seconds_bucket[5m])) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High DragonflyDB latency"
+          description: "P95 latency is {{ $value }}s"
+
+  # ===== 系统告警 =====
+  - name: system_alerts
+    interval: 30s
+    rules:
+      # 内存使用率高
+      - alert: HighMemoryUsage
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }}"
+
+      # CPU使用率高
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value | humanize }}%"
+
+      # 磁盘空间不足
+      - alert: DiskSpaceLow
+        expr: (1 - node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"}) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "Low disk space"
+          description: "Disk usage is {{ $value | humanizePercentage }} on {{ $labels.mountpoint }}"
+
+      # 错误率异常
+      - alert: HighErrorRate
+        expr: rate(errors_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "High error rate"
+          description: "{{ $value | humanize }} errors per second"
+
+      # 未处理的Promise拒绝
+      - alert: UnhandledRejections
+        expr: increase(unhandled_rejections_total[5m]) > 5
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "Unhandled promise rejections detected"
+          description: "{{ $value }} unhandled rejections in 5 minutes"

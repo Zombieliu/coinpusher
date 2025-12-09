@@ -1,0 +1,63 @@
+groups:
+  - name: oops-moba-alerts
+    interval: 30s
+    rules:
+      # 服务器宕机告警
+      - alert: ServerDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "服务 {{ $labels.job }} 宕机"
+          description: "{{ $labels.job }} 已经宕机超过1分钟"
+
+      # CPU 使用率过高
+      - alert: HighCPUUsage
+        expr: process_cpu_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} CPU使用率过高"
+          description: "CPU使用率 {{ $value }}%"
+
+      # 内存使用率过高
+      - alert: HighMemoryUsage
+        expr: process_memory_percent > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} 内存使用率过高"
+          description: "内存使用率 {{ $value }}%"
+
+      # 在线玩家数异常
+      - alert: NoOnlinePlayers
+        expr: online_players == 0
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "没有在线玩家"
+          description: "已经10分钟没有在线玩家"
+
+      # MongoDB 连接失败
+      - alert: MongoDBDown
+        expr: mongodb_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MongoDB 连接失败"
+          description: "无法连接到 MongoDB"
+
+      # API 响应时间过长
+      - alert: SlowAPIResponse
+        expr: api_response_time_seconds > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API响应时间过长"
+          description: "API {{ $labels.api }} 响应时间 {{ $value }}秒"

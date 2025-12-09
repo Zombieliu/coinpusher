@@ -1,0 +1,25 @@
+{
+  "test_name": "transpacific",
+  "network": {
+    "bandwidth": "10mbit",
+    "latency": "200ms",
+    "loss": "1%"
+  },
+  "metrics": {
+    "elapsed": 24.442142963409424,
+    "room_count": 50,
+    "total_coins": 4000,
+    "messages_sent": 4050,
+    "messages_received": 2979,
+    "errors": 0,
+    "timeouts": 50,
+    "msg_per_sec": 165.69741884183247,
+    "avg_latency": 0.04994486585075473,
+    "p50_latency": 0.041961669921875,
+    "p95_latency": 0.09584426879882812,
+    "p99_latency": 0.19097328186035156,
+    "avg_connection_time": 0.2503633499145508,
+    "timeout_rate": 1.2345679012345678,
+    "error_rate": 0.0
+  }
+}

@@ -1,0 +1,229 @@
+version: '3.8'
+
+# 🏗️ 微服务架构部署配置
+#
+# 包含的服务：
+# - Gateway × 2 (负载均衡)
+# - Physics Worker × 3
+# - DragonflyDB (消息队列 + 缓存)
+# - MongoDB (持久化)
+# - Prometheus + Grafana (监控)
+
+services:
+  # ============ 负载均衡器 ============
+  nginx:
+    image: nginx:alpine
+    container_name: oops-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - gateway1
+      - gateway2
+    networks:
+      - oops_network
+
+  # ============ Gateway 服务 (多实例) ============
+  gateway1:
+    build:
+      context: ./microservices/gateway
+      dockerfile: Dockerfile
+    container_name: oops-gateway1
+    environment:
+      - GATEWAY_ID=gateway1
+      - PORT=3000
+      - DRAGONFLY_HOST=dragonfly
+      - DRAGONFLY_PORT=6379
+      - REQUEST_TIMEOUT=5000
+      - NODE_ENV=production
+    depends_on:
+      - dragonfly
+    networks:
+      - oops_network
+    restart: unless-stopped
+
+  gateway2:
+    build:
+      context: ./microservices/gateway
+      dockerfile: Dockerfile
+    container_name: oops-gateway2
+    environment:
+      - GATEWAY_ID=gateway2
+      - PORT=3000
+      - DRAGONFLY_HOST=dragonfly
+      - DRAGONFLY_PORT=6379
+      - REQUEST_TIMEOUT=5000
+      - NODE_ENV=production
+    depends_on:
+      - dragonfly
+    networks:
+      - oops_network
+    restart: unless-stopped
+
+  # ============ Physics Worker 服务 (多实例) ============
+  physics-worker1:
+    build:
+      context: ./microservices/physics-worker
+      dockerfile: Dockerfile
+    container_name: oops-physics-worker1
+    environment:
+      - WORKER_ID=worker1
+      - MAX_ROOMS=20
+      - UPDATE_FPS=30
+      - DRAGONFLY_HOST=dragonfly
+      - DRAGONFLY_PORT=6379
+      - NODE_ENV=production
+    depends_on:
+      - dragonfly
+    networks:
+      - oops_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+  physics-worker2:
+    build:
+      context: ./microservices/physics-worker
+      dockerfile: Dockerfile
+    container_name: oops-physics-worker2
+    environment:
+      - WORKER_ID=worker2
+      - MAX_ROOMS=20
+      - UPDATE_FPS=30
+      - DRAGONFLY_HOST=dragonfly
+      - DRAGONFLY_PORT=6379
+      - NODE_ENV=production
+    depends_on:
+      - dragonfly
+    networks:
+      - oops_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+  physics-worker3:
+    build:
+      context: ./microservices/physics-worker
+      dockerfile: Dockerfile
+    container_name: oops-physics-worker3
+    environment:
+      - WORKER_ID=worker3
+      - MAX_ROOMS=20
+      - UPDATE_FPS=30
+      - DRAGONFLY_HOST=dragonfly
+      - DRAGONFLY_PORT=6379
+      - NODE_ENV=production
+    depends_on:
+      - dragonfly
+    networks:
+      - oops_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+  # ============ DragonflyDB (消息队列 + 缓存) ============
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    container_name: oops-dragonfly
+    ports:
+      - "6379:6379"
+    command:
+      - --maxmemory=8gb
+      - --snapshot_cron=0 */6 * * *
+      - --dir=/data
+    volumes:
+      - dragonfly_data:/data
+    networks:
+      - oops_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 10G
+
+  # ============ MongoDB (持久化) ============
+  mongo:
+    image: mongo:7
+    container_name: oops-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=game
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - oops_network
+    restart: unless-stopped
+
+  # ============ Prometheus (监控) ============
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: oops-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    networks:
+      - oops_network
+    restart: unless-stopped
+
+  # ============ Grafana (可视化) ============
+  grafana:
+    image: grafana/grafana:latest
+    container_name: oops-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    networks:
+      - oops_network
+    restart: unless-stopped
+
+  # ============ Node Exporter (系统指标) ============
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: oops-node-exporter
+    ports:
+      - "9100:9100"
+    networks:
+      - oops_network
+    restart: unless-stopped
+
+networks:
+  oops_network:
+    driver: bridge
+
+volumes:
+  dragonfly_data:
+    driver: local
+  mongo_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

@@ -1,0 +1,84 @@
+graph TD
+    subgraph Client_Side [客户端 (Cocos Creator)]
+        UI[UI Layer] --> NM[NetworkManager]
+        Input[Input Input] --> NM
+        
+        subgraph Network_Layer [Network Layer]
+            NM --> GS_C[GateService]
+            NM --> MS_C[MatchService]
+            NM --> RS_C[RoomService]
+        end
+        
+        subgraph Logic_Layer [Logic Layer]
+            RS_C -->|Buffer| Snapshots[Snapshot Buffer]
+            PC[PhysicsComp] -->|Interpolate| Snapshots
+            PC -->|Prediction| FakeCoins[Fake Coins]
+        end
+        
+        subgraph Render_Layer [Render Layer]
+            PC -->|Render| CocosNodes[Cocos Nodes]
+        end
+    end
+
+    subgraph Server_Side [服务端 (Node.js + TSRPC)]
+        
+        subgraph Gate_Cluster [Gate Server Cluster]
+            Gate[Gate Server]
+            Auth[Auth Module]
+            Wallet[Wallet Module]
+            DB_C[DB Client]
+        end
+        
+        subgraph Match_Cluster [Match Server Cluster]
+            Match[Match Server]
+            SD[Service Discovery]
+            LB[Load Balancer]
+        end
+        
+        subgraph Room_Cluster [Room Server Cluster (Auto-Scaling)]
+            Room1[Room Server 1]
+            Room2[Room Server 2]
+            RoomN[Room Server N]
+            
+            subgraph Room_Instance [Room Instance]
+                ECS[ECS Loop]
+                Rapier[Rapier Physics World]
+                Sync[State Sync]
+            end
+        end
+        
+        subgraph Data_Layer [Data Layer]
+            MongoDB[(MongoDB)]
+            Redis[(Redis)]
+        end
+    end
+
+    %% Connections
+    GS_C -- HTTP (Login) --> Gate
+    MS_C -- HTTP (Match) --> Match
+    RS_C -- WebSocket (Game) --> Room1
+    
+    Gate -- Read/Write --> MongoDB
+    Gate -- Cache --> Redis
+    
+    Match -- Register/Heartbeat --> Room1
+    Match -- Register/Heartbeat --> Room2
+    Match -- Register/Heartbeat --> RoomN
+    
+    Room1 -- RPC (Deduct/Add Gold) --> Gate
+    Room1 -- Physics Tick --> Rapier
+    Rapier -- Position Data --> Sync
+    Sync -- MsgSyncPhysics --> RS_C
+    
+    %% Flow
+    Input -- DropCoin(x) --> Room1
+    Room1 -- DeductGold --> Gate
+    Gate -- Result --> Room1
+    Room1 -- Spawn Body --> Rapier
+    
+    style Client_Side fill:#e1f5fe,stroke:#01579b
+    style Server_Side fill:#fff3e0,stroke:#ff6f00
+    style Gate_Cluster fill:#e8f5e9,stroke:#2e7d32
+    style Match_Cluster fill:#f3e5f5,stroke:#7b1fa2
+    style Room_Cluster fill:#ffebee,stroke:#c62828
+    style Data_Layer fill:#eceff1,stroke:#455a64

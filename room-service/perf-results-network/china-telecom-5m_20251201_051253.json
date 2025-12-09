@@ -1,0 +1,25 @@
+{
+  "test_name": "china-telecom-5m",
+  "network": {
+    "bandwidth": "5mbit",
+    "latency": "20ms",
+    "loss": "0.2%"
+  },
+  "metrics": {
+    "elapsed": 24.51165199279785,
+    "room_count": 50,
+    "total_coins": 4000,
+    "messages_sent": 4050,
+    "messages_received": 1282,
+    "errors": 0,
+    "timeouts": 50,
+    "msg_per_sec": 165.22754162754893,
+    "avg_latency": 0.08015179339750314,
+    "p50_latency": 0.04696846008300781,
+    "p95_latency": 0.2071857452392578,
+    "p99_latency": 0.5490779876708984,
+    "avg_connection_time": 0.2974224090576172,
+    "timeout_rate": 1.2345679012345678,
+    "error_rate": 0.0
+  }
+}

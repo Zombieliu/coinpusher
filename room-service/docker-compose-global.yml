@@ -1,0 +1,74 @@
+version: '3.8'
+
+# 🌍 全球化场景网络测试配置
+
+services:
+  # GFW 场景 - 中国用户翻墙访问海外
+  room-service-gfw:
+    build: .
+    container_name: room-service-gfw
+    ports:
+      - "9030:9000"
+    environment:
+      - RUST_LOG=info
+      - ROOM_SERVICE_ADDR=0.0.0.0:9000
+      - TICK_RATE=30
+    cap_add:
+      - NET_ADMIN
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+    networks:
+      - global-test
+    profiles:
+      - gfw
+
+  # 跨太平洋 - 中国↔美国
+  room-service-transpacific:
+    build: .
+    container_name: room-service-transpacific
+    ports:
+      - "9031:9000"
+    environment:
+      - RUST_LOG=info
+      - ROOM_SERVICE_ADDR=0.0.0.0:9000
+      - TICK_RATE=30
+    cap_add:
+      - NET_ADMIN
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+    networks:
+      - global-test
+    profiles:
+      - transpacific
+
+  # 跨大西洋 - 欧洲↔美国
+  room-service-transatlantic:
+    build: .
+    container_name: room-service-transatlantic
+    ports:
+      - "9032:9000"
+    environment:
+      - RUST_LOG=info
+      - ROOM_SERVICE_ADDR=0.0.0.0:9000
+      - TICK_RATE=30
+    cap_add:
+      - NET_ADMIN
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+    networks:
+      - global-test
+    profiles:
+      - transatlantic
+
+networks:
+  global-test:
+    driver: bridge

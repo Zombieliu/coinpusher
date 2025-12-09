@@ -1,0 +1,276 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 844B done
+#1 DONE 0.0s
+
+#2 [gate-server internal] load build definition from Dockerfile.gate
+#2 transferring dockerfile: 2.38kB done
+#2 DONE 0.0s
+
+#3 [admin-dashboard internal] load build definition from Dockerfile
+#3 transferring dockerfile: 979B done
+#3 DONE 0.0s
+
+#4 [admin-dashboard internal] load metadata for docker.io/library/node:20-alpine
+#4 DONE 0.0s
+
+#5 [gate-server internal] load .dockerignore
+#5 transferring context: 2B done
+#5 DONE 0.0s
+
+#6 [admin-dashboard internal] load .dockerignore
+#6 transferring context: 166B done
+#6 DONE 0.0s
+
+#7 [gate-server base 1/2] FROM docker.io/library/node:20-alpine
+#7 CACHED
+
+#8 [admin-dashboard internal] load build context
+#8 transferring context: 12.51kB done
+#8 DONE 0.0s
+
+#9 [gate-server internal] load build context
+#9 transferring context: 29.15kB 1.8s done
+#9 DONE 1.8s
+
+#10 [gate-server builder 9/9] RUN if [ ! -d "dist" ]; then npx tsc --skipLibCheck --noEmitOnError false; fi
+#10 CACHED
+
+#11 [gate-server deps 2/4] WORKDIR /app
+#11 CACHED
+
+#12 [gate-server runner  6/10] RUN npm install --omit=dev &&     npm cache clean --force
+#12 CACHED
+
+#13 [gate-server runner  3/10] WORKDIR /app
+#13 CACHED
+
+#14 [gate-server builder 7/9] COPY src ./src
+#14 CACHED
+
+#15 [gate-server builder 3/9] COPY --from=deps /app/node_modules ./node_modules
+#15 CACHED
+
+#16 [gate-server builder 4/9] COPY package*.json ./
+#16 CACHED
+
+#17 [gate-server runner  4/10] RUN addgroup -g 1001 -S nodejs &&     adduser -S nodejs -u 1001
+#17 CACHED
+
+#18 [gate-server deps 4/4] RUN npm ci
+#18 CACHED
+
+#19 [gate-server runner  9/10] COPY --from=builder /app/src/*.key /app/src/*.crt ./dist/
+#19 CACHED
+
+#20 [gate-server builder 8/9] RUN npx tsc --skipLibCheck || true
+#20 CACHED
+
+#21 [gate-server deps 3/4] COPY package*.json ./
+#21 CACHED
+
+#22 [gate-server runner  2/10] RUN apk add --no-cache dumb-init wget
+#22 CACHED
+
+#23 [gate-server builder 6/9] COPY tsrpc.config.ts ./
+#23 CACHED
+
+#24 [gate-server runner  5/10] COPY package*.json ./
+#24 CACHED
+
+#25 [gate-server builder 5/9] COPY tsconfig.json ./
+#25 CACHED
+
+#26 [gate-server runner  7/10] COPY --from=builder /app/dist ./dist
+#26 CACHED
+
+#27 [gate-server runner  8/10] COPY --from=builder /app/src/module/common/table/config ./dist/module/common/table/config
+#27 CACHED
+
+#28 [gate-server runner 10/10] RUN mkdir -p /app/logs &&     chown -R nodejs:nodejs /app
+#28 CACHED
+
+#29 [gate-server] exporting to image
+#29 exporting layers done
+#29 writing image sha256:c5d675041ab9c876b240ad9d77ab7a9bda2f06adc9ffa40695ae8e592d001420 done
+#29 naming to docker.io/library/oops-coinpusher-gate-server done
+#29 DONE 0.0s
+
+#30 [gate-server] resolving provenance for metadata file
+#30 DONE 0.0s
+
+#31 [admin-dashboard base 2/2] RUN corepack enable && corepack prepare pnpm@latest --activate
+#31 1.253 Preparing pnpm@latest for immediate activation...
+#31 DONE 3.0s
+
+#32 [admin-dashboard deps 1/3] WORKDIR /app
+#32 DONE 0.0s
+
+#33 [admin-dashboard deps 2/3] COPY package.json pnpm-lock.yaml ./
+#33 DONE 0.0s
+
+#34 [admin-dashboard runner 2/5] RUN addgroup --system --gid 1001 nodejs
+#34 DONE 0.2s
+
+#35 [admin-dashboard deps 3/3] RUN pnpm install --frozen-lockfile
+#35 ...
+
+#36 [admin-dashboard runner 3/5] RUN adduser --system --uid 1001 nextjs
+#36 DONE 0.1s
+
+#35 [admin-dashboard deps 3/3] RUN pnpm install --frozen-lockfile
+#35 0.474 Lockfile is up to date, resolution step is skipped
+#35 0.521 Progress: resolved 1, reused 0, downloaded 0, added 0
+#35 0.618 Packages: +460
+#35 0.618 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#35 1.522 Progress: resolved 460, reused 0, downloaded 38, added 38
+#35 2.523 Progress: resolved 460, reused 0, downloaded 95, added 95
+#35 3.524 Progress: resolved 460, reused 0, downloaded 164, added 163
+#35 4.388  WARN  Tarball download average speed 6 KiB/s (size 7 KiB) is below 50 KiB/s: https://registry.npmjs.org/@nodelib/fs.walk/-/fs.walk-1.2.8.tgz (GET)
+#35 4.525 Progress: resolved 460, reused 0, downloaded 226, added 225
+#35 5.526 Progress: resolved 460, reused 0, downloaded 288, added 288
+#35 6.527 Progress: resolved 460, reused 0, downloaded 363, added 363
+#35 7.527 Progress: resolved 460, reused 0, downloaded 453, added 453
+#35 8.528 Progress: resolved 460, reused 0, downloaded 455, added 455
+#35 9.530 Progress: resolved 460, reused 0, downloaded 457, added 457
+#35 12.74 Progress: resolved 460, reused 0, downloaded 458, added 457
+#35 13.74 Progress: resolved 460, reused 0, downloaded 458, added 458
+#35 15.50 Progress: resolved 460, reused 0, downloaded 459, added 458
+#35 16.50 Progress: resolved 460, reused 0, downloaded 459, added 459
+#35 29.55 Progress: resolved 460, reused 0, downloaded 460, added 459
+#35 29.56 Progress: resolved 460, reused 0, downloaded 460, added 460, done
+#35 29.78 
+#35 29.78 dependencies:
+#35 29.78 + @radix-ui/react-accordion 1.2.12
+#35 29.78 + @radix-ui/react-alert-dialog 1.1.15
+#35 29.78 + @radix-ui/react-avatar 1.1.11
+#35 29.78 + @radix-ui/react-checkbox 1.3.3
+#35 29.78 + @radix-ui/react-dialog 1.1.15
+#35 29.78 + @radix-ui/react-dropdown-menu 2.1.16
+#35 29.78 + @radix-ui/react-icons 1.3.2
+#35 29.78 + @radix-ui/react-label 2.1.8
+#35 29.78 + @radix-ui/react-popover 1.1.15
+#35 29.78 + @radix-ui/react-select 2.2.6
+#35 29.78 + @radix-ui/react-separator 1.1.8
+#35 29.78 + @radix-ui/react-slot 1.2.4
+#35 29.78 + @radix-ui/react-switch 1.2.6
+#35 29.78 + @radix-ui/react-tabs 1.1.13
+#35 29.78 + @radix-ui/react-toast 1.2.15
+#35 29.78 + @radix-ui/react-tooltip 1.2.8
+#35 29.78 + class-variance-authority 0.7.1
+#35 29.78 + clsx 2.1.1
+#35 29.78 + date-fns 3.6.0
+#35 29.78 + lucide-react 0.300.0
+#35 29.78 + next 15.5.6
+#35 29.78 + react 18.3.1
+#35 29.78 + react-dom 18.3.1
+#35 29.78 + recharts 2.15.4
+#35 29.78 + tailwind-merge 2.6.0
+#35 29.78 + tailwindcss-animate 1.0.7
+#35 29.78 + zustand 4.5.7
+#35 29.78 
+#35 29.78 devDependencies:
+#35 29.78 + @types/node 20.19.25
+#35 29.78 + @types/react 18.3.27
+#35 29.78 + @types/react-dom 18.3.7
+#35 29.78 + autoprefixer 10.4.22
+#35 29.78 + eslint 8.57.1
+#35 29.78 + eslint-config-next 15.5.6
+#35 29.78 + postcss 8.5.6
+#35 29.78 + tailwindcss 3.4.18
+#35 29.78 + typescript 5.9.3
+#35 29.78 
+#35 29.79 ╭ Warning ─────────────────────────────────────────────────────────────────────╮
+#35 29.79 │                                                                              │
+#35 29.79 │   Ignored build scripts: sharp@0.34.5, unrs-resolver@1.11.1.                 │
+#35 29.79 │   Run "pnpm approve-builds" to pick which dependencies should be allowed     │
+#35 29.79 │   to run scripts.                                                            │
+#35 29.79 │                                                                              │
+#35 29.79 ╰──────────────────────────────────────────────────────────────────────────────╯
+#35 29.81 Done in 29.6s using pnpm v10.25.0
+#35 DONE 30.3s
+
+#37 [admin-dashboard builder 2/4] COPY --from=deps /app/node_modules ./node_modules
+#37 DONE 2.2s
+
+#38 [admin-dashboard builder 3/4] COPY . .
+#38 DONE 0.0s
+
+#39 [admin-dashboard builder 4/4] RUN pnpm run build
+#39 0.381 
+#39 0.381 > oops-coinpusher-admin@1.0.0 build /app
+#39 0.381 > next build
+#39 0.381 
+#39 0.739 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#39 0.739 This information is used to shape Next.js' roadmap and prioritize features.
+#39 0.739 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#39 0.739 https://nextjs.org/telemetry
+#39 0.739 
+#39 0.796    ▲ Next.js 15.5.6
+#39 0.796 
+#39 0.862    Creating an optimized production build ...
+#39 13.76  ✓ Compiled successfully in 11.2s
+#39 13.77    Linting and checking validity of types ...
+#39 18.64    Collecting page data ...
+#39 19.97    Generating static pages (0/19) ...
+#39 20.35    Generating static pages (4/19) 
+#39 20.42    Generating static pages (9/19) 
+#39 20.42    Generating static pages (14/19) 
+#39 20.42  ✓ Generating static pages (19/19)
+#39 20.99    Finalizing page optimization ...
+#39 20.99    Collecting build traces ...
+#39 36.04 
+#39 36.04 Route (app)                                 Size  First Load JS
+#39 36.04 ┌ ○ /                                      461 B         102 kB
+#39 36.04 ├ ○ /_not-found                            994 B         103 kB
+#39 36.04 ├ ○ /dashboard                           3.76 kB         113 kB
+#39 36.04 ├ ○ /dashboard/admins                    3.69 kB         113 kB
+#39 36.04 ├ ○ /dashboard/analytics                 4.87 kB         107 kB
+#39 36.04 ├ ○ /dashboard/announcements             6.31 kB         154 kB
+#39 36.04 ├ ○ /dashboard/audit                     4.51 kB         106 kB
+#39 36.04 ├ ○ /dashboard/cdk                       6.26 kB         154 kB
+#39 36.04 ├ ○ /dashboard/config                    4.58 kB         107 kB
+#39 36.04 ├ ○ /dashboard/events                    4.87 kB         107 kB
+#39 36.04 ├ ○ /dashboard/finance                   9.18 kB         153 kB
+#39 36.04 ├ ○ /dashboard/logs                       1.5 kB         103 kB
+#39 36.04 ├ ○ /dashboard/mails                     3.43 kB         105 kB
+#39 36.04 ├ ○ /dashboard/monitor                    4.7 kB         114 kB
+#39 36.04 ├ ○ /dashboard/users                      3.7 kB         113 kB
+#39 36.04 ├ ƒ /dashboard/users/[userId]            10.1 kB         142 kB
+#39 36.04 ├ ○ /dashboard/users/batch               8.13 kB         123 kB
+#39 36.04 └ ○ /login                               2.58 kB         105 kB
+#39 36.04 + First Load JS shared by all             102 kB
+#39 36.04   ├ chunks/52354350-b97add9366503fa8.js  54.2 kB
+#39 36.04   ├ chunks/996-05b7de92418afb81.js       45.8 kB
+#39 36.04   └ other shared chunks (total)          1.93 kB
+#39 36.04 
+#39 36.04 
+#39 36.04 ○  (Static)   prerendered as static content
+#39 36.04 ƒ  (Dynamic)  server-rendered on demand
+#39 36.04 
+#39 DONE 36.2s
+
+#40 [admin-dashboard runner 4/5] COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+#40 DONE 0.2s
+
+#41 [admin-dashboard runner 5/5] COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+#41 DONE 0.0s
+
+#42 [admin-dashboard] exporting to image
+#42 exporting layers
+#42 exporting layers 0.2s done
+#42 writing image sha256:d5a123b3b50733f0abfd6e365b07e490e26c19005314d7ce8ce42b3cea5f09c6 done
+#42 naming to docker.io/library/oops-coinpusher-admin-dashboard done
+#42 DONE 0.2s
+
+#43 [admin-dashboard] resolving provenance for metadata file
+#43 DONE 0.0s
+ gate-server  Built
+ admin-dashboard  Built
+ Container oops-coinpusher-mongodb  Running
+ Container oops-coinpusher-gate  Recreate
+ Container oops-coinpusher-gate  Recreated
+ Container oops-coinpusher-admin  Running
+ Container oops-coinpusher-mongodb  Waiting
+ Container oops-coinpusher-mongodb  Healthy
+ Container oops-coinpusher-gate  Starting
+ Container oops-coinpusher-gate  Started

@@ -1,0 +1,25 @@
+{
+  "test_name": "poor-network",
+  "network": {
+    "bandwidth": "2mbit",
+    "latency": "150ms",
+    "loss": "3%"
+  },
+  "metrics": {
+    "elapsed": 24.52055311203003,
+    "room_count": 50,
+    "total_coins": 4000,
+    "messages_sent": 4050,
+    "messages_received": 281,
+    "errors": 0,
+    "timeouts": 50,
+    "msg_per_sec": 165.16756296223306,
+    "avg_latency": 0.06854345769058039,
+    "p50_latency": 0.04315376281738281,
+    "p95_latency": 0.1761913299560547,
+    "p99_latency": 0.45490264892578125,
+    "avg_connection_time": 0.2958822250366211,
+    "timeout_rate": 1.2345679012345678,
+    "error_rate": 0.0
+  }
+}

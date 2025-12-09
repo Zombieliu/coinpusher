@@ -1,0 +1,107 @@
+services:
+  # MongoDB 数据库
+  mongodb:
+    image: mongo:7.0
+    container_name: oops-coinpusher-mongodb
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_DATABASE: coinpusher_game
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - oops-coinpusher-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/coinpusher_game --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Gate 服务器
+  gate-server:
+    build:
+      context: ./tsrpc_server
+      dockerfile: Dockerfile.gate
+    container_name: oops-coinpusher-gate
+    restart: unless-stopped
+    ports:
+      - "32000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017
+      - PORT=3000
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - oops-coinpusher-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Match 服务器
+  match-server:
+    build:
+      context: ./tsrpc_server
+      dockerfile: Dockerfile.match
+    container_name: oops-coinpusher-match
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017
+      - PORT=3001
+    depends_on:
+      - gate-server
+    networks:
+      - oops-coinpusher-network
+
+  # Room 服务器
+  room-server:
+    build:
+      context: ./tsrpc_server
+      dockerfile: Dockerfile.room
+    container_name: oops-coinpusher-room
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017
+      - PORT=3002
+    depends_on:
+      - match-server
+    networks:
+      - oops-coinpusher-network
+
+  # 管理后台
+  admin-dashboard:
+    build:
+      context: ./admin-dashboard
+      dockerfile: Dockerfile
+    container_name: oops-coinpusher-admin
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://gate-server:3000
+    depends_on:
+      - gate-server
+    networks:
+      - oops-coinpusher-network
+
+networks:
+  oops-coinpusher-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local

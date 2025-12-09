@@ -1,0 +1,77 @@
+# Prometheus 配置
+
+global:
+  scrape_interval: 15s      # 每15秒采集一次
+  evaluation_interval: 15s  # 每15秒评估一次告警规则
+  external_labels:
+    cluster: 'coinpusher'
+    environment: 'production'
+
+# 告警规则文件
+rule_files:
+  - 'alerts.yml'
+
+# 告警管理器配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+# 采集配置
+scrape_configs:
+  # Gate Server
+  - job_name: 'gate-server'
+    static_configs:
+      - targets: ['host.docker.internal:9090']  # Mac/Windows
+        labels:
+          service: 'gate'
+          role: 'api'
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # Room Server
+  - job_name: 'room-server'
+    static_configs:
+      - targets: ['host.docker.internal:9091']
+        labels:
+          service: 'room'
+          role: 'game'
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # Match Server
+  - job_name: 'match-server'
+    static_configs:
+      - targets: ['host.docker.internal:9092']
+        labels:
+          service: 'match'
+          role: 'matchmaking'
+    metrics_path: /metrics
+    scrape_interval: 15s
+
+  # DragonflyDB
+  - job_name: 'dragonfly'
+    static_configs:
+      - targets: ['dragonfly:6379']
+        labels:
+          service: 'dragonfly'
+          role: 'cache'
+    metrics_path: /metrics
+
+  # Prometheus自监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter (系统指标)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'system'
+          role: 'metrics'
+
+  # Alertmanager
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']

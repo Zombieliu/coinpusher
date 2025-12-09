@@ -1,0 +1,47 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_from: 'alerts@oops-moba.com'
+  smtp_auth_username: 'alerts@oops-moba.com'
+  smtp_auth_password: 'your-password'
+
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+  routes:
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      continue: true
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+
+receivers:
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://alertmanager-webhook:5001/alerts'
+
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'admin@oops-moba.com'
+        headers:
+          Subject: '[CRITICAL] OOPS-MOBA Alert'
+    webhook_configs:
+      - url: 'http://alertmanager-webhook:5001/critical'
+
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'dev@oops-moba.com'
+        headers:
+          Subject: '[WARNING] OOPS-MOBA Alert'
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']

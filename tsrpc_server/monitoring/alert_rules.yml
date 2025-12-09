@@ -1,0 +1,177 @@
+# Prometheus 告警规则
+# Coin Pusher Game 服务监控告警
+
+groups:
+  # API 性能告警
+  - name: api_performance
+    interval: 30s
+    rules:
+      # API 响应时间过长
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(api_response_time_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API 响应时间过长 (endpoint: {{ $labels.endpoint }})"
+          description: "95分位响应时间: {{ $value }}s，超过1秒阈值"
+
+      # API 错误率过高
+      - alert: HighAPIErrorRate
+        expr: rate(api_errors_total[5m]) / rate(api_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API 错误率过高 (endpoint: {{ $labels.endpoint }})"
+          description: "错误率: {{ $value | humanizePercentage }}，超过5%阈值"
+
+      # 并发请求过多
+      - alert: HighConcurrentRequests
+        expr: api_concurrent_requests > 1000
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "并发请求数过高 (endpoint: {{ $labels.endpoint }})"
+          description: "当前并发: {{ $value }}，超过1000阈值"
+
+  # 数据库性能告警
+  - name: database_performance
+    interval: 30s
+    rules:
+      # 数据库查询时间过长
+      - alert: SlowDatabaseQueries
+        expr: histogram_quantile(0.95, rate(db_query_duration_seconds_bucket[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "数据库查询慢 (collection: {{ $labels.collection }})"
+          description: "95分位查询时间: {{ $value }}s，超过0.5秒阈值"
+
+      # 数据库错误率高
+      - alert: HighDatabaseErrorRate
+        expr: rate(db_errors_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "数据库错误频繁 (collection: {{ $labels.collection }})"
+          description: "错误率: {{ $value }} errors/s"
+
+  # 缓存性能告警
+  - name: cache_performance
+    interval: 30s
+    rules:
+      # 缓存命中率低
+      - alert: LowCacheHitRate
+        expr: rate(cache_hits_total[5m]) / (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m])) < 0.6
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "缓存命中率低 (type: {{ $labels.cache_type }})"
+          description: "命中率: {{ $value | humanizePercentage }}，低于60%阈值"
+
+      # 内存缓存过大
+      - alert: MemoryCacheTooLarge
+        expr: memory_cache_size > 5000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "内存缓存项过多"
+          description: "当前大小: {{ $value }} items，超过5000阈值"
+
+  # 系统资源告警
+  - name: system_resources
+    interval: 30s
+    rules:
+      # 内存使用过高
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / 1024 / 1024 / 1024 > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "进程内存使用过高"
+          description: "当前内存: {{ $value }}GB，超过2GB阈值"
+
+      # CPU 使用率高
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_user_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU 使用率过高"
+          description: "CPU 使用率: {{ $value | humanizePercentage }}"
+
+      # 事件循环延迟高
+      - alert: HighEventLoopLag
+        expr: nodejs_eventloop_lag_seconds > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node.js 事件循环延迟高"
+          description: "延迟: {{ $value }}s，超过100ms阈值"
+
+  # 服务可用性告警
+  - name: service_availability
+    interval: 30s
+    rules:
+      # 服务不可用
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "服务下线 (job: {{ $labels.job }})"
+          description: "服务无法访问，持续1分钟以上"
+
+      # MongoDB 不可用
+      - alert: MongoDBDown
+        expr: mongodb_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MongoDB 连接失败"
+          description: "无法连接到 MongoDB"
+
+      # Redis 不可用
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis 连接失败"
+          description: "无法连接到 Redis/DragonflyDB"
+
+  # 业务指标告警
+  - name: business_metrics
+    interval: 60s
+    rules:
+      # 在线用户数异常下降
+      - alert: OnlineUsersDrop
+        expr: (online_users - online_users offset 10m) / online_users offset 10m < -0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "在线用户数大幅下降"
+          description: "在线用户减少超过50%: 当前{{ $value }}，10分钟前{{ $value offset 10m }}"
+
+      # 游戏房间数过多
+      - alert: TooManyActiveRooms
+        expr: active_rooms > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "活跃房间数过多"
+          description: "当前房间数: {{ $value }}，可能影响性能"

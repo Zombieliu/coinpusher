@@ -1,0 +1,14 @@
+/Users/henryliu/cocos/numeron-world/oops-moba/room-service/target/release/deps/libserde-b644a2a6c9225134.rmeta: /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/henryliu/cocos/numeron-world/oops-moba/room-service/target/release/build/serde-fe8b25719d6ddf60/out/private.rs
+
+/Users/henryliu/cocos/numeron-world/oops-moba/room-service/target/release/deps/libserde-b644a2a6c9225134.rlib: /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/henryliu/cocos/numeron-world/oops-moba/room-service/target/release/build/serde-fe8b25719d6ddf60/out/private.rs
+
+/Users/henryliu/cocos/numeron-world/oops-moba/room-service/target/release/deps/serde-b644a2a6c9225134.d: /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/henryliu/cocos/numeron-world/oops-moba/room-service/target/release/build/serde-fe8b25719d6ddf60/out/private.rs
+
+/Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/henryliu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Users/henryliu/cocos/numeron-world/oops-moba/room-service/target/release/build/serde-fe8b25719d6ddf60/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/henryliu/cocos/numeron-world/oops-moba/room-service/target/release/build/serde-fe8b25719d6ddf60/out

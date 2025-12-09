@@ -1,0 +1,397 @@
+/**
+ * 🌐 Gateway Service
+ *
+ * 无状态网关服务
+ * - 接收客户端请求
+ * - 转发到物理 Worker（通过消息队列）
+ * - 返回响应给客户端
+ * - 广播物理帧更新
+ */
+
+import { MessageQueue, PhysicsRequest, PhysicsResponse, PhysicsFrame } from '../shared/MessageQueue';
+import { DragonflyClientManager, SlidingWindowLimiter } from '../../tsrpc_server/src/server/utils/DragonflyRateLimiter';
+import { EventEmitter } from 'events';
+import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * 待处理的请求
+ */
+interface PendingRequest {
+    requestId: string;
+    resolve: (data: any) => void;
+    reject: (error: Error) => void;
+    timeout: NodeJS.Timeout;
+    timestamp: number;
+}
+
+/**
+ * Gateway 配置
+ */
+export interface GatewayConfig {
+    gatewayId: string;
+    port: number;
+    dragonflyHost: string;
+    dragonflyPort: number;
+    requestTimeout: number;  // 请求超时（毫秒）
+}
+
+/**
+ * 房间订阅管理
+ */
+class RoomSubscriptionManager extends EventEmitter {
+    private subscriptions: Map<string, Set<string>> = new Map();  // roomId -> Set<connectionId>
+
+    subscribe(roomId: string, connectionId: string): void {
+        if (!this.subscriptions.has(roomId)) {
+            this.subscriptions.set(roomId, new Set());
+        }
+        this.subscriptions.get(roomId)!.add(connectionId);
+    }
+
+    unsubscribe(roomId: string, connectionId: string): void {
+        const subs = this.subscriptions.get(roomId);
+        if (subs) {
+            subs.delete(connectionId);
+            if (subs.size === 0) {
+                this.subscriptions.delete(roomId);
+            }
+        }
+    }
+
+    getSubscribers(roomId: string): Set<string> {
+        return this.subscriptions.get(roomId) || new Set();
+    }
+
+    unsubscribeAll(connectionId: string): void {
+        for (const [roomId, subs] of this.subscriptions.entries()) {
+            subs.delete(connectionId);
+            if (subs.size === 0) {
+                this.subscriptions.delete(roomId);
+            }
+        }
+    }
+
+    getRoomCount(): number {
+        return this.subscriptions.size;
+    }
+
+    getTotalSubscribers(): number {
+        let count = 0;
+        for (const subs of this.subscriptions.values()) {
+            count += subs.size;
+        }
+        return count;
+    }
+}
+
+/**
+ * Gateway 服务
+ */
+export class GatewayService {
+    private config: GatewayConfig;
+    private messageQueue!: MessageQueue;
+    private rateLimiter!: SlidingWindowLimiter;
+    private pendingRequests: Map<string, PendingRequest> = new Map();
+    private roomManager: RoomSubscriptionManager = new RoomSubscriptionManager();
+    private isRunning: boolean = false;
+
+    constructor(config: GatewayConfig) {
+        this.config = config;
+    }
+
+    /**
+     * 启动 Gateway
+     */
+    async start(): Promise<void> {
+        console.log(`
+╔══════════════════════════════════════════════════════════╗
+║                                                          ║
+║       🌐 Gateway Service Starting                       ║
+║                                                          ║
+║   Gateway ID: ${this.config.gatewayId.padEnd(39)} ║
+║   Port: ${this.config.port.toString().padEnd(47)} ║
+║                                                          ║
+╚══════════════════════════════════════════════════════════╝
+        `);
+
+        // 初始化 DragonflyDB
+        console.log('[Gateway] Connecting to DragonflyDB...');
+        const client = DragonflyClientManager.initialize({
+            host: this.config.dragonflyHost,
+            port: this.config.dragonflyPort,
+        });
+
+        const health = await DragonflyClientManager.healthCheck();
+        if (!health.connected) {
+            throw new Error('Failed to connect to DragonflyDB');
+        }
+        console.log(`[Gateway] Connected to DragonflyDB (latency: ${health.latency}ms)`);
+
+        // 初始化限流器
+        this.rateLimiter = new SlidingWindowLimiter(client, 'drop_coin', 60, 60000);
+        console.log('[Gateway] Rate limiter initialized (60 req/min)');
+
+        // 初始化消息队列
+        this.messageQueue = new MessageQueue(client, this.config.gatewayId);
+        console.log('[Gateway] Message queue initialized');
+
+        // 开始消费物理响应
+        this.isRunning = true;
+        console.log('[Gateway] Starting to consume physics responses...');
+        await this.messageQueue.consumePhysicsResponses(
+            this.handlePhysicsResponse.bind(this)
+        );
+
+        // 订阅物理帧广播
+        console.log('[Gateway] Subscribing to physics frames...');
+        await this.messageQueue.subscribePhysicsFrames(
+            this.handlePhysicsFrame.bind(this)
+        );
+
+        console.log('[Gateway] ✅ Gateway started successfully\n');
+
+        // TODO: 启动 HTTP/WebSocket 服务器
+        // this.startHttpServer();
+    }
+
+    /**
+     * 处理客户端请求（API 接口）
+     */
+    async handleClientRequest(
+        userId: string,
+        roomId: string,
+        action: string,
+        payload: any
+    ): Promise<any> {
+        // 1. 限流检查
+        const rateLimit = await this.rateLimiter.tryAcquire(userId);
+        if (!rateLimit.allowed) {
+            throw new Error(`Rate limit exceeded. Reset at ${new Date(rateLimit.resetAt).toISOString()}`);
+        }
+
+        // 2. 生成请求 ID
+        const requestId = uuidv4();
+
+        // 3. 创建 Promise 用于等待响应
+        const responsePromise = new Promise<any>((resolve, reject) => {
+            // 设置超时
+            const timeout = setTimeout(() => {
+                this.pendingRequests.delete(requestId);
+                reject(new Error(`Request timeout after ${this.config.requestTimeout}ms`));
+            }, this.config.requestTimeout);
+
+            // 保存到待处理列表
+            this.pendingRequests.set(requestId, {
+                requestId,
+                resolve,
+                reject,
+                timeout,
+                timestamp: Date.now(),
+            });
+        });
+
+        // 4. 发送请求到消息队列
+        const request: PhysicsRequest = {
+            requestId,
+            roomId,
+            userId,
+            action,
+            payload,
+            timestamp: Date.now(),
+        };
+
+        await this.messageQueue.publishPhysicsRequest(request);
+
+        console.log(`[Gateway] Request sent: ${action} by ${userId} in ${roomId} (requestId: ${requestId})`);
+
+        // 5. 等待响应
+        return responsePromise;
+    }
+
+    /**
+     * 处理物理响应
+     */
+    private async handlePhysicsResponse(response: PhysicsResponse, msgId: string): Promise<void> {
+        const { requestId, success, data, error } = response;
+
+        const pending = this.pendingRequests.get(requestId);
+        if (!pending) {
+            // 请求可能已超时或已处理
+            return;
+        }
+
+        // 清除超时定时器
+        clearTimeout(pending.timeout);
+        this.pendingRequests.delete(requestId);
+
+        // 解析响应
+        if (success) {
+            pending.resolve(data);
+            console.log(`[Gateway] Response received for request ${requestId}: success`);
+        } else {
+            pending.reject(new Error(error || 'Unknown error'));
+            console.log(`[Gateway] Response received for request ${requestId}: error - ${error}`);
+        }
+    }
+
+    /**
+     * 处理物理帧广播
+     */
+    private async handlePhysicsFrame(frame: PhysicsFrame): Promise<void> {
+        const { roomId, frameId, coins, collected, removed } = frame;
+
+        // 获取订阅该房间的所有连接
+        const subscribers = this.roomManager.getSubscribers(roomId);
+
+        if (subscribers.size > 0) {
+            console.log(`[Gateway] Broadcasting frame ${frameId} to ${subscribers.size} clients in room ${roomId}`);
+
+            // TODO: 实际实现中应该通过 WebSocket 广播
+            // for (const connectionId of subscribers) {
+            //     const ws = this.connections.get(connectionId);
+            //     ws?.send(JSON.stringify({ type: 'physics_frame', frame }));
+            // }
+
+            // 触发事件（可以被外部监听）
+            this.roomManager.emit('physics_frame', { roomId, frame });
+        }
+    }
+
+    /**
+     * 订阅房间更新
+     */
+    subscribeRoom(roomId: string, connectionId: string): void {
+        this.roomManager.subscribe(roomId, connectionId);
+        console.log(`[Gateway] Connection ${connectionId} subscribed to room ${roomId}`);
+    }
+
+    /**
+     * 取消订阅房间
+     */
+    unsubscribeRoom(roomId: string, connectionId: string): void {
+        this.roomManager.unsubscribe(roomId, connectionId);
+        console.log(`[Gateway] Connection ${connectionId} unsubscribed from room ${roomId}`);
+    }
+
+    /**
+     * 连接断开
+     */
+    handleDisconnect(connectionId: string): void {
+        this.roomManager.unsubscribeAll(connectionId);
+        console.log(`[Gateway] Connection ${connectionId} disconnected, cleaned up subscriptions`);
+    }
+
+    /**
+     * 停止 Gateway
+     */
+    async stop(): Promise<void> {
+        console.log('[Gateway] Stopping...');
+
+        this.isRunning = false;
+
+        // 清理所有待处理的请求
+        for (const [requestId, pending] of this.pendingRequests.entries()) {
+            clearTimeout(pending.timeout);
+            pending.reject(new Error('Gateway is shutting down'));
+        }
+        this.pendingRequests.clear();
+
+        // 停止消息队列
+        if (this.messageQueue) {
+            this.messageQueue.stop();
+        }
+
+        // 断开 DragonflyDB
+        await DragonflyClientManager.disconnect();
+
+        console.log('[Gateway] ✅ Gateway stopped');
+    }
+
+    /**
+     * 获取状态
+     */
+    getStatus() {
+        return {
+            gatewayId: this.config.gatewayId,
+            isRunning: this.isRunning,
+            pendingRequests: this.pendingRequests.size,
+            subscribedRooms: this.roomManager.getRoomCount(),
+            totalSubscribers: this.roomManager.getTotalSubscribers(),
+        };
+    }
+}
+
+// ============ 示例：模拟客户端请求 ============
+
+async function exampleUsage() {
+    const gateway = new GatewayService({
+        gatewayId: 'gateway-1',
+        port: 3000,
+        dragonflyHost: 'localhost',
+        dragonflyPort: 6379,
+        requestTimeout: 5000,
+    });
+
+    await gateway.start();
+
+    // 模拟客户端请求
+    try {
+        const result = await gateway.handleClientRequest(
+            'user_123',
+            'room_1',
+            'drop_coin',
+            { x: 0 }
+        );
+        console.log('[Example] Drop coin result:', result);
+    } catch (error: any) {
+        console.error('[Example] Request failed:', error.message);
+    }
+}
+
+// ============ 启动脚本 ============
+
+async function main() {
+    const config: GatewayConfig = {
+        gatewayId: process.env.GATEWAY_ID || `gateway-${process.pid}`,
+        port: parseInt(process.env.PORT || '3000', 10),
+        dragonflyHost: process.env.DRAGONFLY_HOST || 'localhost',
+        dragonflyPort: parseInt(process.env.DRAGONFLY_PORT || '6379', 10),
+        requestTimeout: parseInt(process.env.REQUEST_TIMEOUT || '5000', 10),
+    };
+
+    const gateway = new GatewayService(config);
+
+    // 优雅退出
+    process.on('SIGINT', async () => {
+        console.log('\n[Gateway] Received SIGINT, shutting down...');
+        await gateway.stop();
+        process.exit(0);
+    });
+
+    process.on('SIGTERM', async () => {
+        console.log('\n[Gateway] Received SIGTERM, shutting down...');
+        await gateway.stop();
+        process.exit(0);
+    });
+
+    try {
+        await gateway.start();
+
+        // 定期输出状态
+        setInterval(() => {
+            const status = gateway.getStatus();
+            console.log(`[Gateway] Status: ${status.pendingRequests} pending, ${status.subscribedRooms} rooms, ${status.totalSubscribers} subscribers`);
+        }, 30000);
+
+    } catch (error: any) {
+        console.error('[Gateway] Fatal error:', error);
+        process.exit(1);
+    }
+}
+
+// 如果直接运行此文件，则启动 Gateway
+if (require.main === module) {
+    main().catch(console.error);
+}
+
+export { GatewayService };

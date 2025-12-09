@@ -1,0 +1,25 @@
+{
+  "test_name": "mobile-4g",
+  "network": {
+    "bandwidth": "20mbit",
+    "latency": "40ms",
+    "loss": "1%"
+  },
+  "metrics": {
+    "elapsed": 24.50855779647827,
+    "room_count": 50,
+    "total_coins": 4000,
+    "messages_sent": 4050,
+    "messages_received": 5806,
+    "errors": 0,
+    "timeouts": 50,
+    "msg_per_sec": 165.24840154331562,
+    "avg_latency": 0.11432241510461878,
+    "p50_latency": 0.05817413330078125,
+    "p95_latency": 0.29468536376953125,
+    "p99_latency": 1.0209083557128906,
+    "avg_connection_time": 0.34067630767822266,
+    "timeout_rate": 1.2345679012345678,
+    "error_rate": 0.0
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "test_name": "gfw",
+  "network": {
+    "bandwidth": "3mbit",
+    "latency": "500ms",
+    "loss": "5%"
+  },
+  "metrics": {
+    "elapsed": 24.493705987930298,
+    "room_count": 50,
+    "total_coins": 4000,
+    "messages_sent": 4050,
+    "messages_received": 221,
+    "errors": 0,
+    "timeouts": 50,
+    "msg_per_sec": 165.34860024839477,
+    "avg_latency": 0.055182421648943866,
+    "p50_latency": 0.0438690185546875,
+    "p95_latency": 0.1010894775390625,
+    "p99_latency": 0.1881122589111328,
+    "avg_connection_time": 0.23887157440185547,
+    "timeout_rate": 1.2345679012345678,
+    "error_rate": 0.0
+  }
+}
