@@ -36,52 +36,51 @@ export async function ApiGetStatistics(
         monthStart.setHours(0, 0, 0, 0);
         const monthTimestamp = monthStart.getTime();
 
-        // 获取用户统计
+        // 获取用户统计（并行查询）
         const usersCollection = MongoDBService.getCollection('users');
-        const totalUsers = await usersCollection.countDocuments({});
-        const newUsers = await usersCollection.countDocuments({
-            createdAt: { $gte: todayTimestamp }
-        });
+        const [
+            totalUsers,
+            newUsers,
+            dau,
+            mau,
+            onlinePlayers
+        ] = await Promise.all([
+            usersCollection.countDocuments({}),
+            usersCollection.countDocuments({ createdAt: { $gte: todayTimestamp } }),
+            usersCollection.countDocuments({ lastLoginTime: { $gte: todayTimestamp } }),
+            usersCollection.countDocuments({ lastLoginTime: { $gte: monthTimestamp } }),
+            usersCollection.countDocuments({ lastLoginTime: { $gte: now - 5 * 60 * 1000 } })
+        ]);
 
-        // DAU - 今日登录用户
-        const dau = await usersCollection.countDocuments({
-            lastLoginTime: { $gte: todayTimestamp }
-        });
-
-        // MAU - 本月登录用户
-        const mau = await usersCollection.countDocuments({
-            lastLoginTime: { $gte: monthTimestamp }
-        });
-
-        // 在线人数（最近5分钟活跃）
-        const onlinePlayers = await usersCollection.countDocuments({
-            lastLoginTime: { $gte: now - 5 * 60 * 1000 }
-        });
+        // 避免 undefined 泄漏到响应体
+        const activeUsers = typeof onlinePlayers === 'number' ? onlinePlayers : 0;
 
         // 收入统计
         const ordersCollection = MongoDBService.getCollection('payment_orders');
-
-        // 总收入
-        const totalRevenueResult = await ordersCollection.aggregate([
-            { $match: { status: 'paid' } },
-            { $group: { _id: null, total: { $sum: '$amount' } } }
-        ]).toArray();
+        const [
+            totalRevenueResult,
+            todayRevenueResult,
+            payingUsers,
+            totalMatches
+        ] = await Promise.all([
+            ordersCollection.aggregate([
+                { $match: { status: 'paid' } },
+                { $group: { _id: null, total: { $sum: '$amount' } } }
+            ]).toArray(),
+            ordersCollection.aggregate([
+                {
+                    $match: {
+                        status: 'paid',
+                        paidAt: { $gte: todayTimestamp }
+                    }
+                },
+                { $group: { _id: null, total: { $sum: '$amount' } } }
+            ]).toArray(),
+            ordersCollection.distinct('userId', { status: 'paid' }),
+            MongoDBService.getCollection('matches').countDocuments({})
+        ]);
         const totalRevenue = totalRevenueResult[0]?.total || 0;
-
-        // 今日收入
-        const todayRevenueResult = await ordersCollection.aggregate([
-            {
-                $match: {
-                    status: 'paid',
-                    paidAt: { $gte: todayTimestamp }
-                }
-            },
-            { $group: { _id: null, total: { $sum: '$amount' } } }
-        ]).toArray();
         const todayRevenue = todayRevenueResult[0]?.total || 0;
-
-        // 付费用户数
-        const payingUsers = await ordersCollection.distinct('userId', { status: 'paid' });
         const payingUserCount = payingUsers.length;
 
         // 计算ARPU和ARPPU
@@ -89,16 +88,12 @@ export async function ApiGetStatistics(
         const arppu = payingUserCount > 0 ? totalRevenue / payingUserCount : 0;
         const payRate = totalUsers > 0 ? payingUserCount / totalUsers : 0;
 
-        // 对局统计（假设有matches集合）
-        const matchesCollection = MongoDBService.getCollection('matches');
-        const totalMatches = await matchesCollection.countDocuments({});
-
         // 平均游戏时长（模拟数据）
         const avgSessionTime = 25; // 25分钟
 
         call.succ({
             totalUsers,
-            activeUsers: onlinePlayers,  // 协议要求的字段
+            activeUsers,  // 协议要求的字段
             totalRevenue,
             newUsersToday: newUsers,     // 协议要求的字段
             // 额外的统计数据

@@ -9,25 +9,32 @@ import { sr } from "../../../ServerRoom";
 import { ReqRoomJoin, ResRoomJoin } from "../../../tsrpc/protocols/room/PtlRoomJoin";
 import { RoomConnection } from "../model/ServerRoomModelComp";
 import { getRustRoomClient } from "../RustRoomClient";
+import { ApiTimer, recordApiError } from "../../utils/MetricsCollector";
+
+const ENDPOINT = 'room/RoomJoin';
 
 /** 请求加入房间 */
 export async function ApiRoomJoin(call: ApiCall<ReqRoomJoin, ResRoomJoin>) {
+    const timer = new ApiTimer('POST', ENDPOINT);
+    let success = false;
+
     // 在匹配服务器获取玩家详细数据
-    let ret = await sr.ServerRoomModel.hcMatch.callApi(`admin/UserInfo`, { __ssoToken: call.req.__ssoToken });
-    if (ret.isSucc == false) call.error("到匹配服务器获取玩家数据失败", { code: 'USER_NO_EXISTS' });
+    try {
+        let ret = await sr.ServerRoomModel.hcMatch.callApi(`admin/UserInfo`, { __ssoToken: call.req.__ssoToken });
+        if (ret.isSucc == false) call.error("到匹配服务器获取玩家数据失败", { code: 'USER_NO_EXISTS' });
 
-    const user = ret.res!.user!;
-    const conn = call.conn as RoomConnection;
+        const user = ret.res!.user!;
+        const conn = call.conn as RoomConnection;
 
-    let room = sr.ServerRoomModel.rooms.get(call.req.roomId)!;
-    let rm = room.RoomModel;
-    if (!room) {
-        return call.error('房间不存在', { code: 'ROOM_NOT_EXISTS' });
-    }
+        let room = sr.ServerRoomModel.rooms.get(call.req.roomId)!;
+        let rm = room.RoomModel;
+        if (!room) {
+            return call.error('房间不存在', { code: 'ROOM_NOT_EXISTS' });
+        }
 
-    if (rm.data.roles.length >= rm.data.max) {
-        return call.error('该房间已满员');
-    }
+        if (rm.data.roles.length >= rm.data.max) {
+            return call.error('该房间已满员');
+        }
 
     // 注：移除同账号踢下线功能，后续转移动网关服务器开发
 
@@ -44,26 +51,34 @@ export async function ApiRoomJoin(call: ApiCall<ReqRoomJoin, ResRoomJoin>) {
     //     conn.role.leave();
     // }
 
-    // 创建一个玩家对象
-    var rd = room.addRole(conn, user);
+        // 创建一个玩家对象
+        var rd = room.addRole(conn, user);
 
-    // ========== Rust Room Service 集成 ==========
-    // 通知 Rust 玩家加入
-    const playerId = String(user.key ?? user._id?.toString() ?? 'guest');
-    const rustClient = getRustRoomClient();
-    rustClient.playerJoin(call.req.roomId, playerId);
-    rm.logger.log(`Player ${playerId} joined Rust room`);
-    // ========================================
+        // ========== Rust Room Service 集成 ==========
+        // 通知 Rust 玩家加入
+        const playerId = String(user.key ?? user._id?.toString() ?? 'guest');
+        const rustClient = getRustRoomClient();
+        rustClient.playerJoin(call.req.roomId, playerId);
+        rm.logger.log(`Player ${playerId} joined Rust room`);
+        // ========================================
 
-    // 响应玩家加入房间请求数据
-    call.succ({
-        roleId: rd.roleInfo.id,
-        room: rm.data
-    });
+        // 响应玩家加入房间请求数据
+        call.succ({
+            roleId: rd.roleInfo.id,
+            room: rm.data
+        });
 
-    // 广播房间内其它玩家加入
-    room.broadcastMsg(`server/RoleJoin`, {
-        time: new Date,
-        role: rd
-    });
+        // 广播房间内其它玩家加入
+        room.broadcastMsg(`server/RoleJoin`, {
+            time: new Date,
+            role: rd
+        });
+
+        success = true;
+    } catch (error: any) {
+        recordApiError('POST', ENDPOINT, error?.message || 'room_join_error');
+        throw error;
+    } finally {
+        timer.end(success ? 'success' : 'error');
+    }
 }

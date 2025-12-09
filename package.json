@@ -16,6 +16,18 @@
     "uuid": "^13.0.0",
     "ws": "^8.18.3"
   },
+  "scripts": {
+    "railway:login": "railway login",
+    "railway:link": "railway link",
+    "railway:env:push": "railway variables import .railway/env.local",
+    "railway:env:pull": "railway variables download .railway/env.sync",
+    "railway:deploy:gate": "bash scripts/railway-deploy-all.sh gate",
+    "railway:deploy:match": "bash scripts/railway-deploy-all.sh match",
+    "railway:deploy:room": "bash scripts/railway-deploy-all.sh room",
+    "railway:deploy:admin": "bash scripts/railway-deploy-all.sh admin",
+    "railway:deploy:all": "bash scripts/railway-deploy-all.sh all",
+    "railway:seed": "bash scripts/railway-seed.sh"
+  },
   "description": "推币机游戏",
   "name": "oops-coinpusher",
   "uuid": "ab894822-b162-4951-8c6e-ba5e78c4fb9a",

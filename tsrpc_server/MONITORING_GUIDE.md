@@ -50,6 +50,13 @@ docker-compose up -d
 - **Prometheus**: http://localhost:9093
 - **Alertmanager**: http://localhost:9094
 
+### 4. 导入 Grafana 仪表盘
+
+项目附带了 Gate/Match/Room API 的标准看板模板，路径：`prometheus/grafana-dashboard.json`。在 Grafana 中操作：
+1. 点击左侧菜单 `Dashboards -> Import`
+2. 选择上传 JSON 文件，指定 Prometheus 数据源
+3. 命名并保存，即可看到延迟、QPS、错误率等指标（匹配/房间服务同步包含）。
+
 ---
 
 ## 监控指标

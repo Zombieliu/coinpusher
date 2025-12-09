@@ -170,13 +170,15 @@ pnpm ts-node seed-admin-demo.ts
 脚本会自动读取 `test-env.ts` 中的 Mongo URI（默认 `mongodb://127.0.0.1:27018/coinpusher_game`），创建 `admin / admin123` 管理员、写入示例用户/订单/Session/审计日志/客服工单。运行完成后即可直接访问 `http://localhost:3003` 查看完整演示。
 
 ### 监控指标接入
-`tsrpc_server/src/server/gate/api/admin` 等接口已支持 `ApiTimer` 与 `recordApiError` 埋点，Prometheus 会自动统计 API 延迟与错误率。若需要把新的业务 API 纳入监控，可按以下步骤扩展：
+`tsrpc_server/src/server/gate/api/admin` 以及 Match/Room 服务的关键接口均已接入 `ApiTimer` 与 `recordApiError`，Prometheus 会自动统计 API 延迟与错误率。若需要把新的业务 API 纳入监控，可按以下步骤扩展：
 
 1. 在 handler 顶部引入工具：`import { ApiTimer, recordApiError } from "../utils/MetricsCollector";`
 2. 在函数开始处创建计时器：`const timer = new ApiTimer('POST', 'admin/MyApi');`
 3. 在 `try/catch/finally` 中调用 `timer.end('success' | 'error')` 并在出现异常时 `recordApiError(method, endpoint, errorType)`。
 
-保持一致的 endpoint 命名即可让 `/metrics` 暴露统一的 `api_response_time_seconds`、`api_errors_total` 指标，后续扩展到其他服务时复用同一套模式。
+保持一致的 endpoint 命名即可让 `/metrics` 暴露统一的 `api_response_time_seconds`、`api_errors_total` 指标，Gate/Match/Room 三个服务都会同步上报，Prometheus/Grafana 可直接观测全链路表现。
+
+> Grafana 已提供预置看板：`prometheus/grafana-dashboard.json`。在 Grafana（Configuration → Import）中选择该文件即可获得 Gate/Match/Room API 延迟、QPS、错误率等面板。
     - pm2 start ecosystem.config.js --env production 启动生成环境
     - pm2 start ecosystem.config.js --env develop 启动调试环境
     - pm2 delete all 停止所有服务器

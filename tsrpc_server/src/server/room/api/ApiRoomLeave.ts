@@ -7,13 +7,27 @@
 import { ApiCall } from "tsrpc";
 import { ReqRoomLeave, ResRoomLeave } from "../../../tsrpc/protocols/room/PtlRoomLeave";
 import { RoomConnection } from "../model/ServerRoomModelComp";
+import { ApiTimer, recordApiError } from "../../utils/MetricsCollector";
+
+const ENDPOINT = 'room/RoomLeave';
 
 /** 请求离开房间 */
 export async function ApiRoomLeave(call: ApiCall<ReqRoomLeave, ResRoomLeave>) {
-    const conn = call.conn as RoomConnection;
-    if (conn.room) {
-        conn.role.leave();
-    }
+    const timer = new ApiTimer('POST', ENDPOINT);
+    let success = false;
 
-    call.succ({});
+    const conn = call.conn as RoomConnection;
+    try {
+        if (conn.room) {
+            conn.role.leave();
+        }
+
+        call.succ({});
+        success = true;
+    } catch (error: any) {
+        recordApiError('POST', ENDPOINT, error?.message || 'room_leave_error');
+        call.error('Failed to leave room');
+    } finally {
+        timer.end(success ? 'success' : 'error');
+    }
 }

@@ -12,9 +12,15 @@ import { Room } from "../../../../module/room/Room";
 import { sr } from "../../../../ServerRoom";
 import { ReqRoomCreate, ResRoomCreate } from "../../../../tsrpc/protocols/room/admin/PtlRoomCreate";
 import { getRustRoomClient } from "../../RustRoomClient";
+import { ApiTimer, recordApiError } from "../../../utils/MetricsCollector";
+
+const ENDPOINT = 'room/admin/RoomCreate';
 
 /** 匹配服务器通知创建房间 */
 export async function ApiRoomCreate(call: ApiCall<ReqRoomCreate, ResRoomCreate>) {
+    const timer = new ApiTimer('POST', ENDPOINT);
+    let success = false;
+
     let room = ecs.getEntity<Room>(Room);
     let rm = room.RoomModel;
 
@@ -44,25 +50,33 @@ export async function ApiRoomCreate(call: ApiCall<ReqRoomCreate, ResRoomCreate>)
 
     sr.ServerRoomModel.rooms.set(room.RoomModel.data.id, room);
 
-    // ========== Rust Room Service 集成 ==========
-    // 在 Rust 端创建对应的物理房间
-    const rustClient = getRustRoomClient();
-    const roomConfig = {
-        gravity: -20.0,
-        drop_height: 10.0,
-        coin_radius: 0.5,
-        coin_height: 0.1,
-        reward_line_z: -0.5,
-        push_min_z: -8.8,
-        push_max_z: -6.0,
-        push_speed: 1.5
-    };
+    try {
+        // ========== Rust Room Service 集成 ==========
+        // 在 Rust 端创建对应的物理房间
+        const rustClient = getRustRoomClient();
+        const roomConfig = {
+            gravity: -20.0,
+            drop_height: 10.0,
+            coin_radius: 0.5,
+            coin_height: 0.1,
+            reward_line_z: -0.5,
+            push_min_z: -8.8,
+            push_max_z: -6.0,
+            push_speed: 1.5
+        };
 
-    rustClient.createRoom(roomId, roomConfig);
-    rm.logger.log(`Created Rust room: ${roomId}`);
-    // ========================================
+        rustClient.createRoom(roomId, roomConfig);
+        rm.logger.log(`Created Rust room: ${roomId}`);
+        // ========================================
 
-    call.succ({
-        roomId: room.RoomModel.data.id
-    });
+        call.succ({
+            roomId: room.RoomModel.data.id
+        });
+        success = true;
+    } catch (error: any) {
+        recordApiError('POST', ENDPOINT, error?.message || 'room_create_error');
+        call.error('Failed to create room');
+    } finally {
+        timer.end(success ? 'success' : 'error');
+    }
 }
