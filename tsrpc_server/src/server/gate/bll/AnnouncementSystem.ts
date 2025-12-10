@@ -97,14 +97,18 @@ export class AnnouncementSystem {
         
         const list = (await cursor.toArray()).map(item => {
             // Backward compatibility: legacy数据可能缺少必填字段
+            const createdAt = normalizeTimestamp(item.createdAt, Date.now());
+            const startTime = normalizeTimestamp(item.startTime, createdAt);
+            const endTime = normalizeTimestamp(item.endTime, startTime + 7 * 24 * 60 * 60 * 1000);
+
             return {
                 ...item,
                 type: item.type || AnnouncementType.Notice,
-                startTime: item.startTime ?? item.createdAt ?? 0,
-                endTime: item.endTime ?? Number.MAX_SAFE_INTEGER,
+                startTime,
+                endTime,
                 priority: item.priority ?? 0,
                 active: item.active ?? true,
-                createdAt: item.createdAt ?? 0,
+                createdAt,
                 createdBy: item.createdBy || 'system'
             };
         });
@@ -116,4 +120,17 @@ export class AnnouncementSystem {
         const collection = MongoDBService.getCollection<Announcement>('announcements');
         return await collection.findOne({ announcementId });
     }
+}
+
+function normalizeTimestamp(value: any, fallback: number): number {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+    }
+    if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        if (!Number.isNaN(parsed)) {
+            return parsed;
+        }
+    }
+    return fallback;
 }

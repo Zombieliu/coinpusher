@@ -192,9 +192,35 @@ export class CdkSystem {
         const normalizedList = list.map(item => ({
             ...item,
             batchId: item.batchId || 'legacy',
-            name: item.name || 'Legacy Batch'
+            name: item.name || 'Legacy Batch',
+            rewards: normalizeRewards(item.rewards)
         }));
 
         return { list: normalizedList, total };
     }
+}
+
+function normalizeRewards(raw: any): CdkReward {
+    if (!raw) {
+        return {};
+    }
+    if (!Array.isArray(raw)) {
+        return raw;
+    }
+
+    const merged: CdkReward = {};
+    for (const entry of raw) {
+        if (!entry) continue;
+
+        if (typeof entry.gold === 'number') {
+            merged.gold = (merged.gold || 0) + entry.gold;
+        }
+        if (typeof entry.tickets === 'number') {
+            merged.tickets = (merged.tickets || 0) + entry.tickets;
+        }
+        if (Array.isArray(entry.items)) {
+            merged.items = [...(merged.items || []), ...entry.items];
+        }
+    }
+    return merged;
 }
