@@ -95,7 +95,17 @@ export class AnnouncementSystem {
             cursor = cursor.skip((query.page - 1) * query.limit).limit(query.limit);
         }
         
-        const list = await cursor.toArray();
+        const list = (await cursor.toArray()).map(item => {
+            // Backward compatibility: some legacy announcements may miss `type`
+            if (!item.type) {
+                return {
+                    ...item,
+                    type: AnnouncementType.Notice
+                };
+            }
+            return item;
+        });
+
         return { list, total };
     }
 

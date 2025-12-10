@@ -117,10 +117,10 @@ async function seedOrders(db: any) {
     await orders.deleteMany({ seedTag: SEED_TAG });
     const now = Date.now();
     const entries = [
-        { orderId: 'order_1', userId: 'demo_user_1', status: 'paid', amount: 59.9, paidAt: now - 3 * 3600 * 1000 },
-        { orderId: 'order_2', userId: 'demo_user_2', status: 'paid', amount: 19.9, paidAt: now - 26 * 3600 * 1000 },
-        { orderId: 'order_3', userId: 'demo_user_3', status: 'paid', amount: 9.9, paidAt: now - 12 * 3600 * 1000 },
-        { orderId: 'order_4', userId: 'demo_user_4', status: 'pending', amount: 4.9 }
+        { orderId: 'order_1', userId: 'demo_user_1', status: 'paid', amount: 59.9, paidAt: now - 3 * 3600 * 1000, productId: 'gold_large', productName: '金币大袋', currency: 'CNY', channel: 'wechat', createdAt: now - 4 * 3600 * 1000 },
+        { orderId: 'order_2', userId: 'demo_user_2', status: 'paid', amount: 19.9, paidAt: now - 26 * 3600 * 1000, productId: 'gold_small', productName: '金币小袋', currency: 'CNY', channel: 'alipay', createdAt: now - 27 * 3600 * 1000 },
+        { orderId: 'order_3', userId: 'demo_user_3', status: 'paid', amount: 9.9, paidAt: now - 12 * 3600 * 1000, productId: 'gold_small', productName: '金币小袋', currency: 'USD', channel: 'paypal', createdAt: now - 14 * 3600 * 1000 },
+        { orderId: 'order_4', userId: 'demo_user_4', status: 'pending', amount: 4.9, productId: 'gold_small', productName: '金币小袋', currency: 'CNY', channel: 'wechat', createdAt: now - 2 * 3600 * 1000 }
     ].map(d => ({ _id: new ObjectId(), seedTag: SEED_TAG, ...d }));
     if (entries.length) {
         await orders.insertMany(entries);
@@ -174,9 +174,36 @@ async function seedTickets(db: any) {
             _id: new ObjectId(),
             ticketId: 'ticket_demo_01',
             userId: 'demo_user_2',
-            status: 'pending',
-            title: '充值不到账',
-            messages: [{ role: 'user', content: '昨晚充值金币没到账，请核查。', createdAt: Date.now() - 600000 }],
+            status: 'open',
+            type: 'payment',
+            subject: '充值不到账',
+            messages: [{
+                sender: 'user',
+                senderId: 'demo_user_2',
+                senderName: 'Bob',
+                content: '昨晚充值金币没到账，请核查。',
+                timestamp: Date.now() - 600000
+            }],
+            createdAt: Date.now() - 600000,
+            updatedAt: Date.now() - 600000,
+            seedTag: SEED_TAG
+        },
+        {
+            _id: new ObjectId(),
+            ticketId: 'ticket_demo_02',
+            userId: 'demo_user_3',
+            status: 'progress',
+            type: 'account',
+            subject: '账号被封禁',
+            messages: [{
+                sender: 'user',
+                senderId: 'demo_user_3',
+                senderName: 'Celine',
+                content: '为什么我被封禁？',
+                timestamp: Date.now() - 300000
+            }],
+            createdAt: Date.now() - 300000,
+            updatedAt: Date.now() - 120000,
             seedTag: SEED_TAG
         }
     ]);
