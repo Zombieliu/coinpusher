@@ -96,14 +96,17 @@ export class AnnouncementSystem {
         }
         
         const list = (await cursor.toArray()).map(item => {
-            // Backward compatibility: some legacy announcements may miss `type`
-            if (!item.type) {
-                return {
-                    ...item,
-                    type: AnnouncementType.Notice
-                };
-            }
-            return item;
+            // Backward compatibility: legacy数据可能缺少必填字段
+            return {
+                ...item,
+                type: item.type || AnnouncementType.Notice,
+                startTime: item.startTime ?? item.createdAt ?? 0,
+                endTime: item.endTime ?? Number.MAX_SAFE_INTEGER,
+                priority: item.priority ?? 0,
+                active: item.active ?? true,
+                createdAt: item.createdAt ?? 0,
+                createdBy: item.createdBy || 'system'
+            };
         });
 
         return { list, total };

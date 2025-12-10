@@ -189,15 +189,11 @@ export class CdkSystem {
             .limit(query.limit || 20)
             .toArray();
 
-        const normalizedList = list.map(item => {
-            if (!item.batchId) {
-                return {
-                    ...item,
-                    batchId: 'legacy'
-                };
-            }
-            return item;
-        });
+        const normalizedList = list.map(item => ({
+            ...item,
+            batchId: item.batchId || 'legacy',
+            name: item.name || 'Legacy Batch'
+        }));
 
         return { list: normalizedList, total };
     }
