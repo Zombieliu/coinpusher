@@ -23,7 +23,7 @@ package.json        # 根级 npm scripts，封装常用 CLI 调用
 1. 按 `.railway/env.example` 复制生成 `.railway/env.local`
 2. 修改 Gate/Match/Room/Admin 需要的实际地址、密钥
 3. 通过脚本注入：`npm run railway:env:push`
-4. 如需回写远端配置：`npm run railway:env:pull`（输出到 `.railway/env.sync`）
+4. 如需回写远端配置：`npm run railway:env:pull`（底层执行 `railway variables --json`，结果保存为 `.railway/env.sync`）
 
 > Railway 在同一 Project 内共享变量；脚本中 `NEXT_PUBLIC_API_URL`、`MATCH_URL` 等将被 Gate/Room/Admin 共同读取。
 

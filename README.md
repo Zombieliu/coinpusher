@@ -1,211 +1,89 @@
-## oops framework + tsrpc 网络游戏全栈解决方案
-此产品实现了MOBA类游戏玩法基础功能，可用于二次开发或学习全栈游戏制作技巧。
+## OOPS CoinPusher
 
-产品前后端全采用TypeScript语言实现，同时业务代码使用同一套ECS框架设计，前后端代码风格接近，便于理解学习。
+OOPS CoinPusher 是一个基于 **Cocos Creator + oops-framework + TSRPC** 打造的推币机游戏整体解决方案。仓库同时包含客户端、TSRPC 网关/匹配/房间服务、Next.js 管理后台、Docker/监控配置以及 Railway 自动化脚本，开箱即可用于学习或二次开发。
 
-前端框架采用 [oops-framework](https://store.cocos.com/app/detail/3558) 做为业务框架。
+## 技术与环境
 
-后端框架采用 [tsrpc](https://tsrpc.cn/) 框架，使用这套框架前后端通讯协议就不需要在学习其它中间协议语言，全自动工具生成协议代码，底层二进制传输数据，可把精力关注到游戏业务逻辑设计上，提高开发效率。（感谢 tsrpc 作者提供优秀的开源技术资源）
+| 模块 | 技术栈 |
+| --- | --- |
+| 客户端 | Cocos Creator 3.8.7、TypeScript、oops-framework |
+| 服务器 | TSRPC、Node.js 20、MongoDB、DragonflyDB/Redis |
+| 房间物理 | Rust + Rapier3D |
+| 管理后台 | Next.js 15、React 18、Tailwind、Zustand |
+| 运维 | Docker Compose、Prometheus + Grafana + Alertmanager、Railway 部署脚本 |
 
-## 开发环境
-- 引擎版本：Cocos Creator 3.6.1（需要Cocos Creator 3.x低版本购买后联系作者获取）
-- 编程语言：TypeScript
+## 项目结构（节选）
 
-## 已适配平
-
-| H5  | 微信小游戏 | Android原生 | iOS原生 | 抖音小游戏 | OPPO小游戏 | vivo小游戏 |
-| --- | ---------- | ----------- | ------- | ---------- | ---------- | ---------- |
-| ✔   | ✘          | ✔           | ✘       | ✘          | ✘          | ✘          |
-
-- 本资源仅保证支持作者已测试通过平台，其他平台理论上是支持的，其它平台兼容问题请自行适配或加入交流群与作者交流
-- 有其它定制需求的开发者可加入交流群与作者交流
-
-## 解决问题
-1. 如果无同类解决方案，使用此产品二次开发网络游戏可省至少二个月的自研开发成本
-1. 学习 oops-framework 实战开发技巧，里面包含客户端框架中大多技术的应用
-1. 学习 tsrpc 实战开发技巧，里面包含服务器框架中大多技术的应用
-1. 学习网络游戏程序设计技巧
-1. 学习游戏技能系统程序设计技巧
-
-## 应用案例
-- [daolink 论坛贴](https://forum.cocos.org/t/topic/139505)
-- [daolink 官网](https://www.daolink.world/)
-
-## 功能介绍
-- 玩法功能
-    - 账号功能
-    - 游戏区服
-    - 房间管理
-    -   创建
-    -   加入
-        - 选择加入
-        - 匹配加入
-    -   退出
-    - 网络即时战斗玩法
-        - 摇杆控制角色移动
-        - 触摸地图控制角色移动
-        - 弱网移动同步策略
-        - 网络即时战斗系统
-            - 角色数值系统
-            - 技能系统
-            - 技能释放前摇与后摇
-            - 木桩类打靶NPC
-            - 死亡后3秒后服务器复活角色
-- 客户端功能模块
-    - 游戏登录模块
-    - 游戏公共模块
-    - 游戏初始化模块
-    - 摄像机管理模块
-        - 轨道摄影机
-        - ＰＣ平台鼠标滚轮调整镜头距离
-    - 地图管理模块
-    - 房间管理模块
-    - 角色管理模块
-        - 遥感控制移动
-        - 触摸地图控制移动
-        - 角色动作移动、攻击、死亡、复活
-        - 角色数值系统
-    - 技能系统模块
-        - 可自定义类扩展技能框架
-            - 技能配置表
-            - 技能数值计算框架
-                - 自动选目标
-                - 验证技能是否满足触发条件
-                - 技能效果对角色数值的影响计算
-            - 技能动画播放框架
-        - 立即触发效果类技能
-            - 远程射击技能
-            - 瞬发回复技能
-            - 全体连锁闪电技能
-        - 位移类技能
-        - 持续触发效果类技能
-            - 持续伤害
-            - 持续控制（新增）
-        - 持续光环类范围影响技能（新增）
-        - 持续陷阱类范围影响技能（新增）
-- 服务端功能模块
-    - 支持 HTTPS、WSS
-    - 支持 数据加密
-    - 服务器与服务器之间通讯白名单
-    - 网关服务器
-        - 账号登录
-        - 账号注册-数据库中没帐号会自动注册
-        - 登录权限-未登部分协议无法使用
-    - 匹配服务器
-        - 服务器初始化
-        - 房间服务器加入并进入工作状态
-        - 获取在线的游戏房间列表
-        - 创建一个房间
-            - 在人数所少房间服务器创建
-        - 匹配一个房间，如果在超时前没匹配到则创建一个新房间进入
-    - 房间服务器
-        - 服务管理模块
-            - 服务器初始化
-            - 申请加入匹配服务器，等待授权进入工作状态
-            - 登录权限验证
-            - 断线逻辑
-                - 玩家断线自动离开房间
-                - 与匹配服务器断线，无限尝试连接匹配服务器直到恢复正常后继续提供服务
-            - 空房回收策略
-            - 聊天业务处理
-            - 房间管理
-                - 创建
-                - 加入
-                    - 选择加入
-                    - 匹配加入
-                - 退出
-        - 房间管理模块
-            - 房间数据状态管理
-            - 房间内玩家状态广播
-            - 房间内战斗逻辑管理
-                - 服务器同步验证验证客户端技能计算结果
-                    - 服务器只广播技能触发命令，不广播技能结果的状态，减小数据包
-                    - 服务器验证逻辑与客户端同一套技能框架代码，减小开发成本
-        - 玩家管理模块
-            - 玩家数据状态管理
-            - 玩家玩法协议代码分离设计
-            - 玩家移动状态同步
-            - 玩家移动广播
-            - 玩家攻击广播
-            - 玩家离开房间广播
-            - 角色数值系统
-
-## 工程结构与第三方库下载
-- 公共配置 ShareConfig.ts
-    - 开启https与wss
-    - 传输协议是否使用加密功能
-    - 是否用二进制数据传输
-- 客户端
-    - assets 资源与脚本目录
-    - 使用 vscode 打开 cocos creator 3.6.0 项目
-    - 使用 vscode 中的终端（Ctrl + `)，运行 npm install -d
-    - 连接服务器配置文件 GameServerConfig.ts，默认连接外网作者的服务器，本地调试可修改为本地IP
-- 服务端
-    - tsrpc_server 脚本目录
-    - 使用 vscode 打开 tsrpc_server 目录
-    - 使用 vscode 中的终端（Ctrl + `)，运行 npm install -d
-    - 配置文件 Config.ts
-
-## 调试与部署
-- 安装软件
-    - 安装 MongoDB 官网地址：https://www.mongodb.org/downloads, 选择操作系统及位数，进入下载页
-
-- 调试环境
-    - npm run dev:gate 启动网关服务器
-    - npm run dev:match 启动匹配服务器
-    - npm run dev:room 启动房间服务器
-    - npm run dev:room2 再启动一个房间服务器测试分布式
-    - npm run build 构建发布
-- 生产环境
-    - npm install pm2@latest -g 安装工具
-
-### 快速注入演示数据
-为了方便演示管理后台的统计图、日志和工单页面，可运行根目录提供的 `seed-admin-demo.ts` 将示例数据写入 MongoDB：
-
-```bash
-cd oops-coinpusher
-pnpm ts-node seed-admin-demo.ts
+```
+oops-coinpusher/
+├── assets/                     # 客户端资源与脚本（玩法、UI、Web3/Discord 集成等）
+├── tsrpc_server/               # 网关/匹配/房间 Node 服务（TSRPC）
+│   ├── src/server/gate/api     # 游戏与 Admin API
+│   ├── src/server/utils        # 监控、安全、日志、Session 管理
+│   └── scripts                 # 协议、部署、数据初始化脚本
+├── room-service/               # Rust 房间逻辑（Rapier3D）
+├── admin-dashboard/            # Next.js 管理后台（统计/运营/财务/审计）
+├── docker-compose*.yml         # 本地 Docker 与监控栈
+├── scripts/railway-*.sh        # Railway 自动化部署/种子脚本
+└── RAILWAY_AUTOMATION.md       # Railway 链路说明
 ```
 
-脚本会自动读取 `test-env.ts` 中的 Mongo URI（默认 `mongodb://127.0.0.1:27018/coinpusher_game`），创建 `admin / admin123` 管理员、写入示例用户/订单/Session/审计日志/客服工单。运行完成后即可直接访问 `http://localhost:3003` 查看完整演示。
+更多细节可参见 `PROJECT_STATUS.md`、`PROJECT_COMPLETENESS_LATEST.md`、`FINAL_COMPLETION_REPORT.md` 等文档。
 
-### 监控指标接入
-`tsrpc_server/src/server/gate/api/admin` 以及 Match/Room 服务的关键接口均已接入 `ApiTimer` 与 `recordApiError`，Prometheus 会自动统计 API 延迟与错误率。若需要把新的业务 API 纳入监控，可按以下步骤扩展：
+## 核心特性
 
-1. 在 handler 顶部引入工具：`import { ApiTimer, recordApiError } from "../utils/MetricsCollector";`
-2. 在函数开始处创建计时器：`const timer = new ApiTimer('POST', 'admin/MyApi');`
-3. 在 `try/catch/finally` 中调用 `timer.end('success' | 'error')` 并在出现异常时 `recordApiError(method, endpoint, errorType)`。
+- **玩法系统**：推币物理模拟、投币节奏控制、奖励掉落、Jackpot、签到、任务、成就、背包、离线奖励、区块链/Discord 扩展等，全部封装在共享 ECS 架构中。
+- **后端微服务**：Gate（认证/业务）、Match（匹配调度）、Room（实时房间）三段式，支持 HTTPS/WSS、限流、请求签名、风控、审计日志，Prometheus 自动暴露 API 指标。
+- **管理后台**：RBAC 权限、审计、公告、邮件、配置热更新、财务报表、CDK、活动、批量操作等 20+ 模块，已完成 UI 与 API；`npm run build` 即可产出。
+- **运维/监控**：提供 Docker Compose、Prometheus/Grafana/Alertmanager 配置及 `ApiTimer`、`recordApiError` 封装，可快速接入自定义指标；`prometheus/grafana-dashboard.json` 为预置看板。
+- **自动化**：根目录新增 Railway 脚本和 `RAILWAY_AUTOMATION.md`，可一键推送环境变量、部署 Gate/Match/Room/Admin、在远端运行数据脚本、嵌入 CI/CD。
 
-保持一致的 endpoint 命名即可让 `/metrics` 暴露统一的 `api_response_time_seconds`、`api_errors_total` 指标，Gate/Match/Room 三个服务都会同步上报，Prometheus/Grafana 可直接观测全链路表现。
+## 快速开始
 
-> Grafana 已提供预置看板：`prometheus/grafana-dashboard.json`。在 Grafana（Configuration → Import）中选择该文件即可获得 Gate/Match/Room API 延迟、QPS、错误率等面板。
-    - pm2 start ecosystem.config.js --env production 启动生成环境
-    - pm2 start ecosystem.config.js --env develop 启动调试环境
-    - pm2 delete all 停止所有服务器
+1. **安装依赖**
+   ```bash
+   npm install
+   cd tsrpc_server && npm install
+   cd ../admin-dashboard && npm install
+   ```
 
-- oops-framework 文档[传送门](https://dgflash.gitee.io/oops-plugin-framework/) 
-- tsrpc 文档[传送门](https://tsrpc.cn/) 
+2. **本地启动**
+   ```bash
+   # MongoDB / Dragonfly / Prometheus 等
+   docker-compose up -d
 
+   # 网关 / 匹配 / 房间
+   cd tsrpc_server
+   npm run dev:gate
+   npm run dev:match
+   npm run dev:room
 
-## 联系作者
-QQ群：
-- 798575969（1群） 
-- 621415300（2群）
+   # 管理后台
+   cd ../admin-dashboard
+   npm run dev
+   ```
 
-![](http://dgflash.gitee.io/oops-full-stack-web/doc/img/qq.png)
+3. **初始化演示数据**
+   ```bash
+   pnpm ts-node seed-admin-demo.ts
+   ```
+   该脚本会读取 `test-env.ts` 指定的 Mongo URI，创建 `admin/admin123` 管理员并写入演示数据，方便在管理后台查看统计/日志等模块。
 
-## 购买须知
-- 本产品为付费虚拟商品，一经购买成功概不退款，请支付前谨慎确认购买内容。
-- 个人开发不易，希望各位支持正版。
-- 后期随着功能的逐步增加，售价也会逐步提高，但是已经购买的用户可以免费的享受后续所有更新。
+## Railway 自动化（可选）
 
-## 作者其它产品
-[角色扮演游戏解决方案](https://store.cocos.com/app/detail/3675)
+- `npm run railway:login` / `npm run railway:link`：绑定 Railway 项目
+- `npm run railway:env:push` / `npm run railway:env:pull`：批量同步环境变量（模板见 `.railway/env.example`）
+- `npm run railway:deploy:<gate|match|room|admin|all>`：调用 `scripts/railway-deploy-all.sh` 依次 `railway service <name> && railway up --detach .`
+- `npm run railway:seed`：在远端 Gate 容器执行 `initialize-game-data.ts + seed-admin-demo.ts`
 
-[新手引导解决方案](https://store.cocos.com/app/detail/3653)
+完整说明见 `RAILWAY_AUTOMATION.md`，包含 CI 集成示例和常用命令速查。
 
-[框架解决方案演示](https://oops-1255342636.cos-website.ap-shanghai.myqcloud.com/oops-solution/)
+### Docker / Railway 部署提示
 
-[开源框架 oops-framework gitee](https://gitee.com/dgflash/oops-framework)
+- `tsrpc_server/Dockerfile` 采用多阶段构建，默认启动 `ServerGate.js`。在部署 Match/Room 服务时，只需在对应服务的环境变量中设置 `SERVER_ENTRY=ServerMatch` 或 `SERVER_ENTRY=ServerRoom` 即可复用同一镜像。
+- 默认对外端口 `2000`，可通过 `PORT` 环境变量覆盖（Railway/容器平台会自动映射）。
+- 构建时自动执行 `npm install && npm run build && npm prune --production`，无需额外步骤；若需要自定义 Node 版本，可传入 build arg `NODE_VERSION`。
 
-[开源框架 oops-framework github](https://github.com/dgflash/oops-framework)
+## 监控指标扩展
+
+在任意 TSRPC API 中引入 `ApiTimer`、`recordApiError`，即可自动把延迟/错误率写入 `/metrics`。Grafana 预置板位于 `prometheus/grafana-dashboard.json`，导入后可查看 Gate/Match/Room 全链路指标。若需要更多业务监控，可参考 `tsrpc_server/src/server/utils/MetricsCollector.ts` 扩展自定义 Gauge/Counter。

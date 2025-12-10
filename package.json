@@ -20,7 +20,7 @@
     "railway:login": "railway login",
     "railway:link": "railway link",
     "railway:env:push": "railway variables import .railway/env.local",
-    "railway:env:pull": "railway variables download .railway/env.sync",
+    "railway:env:pull": "mkdir -p .railway && railway variables --json > .railway/env.sync",
     "railway:deploy:gate": "bash scripts/railway-deploy-all.sh gate",
     "railway:deploy:match": "bash scripts/railway-deploy-all.sh match",
     "railway:deploy:room": "bash scripts/railway-deploy-all.sh room",

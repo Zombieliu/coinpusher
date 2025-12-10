@@ -1,30 +1,28 @@
-FROM node
+ARG NODE_VERSION=20
 
-# 使用淘宝 NPM 镜像（国内机器构建推荐启用）
+FROM node:${NODE_VERSION}-alpine AS builder
+WORKDIR /app
+
+# 如果需要国内镜像，可取消下一行注释
 # RUN npm config set registry https://registry.npm.taobao.org/
 
-# npm install
-ADD package*.json /src/
-WORKDIR /src
-RUN npm i
+COPY package*.json ./
+RUN npm install
 
-# build
-ADD . /src
-RUN npm run build
+COPY . .
+RUN npm run build && npm prune --production
 
-# clean
-RUN npm prune --production
-
-# move
-RUN rm -rf /app \
-    && mv dist /app \
-    && mv node_modules /app/ \
-    && rm -rf /src
-
-# ENV
-ENV NODE_ENV production
-
-EXPOSE 3000
-
+FROM node:${NODE_VERSION}-alpine AS runtime
 WORKDIR /app
-CMD node index.js
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+
+ENV NODE_ENV=production
+# 默认启动 Gate，其他服务可通过设置 SERVER_ENTRY=ServerMatch 等方式覆盖
+ENV SERVER_ENTRY=ServerGate
+# 默认端口供 Railway/容器平台参考，可在外部覆盖
+ENV PORT=2000
+EXPOSE 2000
+
+CMD ["sh", "-c", "node dist/${SERVER_ENTRY}.js"]
