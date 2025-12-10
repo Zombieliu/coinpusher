@@ -83,6 +83,8 @@ oops-coinpusher/
 - `tsrpc_server/Dockerfile` 采用多阶段构建，默认启动 `ServerGate.js`，并委托 `docker/entrypoint.sh` 根据 `SERVER_ENTRY` 环境变量选择入口文件。在部署 Match/Room 服务时，只需设置 `SERVER_ENTRY=ServerMatch` 或 `SERVER_ENTRY=ServerRoom` 即可复用同一镜像。
 - 默认对外端口 `2000`，可通过 `PORT` 环境变量覆盖（Railway/容器平台会自动映射）。
 - 构建时自动执行 `npm install && npm run build && npm prune --production`，无需额外步骤；若需要自定义 Node 版本，可传入 build arg `NODE_VERSION`。
+- 如果生产环境未提供 HTTPS 证书，可暂时将 `FORCE_HTTPS=false` 写入环境变量，或者保留默认值并依赖 `CommonUtil` 的证书缺失回退（会自动降级为 HTTP 并打印警告）。
+- Room Server 运行时需要 `src/module/common/table/config/*.json`，Dockerfile 已在运行阶段自动复制；如需加载更多配置文件，请将它们放在同级目录并更新 Dockerfile 的拷贝逻辑。
 
 ## 监控指标扩展
 
