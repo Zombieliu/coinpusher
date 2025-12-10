@@ -40,6 +40,8 @@ const MONGO_URI_CANDIDATES = [
     process.env.MONGO_URI,
     process.env.MONGODB_URI,
     process.env.DATABASE_URL,
+    process.env.MONGO_URL,
+    process.env.MONGO_PUBLIC_URL,
     'mongodb://127.0.0.1:27018/coinpusher_game',
     'mongodb://127.0.0.1:27017/coinpusher_game',
     'mongodb://127.0.0.1:27017/coin_pusher'
