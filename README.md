@@ -86,6 +86,12 @@ oops-coinpusher/
 - 如果生产环境未提供 HTTPS 证书，可暂时将 `FORCE_HTTPS=false` 写入环境变量，或者保留默认值并依赖 `CommonUtil` 的证书缺失回退（会自动降级为 HTTP 并打印警告）。
 - Room Server 运行时需要 `src/module/common/table/config/*.json`，Dockerfile 已在运行阶段自动复制；如需加载更多配置文件，请将它们放在同级目录并更新 Dockerfile 的拷贝逻辑。
 
+## 监控与可视化
+
+- 仓库提供 `prometheus/grafana-dashboard.json` 与 `OBSERVABILITY_GUIDE.md`，可用于快速接入 Railway Grafana Stack 模板（Grafana、Prometheus、Loki、Tempo）。
+- Gate/Match/Room 默认在 `MONITORING_PORT=9090/9091/9092` 暴露 `/metrics`，在 Prometheus 的 `scrape_configs` 中指向服务域名即可。
+- Grafana 导入预置 JSON 后即可查看全链路 API 延迟、QPS、错误率等指标；如需日志或链路追踪，可按指南在 Loki/Tempo 中进一步配置。
+
 ## 监控指标扩展
 
 在任意 TSRPC API 中引入 `ApiTimer`、`recordApiError`，即可自动把延迟/错误率写入 `/metrics`。Grafana 预置板位于 `prometheus/grafana-dashboard.json`，导入后可查看 Gate/Match/Room 全链路指标。若需要更多业务监控，可参考 `tsrpc_server/src/server/utils/MetricsCollector.ts` 扩展自定义 Gauge/Counter。

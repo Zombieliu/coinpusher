@@ -1,0 +1,17 @@
+{
+  "RAILWAY_ENVIRONMENT": "production",
+  "RAILWAY_ENVIRONMENT_ID": "5d49fb0f-4b39-4b1d-aecd-da7ae47e0a55",
+  "RAILWAY_ENVIRONMENT_NAME": "production",
+  "RAILWAY_PRIVATE_DOMAIN": "gate.railway.internal",
+  "RAILWAY_PROJECT_ID": "7f74a932-8522-42fe-b354-5c1cb07688da",
+  "RAILWAY_PROJECT_NAME": "coinpusher",
+  "RAILWAY_PUBLIC_DOMAIN": "gate-production-41a5.up.railway.app",
+  "RAILWAY_SERVICE_ADMIN_URL": "admin-production-9a4c.up.railway.app",
+  "RAILWAY_SERVICE_GATE_URL": "gate-production-41a5.up.railway.app",
+  "RAILWAY_SERVICE_GRAFANA_URL": "grafana-production-c800.up.railway.app",
+  "RAILWAY_SERVICE_ID": "4adc9869-ec55-4621-923a-e96c471a6f30",
+  "RAILWAY_SERVICE_MATCH_URL": "match-production-3cae.up.railway.app",
+  "RAILWAY_SERVICE_NAME": "gate",
+  "RAILWAY_SERVICE_ROOM_URL": "room-production-88a9.up.railway.app",
+  "RAILWAY_STATIC_URL": "gate-production-41a5.up.railway.app"
+}
