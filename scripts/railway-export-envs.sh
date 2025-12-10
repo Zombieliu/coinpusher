@@ -15,6 +15,11 @@ fi
 OUTPUT_DIR=".railway/envs"
 mkdir -p "${OUTPUT_DIR}"
 
+if ! command -v railway >/dev/null 2>&1; then
+  echo "⚠️  未检测到 Railway CLI，请在本机安装并登录后再运行此脚本" >&2
+  exit 1
+fi
+
 for svc in "${SERVICES[@]}"; do
   echo "➡️  导出 ${svc} 变量..."
   railway service "${svc}" >/dev/null

@@ -4,18 +4,11 @@
 
 // 直接访问后端API
 // 默认提供本地开发(浏览器走 32000, Node 走 gate-server:3000)并支持通过 NEXT_PUBLIC_API_URL 覆盖
-const DEFAULT_BROWSER_BASE = 'http://localhost:32000';
-const DEFAULT_SERVER_BASE = 'http://gate-server:3000';
+const FALLBACK_BASE = 'https://gate-production-41a5.up.railway.app';
+const DEFAULT_BROWSER_BASE = FALLBACK_BASE;
+const DEFAULT_SERVER_BASE = FALLBACK_BASE;
 const normalizedEnvBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
-const API_BASE = (() => {
-  if (normalizedEnvBase) {
-    return normalizedEnvBase;
-  }
-  if (typeof window !== 'undefined') {
-    return DEFAULT_BROWSER_BASE;
-  }
-  return DEFAULT_SERVER_BASE;
-})();
+const API_BASE = normalizedEnvBase || DEFAULT_BROWSER_BASE;
 
 // 忽略自签名证书错误（开发环境）
 if (typeof window === 'undefined' && API_BASE.startsWith('https://')) {
