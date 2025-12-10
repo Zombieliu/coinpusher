@@ -68,7 +68,8 @@ export class Account extends ecs.Entity {
             }
 
             // 验证请求客户端地址是否在白名单列表中
-            if (conf?.needCheckAddress && (Config.ips as any)[call.conn.ip] == undefined) {
+            const disableIpWhitelist = process.env.DISABLE_IP_WHITELIST === 'true';
+            if (!disableIpWhitelist && conf?.needCheckAddress && (Config.ips as any)[call.conn.ip] == undefined) {
                 await call.error('没有访问权限', { code: 'NEED_AUTHORITY' });
                 return null;
             }
