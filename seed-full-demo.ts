@@ -243,21 +243,31 @@ async function seedEvents(db: any) {
         {
             _id: new ObjectId(),
             eventId: 'event_demo_1',
-            name: '圣诞连胜赛',
+            eventType: 'season',
+            title: '圣诞连胜赛',
+            description: '活动期间累积胜利可获得翻倍奖励。',
             startTime: Date.now() - 24 * 3600 * 1000,
             endTime: Date.now() + 24 * 3600 * 1000,
-            rewards: [{ gold: 8000 }],
+            rewards: { gold: 8000 },
+            config: { multiplier: 2 },
             status: 'ongoing',
+            createdAt: Date.now(),
+            createdBy: 'system',
             seedTag: SEED_TAG
         },
         {
             _id: new ObjectId(),
             eventId: 'event_demo_2',
-            name: '新手七日签到',
+            eventType: 'challenge',
+            title: '新手七日签到',
+            description: '连续签到 7 天即可领取额外钻石奖励。',
             startTime: Date.now() - 2 * 24 * 3600 * 1000,
             endTime: Date.now() + 5 * 24 * 3600 * 1000,
-            rewards: [{ diamond: 5 }],
+            rewards: { diamond: 5 },
+            config: { days: 7 },
             status: 'ongoing',
+            createdAt: Date.now(),
+            createdBy: 'system',
             seedTag: SEED_TAG
         }
     ]);

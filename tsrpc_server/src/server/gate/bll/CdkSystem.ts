@@ -189,15 +189,38 @@ export class CdkSystem {
             .limit(query.limit || 20)
             .toArray();
 
-        const normalizedList = list.map(item => ({
-            ...item,
-            batchId: item.batchId || 'legacy',
-            name: item.name || 'Legacy Batch',
-            rewards: normalizeRewards(item.rewards)
-        }));
+        const normalizedList = list.map(item => {
+            const now = Date.now();
+            const normalizedType = normalizeCdkType(item.type);
+            const createdAt = normalizeTimestamp(item.createdAt, now);
+            const expireAt = normalizeTimestamp(item.expireAt, createdAt + 30 * 24 * 60 * 60 * 1000);
+            const startTime = item.startTime ? normalizeTimestamp(item.startTime, createdAt) : undefined;
+
+            return {
+                ...item,
+                type: normalizedType,
+                batchId: item.batchId || 'legacy',
+                name: item.name || 'Legacy Batch',
+                rewards: normalizeRewards(item.rewards),
+                usageLimit: normalizeNumber(item.usageLimit, normalizedType === CdkType.Universal ? -1 : 1),
+                usageCount: normalizeNumber(item.usageCount, 0),
+                expireAt,
+                startTime,
+                createdAt,
+                createdBy: item.createdBy || 'system',
+                active: typeof item.active === 'boolean' ? item.active : item.status !== 'inactive'
+            };
+        });
 
         return { list: normalizedList, total };
     }
+}
+
+function normalizeCdkType(value: any): CdkType {
+    if (value === CdkType.Universal || value === 'universal' || value === 'global') {
+        return CdkType.Universal;
+    }
+    return CdkType.Single;
 }
 
 function normalizeRewards(raw: any): CdkReward {
@@ -223,4 +246,21 @@ function normalizeRewards(raw: any): CdkReward {
         }
     }
     return merged;
+}
+
+function normalizeTimestamp(value: any, fallback: number): number {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+    }
+    if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        if (!Number.isNaN(parsed)) {
+            return parsed;
+        }
+    }
+    return fallback;
+}
+
+function normalizeNumber(value: any, fallback: number): number {
+    return (typeof value === 'number' && Number.isFinite(value)) ? value : fallback;
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { fetchUsers, banUser, unbanUser, grantReward } from '@/lib/api'
+import { fetchUsers, banUser, unbanUser, grantReward, sendMail } from '@/lib/api'
 import { formatDate, formatNumber } from '@/lib/utils'
 import { Search, Filter, Ban, Gift, Mail, Layers } from 'lucide-react'
 
@@ -65,6 +65,26 @@ export default function UsersPage() {
     if (result.isSucc) {
       alert('发放成功')
       loadUsers()
+    }
+  }
+
+  async function handleSendMail(userId: string) {
+    const title = prompt('邮件标题', '系统通知')
+    if (!title) return
+    const content = prompt('邮件内容')
+    if (!content) return
+
+    const result = await sendMail({
+      type: 'single',
+      userIds: [userId],
+      title,
+      content
+    })
+
+    if (result.isSucc) {
+      alert('邮件已发送')
+    } else {
+      alert(`发送失败: ${result.err?.message}`)
     }
   }
 
@@ -177,7 +197,11 @@ export default function UsersPage() {
                     >
                       <Gift className="h-4 w-4" />
                     </button>
-                    <button className="text-gray-600 hover:text-gray-800" title="发送邮件">
+                    <button
+                      onClick={() => handleSendMail(user.userId)}
+                      className="text-gray-600 hover:text-gray-800"
+                      title="发送邮件"
+                    >
                       <Mail className="h-4 w-4" />
                     </button>
                   </div>
