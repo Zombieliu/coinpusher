@@ -190,16 +190,18 @@ export default function AnnouncementsPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>标题</Label>
+                            <Label htmlFor="announcement-title">标题</Label>
                             <Input 
+                                id="announcement-title"
                                 value={formData.title}
                                 onChange={e => setFormData({...formData, title: e.target.value})}
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <Label>内容</Label>
+                            <Label htmlFor="announcement-content">内容</Label>
                             <Textarea 
+                                id="announcement-content"
                                 className="h-[150px]"
                                 value={formData.content}
                                 onChange={e => setFormData({...formData, content: e.target.value})}
@@ -208,16 +210,18 @@ export default function AnnouncementsPage() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>开始时间</Label>
+                                <Label htmlFor="announcement-start">开始时间</Label>
                                 <Input 
+                                    id="announcement-start"
                                     type="datetime-local" 
                                     value={formData.startTime}
                                     onChange={e => setFormData({...formData, startTime: e.target.value})}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label>结束时间</Label>
+                                <Label htmlFor="announcement-end">结束时间</Label>
                                 <Input 
+                                    id="announcement-end"
                                     type="datetime-local" 
                                     value={formData.endTime}
                                     onChange={e => setFormData({...formData, endTime: e.target.value})}
@@ -256,13 +260,29 @@ export default function AnnouncementsPage() {
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
-                                    <Button size="icon" variant="ghost" onClick={() => toggleActive(item)}>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        aria-label={item.active ? '下架公告' : '上架公告'}
+                                        onClick={() => toggleActive(item)}
+                                    >
                                         {item.active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                     </Button>
-                                    <Button size="icon" variant="ghost" onClick={() => handleEdit(item)}>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        aria-label="编辑公告"
+                                        onClick={() => handleEdit(item)}
+                                    >
                                         <Edit className="h-4 w-4" />
                                     </Button>
-                                    <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-600" onClick={() => handleDelete(item.announcementId)}>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        aria-label="删除公告"
+                                        className="text-red-500 hover:text-red-600"
+                                        onClick={() => handleDelete(item.announcementId)}
+                                    >
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>

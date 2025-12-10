@@ -140,7 +140,7 @@ function OrdersPanel() {
                         value={filters.status} 
                         onValueChange={v => setFilters({...filters, status: v})}
                     >
-                        <SelectTrigger className="w-[150px]">
+                        <SelectTrigger className="w-[150px]" aria-label="订单状态筛选">
                             <SelectValue placeholder="状态" />
                         </SelectTrigger>
                         <SelectContent>

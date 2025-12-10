@@ -128,7 +128,7 @@ function BatchBanPanel() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center gap-4">
-                        <Button variant="outline" className="relative">
+                        <Button variant="outline" className="relative" aria-label="上传用户列表文件">
                             <Upload className="mr-2 h-4 w-4" />
                             上传TXT/CSV
                             <input 
@@ -142,15 +142,17 @@ function BatchBanPanel() {
                             已选中: <span className="font-bold text-blue-600">{userIds.length}</span> 人
                         </span>
                     </div>
-                    <Textarea 
-                        placeholder="user_123456&#10;user_789012" 
-                        className="h-[300px] font-mono"
-                        value={rawInput}
-                        onChange={e => {
-                            setRawInput(e.target.value)
-                            parseIds(e.target.value)
-                        }}
-                    />
+                    <div className="space-y-2">
+                        <Label htmlFor="batch-mail-users">目标用户列表</Label>
+                        <Textarea 
+                            id="batch-mail-users"
+                            placeholder="user_123456&#10;user_789012" 
+                            className="h-[300px] font-mono"
+                            value={rawInput}
+                            onChange={e => setRawInput(e.target.value)}
+                            onBlur={e => parseIds(e.target.value)}
+                        />
+                    </div>
                 </CardContent>
             </Card>
 
@@ -327,12 +329,17 @@ function BatchMailPanel() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label>邮件标题</Label>
-                        <Input value={title} onChange={e => setTitle(e.target.value)} />
+                        <Label htmlFor="batch-mail-title">邮件标题</Label>
+                        <Input
+                            id="batch-mail-title"
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
+                        />
                     </div>
                     <div className="space-y-2">
-                        <Label>邮件内容</Label>
+                        <Label htmlFor="batch-mail-content">邮件内容</Label>
                         <Textarea 
+                            id="batch-mail-content"
                             value={content} 
                             onChange={e => setContent(e.target.value)}
                             className="h-[100px]"
@@ -341,16 +348,18 @@ function BatchMailPanel() {
                     
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label>附带金币 (可选)</Label>
+                            <Label htmlFor="batch-mail-gold">附带金币 (可选)</Label>
                             <Input 
+                                id="batch-mail-gold"
                                 type="number" 
                                 value={rewards.gold} 
                                 onChange={e => setRewards({...rewards, gold: e.target.value})}
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>附带彩票 (可选)</Label>
+                            <Label htmlFor="batch-mail-tickets">附带彩票 (可选)</Label>
                             <Input 
+                                id="batch-mail-tickets"
                                 type="number" 
                                 value={rewards.tickets} 
                                 onChange={e => setRewards({...rewards, tickets: e.target.value})}

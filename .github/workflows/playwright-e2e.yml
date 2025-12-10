@@ -1,0 +1,62 @@
+name: Playwright E2E
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'admin-dashboard/**'
+      - '.github/workflows/playwright-e2e.yml'
+  pull_request:
+    paths:
+      - 'admin-dashboard/**'
+      - '.github/workflows/playwright-e2e.yml'
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: [chromium, firefox, webkit]
+    defaults:
+      run:
+        working-directory: admin-dashboard
+    env:
+      E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: admin-dashboard/pnpm-lock.yaml
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps=${{ matrix.browser }}
+
+      - name: Run Playwright tests (${{ matrix.browser }})
+        run: pnpm exec playwright test --config=playwright.config.ts --project=${{ matrix.browser }}
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: admin-dashboard/playwright-report
+          if-no-files-found: ignore
+
+      - name: Upload trace logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces-${{ matrix.browser }}
+          path: admin-dashboard/test-results
+          if-no-files-found: ignore
