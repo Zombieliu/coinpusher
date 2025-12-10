@@ -7,21 +7,19 @@
 
 import { ShareConfig } from "../../tsrpc/models/ShareConfig";
 import os from 'os';
-
-const defaultIp = process.env.SERVER_PUBLIC_HOST || os.hostname() || "127.0.0.1";
+const publicHost = process.env.SERVER_PUBLIC_HOST || os.hostname() || "127.0.0.1";
+const matchHost = process.env.MATCH_PUBLIC_HOST || publicHost;
+const roomHost = process.env.ROOM_PUBLIC_HOST || publicHost;
 
 /** 服务器配置 */
 export const Config = {
-    /** 证书 */
     certificate: 'dgflash.work',
-    /** 数据库地址 */
     mongodb: process.env.MONGO_URI || "mongodb:27017",
-    /** 网关服务器配置 */
     gate: {
         port: process.env['GATE_PORT'] || process.env['PORT'] || "2000",
         area: [
-            { name: "艾欧尼亚", server: `${defaultIp}:2100` },
-            { name: "诺克萨斯", server: `${defaultIp}:2200` }
+            { name: "艾欧尼亚", server: `${matchHost}:2100` },
+            { name: "诺克萨斯", server: `${roomHost}:2200` }
         ]
     },
     match: {
@@ -32,8 +30,8 @@ export const Config = {
     room: {
         logMsg: false,
         port: process.env['ROOM_PORT'] || process.env['PORT'] || "2201",
-        match_url_http: process.env['SERVER_URL_MATCH'] || process.env['MATCH_INTERNAL_URL'] || `${defaultIp}:2100`,
-        match_url_ws: process.env['SERVER_URL_ROOM'] || process.env['ROOM_PUBLIC_HOST'] || `${defaultIp}`,
+        match_url_http: process.env['SERVER_URL_MATCH'] || process.env['MATCH_INTERNAL_URL'] || `${matchHost}:2100`,
+        match_url_ws: process.env['SERVER_URL_ROOM'] || roomHost,
         update_state_interval: 1000,
         max_user_num: 10,
         empty_time: 3000,
@@ -49,5 +47,5 @@ export const Config = {
 }
 
 export function dev() {
-    if (ShareConfig.https && (defaultIp.indexOf("127.0.0.1") != -1 || defaultIp.indexOf("localhost") != -1)) process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    if (ShareConfig.https && (publicHost.indexOf("127.0.0.1") != -1 || publicHost.indexOf("localhost") != -1)) process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
