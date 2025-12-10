@@ -17,6 +17,8 @@ WORKDIR /app
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 ENV NODE_ENV=production
 # 默认启动 Gate，其他服务可通过设置 SERVER_ENTRY=ServerMatch 等方式覆盖
@@ -25,4 +27,4 @@ ENV SERVER_ENTRY=ServerGate
 ENV PORT=2000
 EXPOSE 2000
 
-CMD ["sh", "-c", "node dist/${SERVER_ENTRY}.js"]
+ENTRYPOINT ["/entrypoint.sh"]

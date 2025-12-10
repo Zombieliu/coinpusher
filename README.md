@@ -80,7 +80,7 @@ oops-coinpusher/
 
 ### Docker / Railway 部署提示
 
-- `tsrpc_server/Dockerfile` 采用多阶段构建，默认启动 `ServerGate.js`。在部署 Match/Room 服务时，只需在对应服务的环境变量中设置 `SERVER_ENTRY=ServerMatch` 或 `SERVER_ENTRY=ServerRoom` 即可复用同一镜像。
+- `tsrpc_server/Dockerfile` 采用多阶段构建，默认启动 `ServerGate.js`，并委托 `docker/entrypoint.sh` 根据 `SERVER_ENTRY` 环境变量选择入口文件。在部署 Match/Room 服务时，只需设置 `SERVER_ENTRY=ServerMatch` 或 `SERVER_ENTRY=ServerRoom` 即可复用同一镜像。
 - 默认对外端口 `2000`，可通过 `PORT` 环境变量覆盖（Railway/容器平台会自动映射）。
 - 构建时自动执行 `npm install && npm run build && npm prune --production`，无需额外步骤；若需要自定义 Node 版本，可传入 build arg `NODE_VERSION`。
 
