@@ -195,6 +195,7 @@ export class CdkSystem {
             const createdAt = normalizeTimestamp(item.createdAt, now);
             const expireAt = normalizeTimestamp(item.expireAt, createdAt + 30 * 24 * 60 * 60 * 1000);
             const startTime = item.startTime ? normalizeTimestamp(item.startTime, createdAt) : undefined;
+            const legacyStatus = (item as any).status;
 
             return {
                 ...item,
@@ -208,7 +209,7 @@ export class CdkSystem {
                 startTime,
                 createdAt,
                 createdBy: item.createdBy || 'system',
-                active: typeof item.active === 'boolean' ? item.active : item.status !== 'inactive'
+                active: typeof item.active === 'boolean' ? item.active : legacyStatus !== 'inactive'
             };
         });
 
