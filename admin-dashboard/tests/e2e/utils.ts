@@ -11,6 +11,28 @@ export interface ApiResponse {
   };
 }
 
+export const isRemoteDashboard = Boolean(process.env.E2E_BASE_URL);
+
+interface AdminCredentials {
+  username?: string;
+  password?: string;
+}
+
+export async function loginAsAdmin(page: Page, credentials?: AdminCredentials) {
+  const username = credentials?.username || process.env.E2E_ADMIN_USERNAME || 'admin';
+  const password = credentials?.password || process.env.E2E_ADMIN_PASSWORD || 'admin123';
+
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { name: '运营后台登录' })).toBeVisible({
+    timeout: 30_000
+  });
+
+  await page.getByLabel('用户名').fill(username);
+  await page.getByLabel('密码').fill(password);
+  await page.getByRole('button', { name: /登录/ }).click();
+  await page.waitForURL('**/dashboard*', { timeout: 30_000 });
+}
+
 export async function mockApi(
   page: Page,
   endpoint: string,
