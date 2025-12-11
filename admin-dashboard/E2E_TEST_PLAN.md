@@ -47,6 +47,7 @@ admin-dashboard/
 | `announcements.spec.ts` | 公告列表加载、发布、上下架/删除 |
 | `batch-mail.spec.ts` | 批量邮件/奖励下发（文件上传 + 确认流程） |
 | `batch-ban.spec.ts` | 批量封禁（文本解析 + 原因/时长配置） |
+| `invite-admin.spec.ts` | 邀请管理页查询展示 |
 | `finance-orders.spec.ts` | 财务订单列表筛选、状态切换 |
 | `finance-refund.spec.ts` | 退款列表展示 + 批准流程（含确认对话） |
 | `support.spec.ts` | 客服工单回复、关闭 |

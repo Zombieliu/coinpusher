@@ -20,6 +20,7 @@ import { DragonflyDBService } from '../db/DragonflyDBService';
 import { UserDB } from '../data/UserDB';
 import crypto from 'crypto';
 import { ObjectId } from 'mongodb';
+import { InviteConfigSystem } from './InviteConfigSystem';
 
 /** 邀请关系 */
 export interface InviteRelation {
@@ -54,17 +55,6 @@ export interface InviteRewardConfig {
 }
 
 export class InviteSystem {
-    /**
-     * 奖励配置
-     */
-    private static readonly REWARD_CONFIG: InviteRewardConfig = {
-        registerReward: 5,
-        registerRewardInviter: 5,
-        firstChargeRate: 10,
-        level10Reward: 50,
-        level20Reward: 100,
-        level30Reward: 200
-    };
 
     /**
      * 生成邀请码
@@ -173,11 +163,13 @@ export class InviteSystem {
      * 发放注册奖励
      */
     private static async giveRegisterReward(inviterId: string, inviteeId: string): Promise<void> {
+        const rewardConfig = await InviteConfigSystem.getRewardConfig();
+
         // 给被邀请人奖励
         const invitee = await UserDB.getUserById(inviteeId);
         if (invitee) {
             await UserDB.updateUser(inviteeId, {
-                gold: invitee.gold + this.REWARD_CONFIG.registerReward
+                gold: invitee.gold + rewardConfig.registerReward
             });
         }
 
@@ -185,14 +177,14 @@ export class InviteSystem {
         const inviter = await UserDB.getUserById(inviterId);
         if (inviter) {
             await UserDB.updateUser(inviterId, {
-                gold: inviter.gold + this.REWARD_CONFIG.registerRewardInviter
+                gold: inviter.gold + rewardConfig.registerRewardInviter
             });
 
             // 更新总奖励
             const statsCollection = MongoDBService.getCollection<InviteStats>('invite_stats');
             await statsCollection.updateOne(
                 { userId: inviterId },
-                { $inc: { totalRewards: this.REWARD_CONFIG.registerRewardInviter } }
+                { $inc: { totalRewards: rewardConfig.registerRewardInviter } }
             );
         }
 
@@ -203,7 +195,7 @@ export class InviteSystem {
             { $set: { rewardGiven: true } }
         );
 
-        console.log(`[InviteSystem] 注册奖励已发放：邀请人${inviterId} +${this.REWARD_CONFIG.registerRewardInviter}金币，被邀请人${inviteeId} +${this.REWARD_CONFIG.registerReward}金币`);
+        console.log(`[InviteSystem] 注册奖励已发放：邀请人${inviterId} +${rewardConfig.registerRewardInviter}金币，被邀请人${inviteeId} +${rewardConfig.registerReward}金币`);
     }
 
     /**
@@ -218,7 +210,8 @@ export class InviteSystem {
         }
 
         // 计算返利
-        const rewardAmount = Math.floor(amount * this.REWARD_CONFIG.firstChargeRate / 100);
+        const rewardConfig = await InviteConfigSystem.getRewardConfig();
+        const rewardAmount = Math.floor(amount * rewardConfig.firstChargeRate / 100);
 
         // 给邀请人奖励
         const inviter = await UserDB.getUserById(relation.inviterId);
@@ -255,21 +248,22 @@ export class InviteSystem {
             return;
         }
 
+        const rewardConfig = await InviteConfigSystem.getRewardConfig();
         let rewardAmount = 0;
         let shouldGiveReward = false;
 
         if (level >= 10 && !relation.level10RewardGiven) {
-            rewardAmount = this.REWARD_CONFIG.level10Reward;
+            rewardAmount = rewardConfig.level10Reward;
             shouldGiveReward = true;
             await relationCollection.updateOne(
                 { inviterId: relation.inviterId, inviteeId: userId },
                 { $set: { level10RewardGiven: true } }
             );
         } else if (level >= 20) {
-            rewardAmount = this.REWARD_CONFIG.level20Reward;
+            rewardAmount = rewardConfig.level20Reward;
             shouldGiveReward = true;
         } else if (level >= 30) {
-            rewardAmount = this.REWARD_CONFIG.level30Reward;
+            rewardAmount = rewardConfig.level30Reward;
             shouldGiveReward = true;
         }
 

@@ -32,6 +32,7 @@ const navigation = [
   { name: '游戏配置', href: '/dashboard/config', icon: Settings },
   { name: '活动管理', href: '/dashboard/events', icon: Calendar },
   { name: '公告管理', href: '/dashboard/announcements', icon: Megaphone },
+  { name: '邀请系统', href: '/dashboard/invite', icon: Activity },
   { name: 'CDK管理', href: '/dashboard/cdk', icon: Ticket },
   { name: '系统维护', href: '/dashboard/maintenance', icon: Wrench },
   { name: '管理员', href: '/dashboard/admins', icon: Shield },

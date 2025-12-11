@@ -116,6 +116,7 @@ export async function unbanUser(userId: string) {
   return callAPI('admin/UnbanUser', { userId })
 }
 
+
 /**
  * 发放奖励
  */
@@ -198,6 +199,35 @@ export async function fetchConfigHistory(configType: string, page = 1, limit = 1
  */
 export async function rollbackConfig(configType: string, historyId: string) {
   return callAPI('admin/RollbackConfig', { configType, historyId })
+}
+
+export async function fetchInviteLeaderboard(params: {
+  page?: number
+  limit?: number
+  sortBy?: 'invites' | 'rewards'
+  search?: string
+}) {
+  return callAPI('admin/GetInviteLeaderboard', params)
+}
+
+export async function exportInviteLeaderboard(params: {
+  limit?: number
+  sortBy?: 'invites' | 'rewards'
+  search?: string
+}) {
+  return callAPI('admin/ExportInviteLeaderboard', params)
+}
+
+export async function fetchInviteRewardConfig() {
+  return callAPI('admin/GetInviteRewardConfig', {})
+}
+
+export async function updateInviteRewardConfig(config: any, comment?: string) {
+  return callAPI('admin/UpdateInviteRewardConfig', { config, comment })
+}
+
+export async function fetchInviteRewardHistory(page = 1, limit = 10) {
+  return callAPI('admin/GetInviteRewardHistory', { page, limit })
 }
 
 /**
@@ -411,7 +441,7 @@ export async function fetchCdkList(params: {
  */
 export async function generateCdk(params: {
   name: string
-  type: string
+  type: 'single' | 'universal'
   rewards: any
   count: number
   usageLimit: number
@@ -427,8 +457,19 @@ export async function generateCdk(params: {
 export async function disableCdk(params: {
   code: string
   disableBatch?: boolean
+  reason?: string
 }) {
   return callAPI('admin/DisableCdk', params)
+}
+
+export async function fetchCdkHistory(params: {
+  batchId?: string
+  code?: string
+  type?: 'usage' | 'actions' | 'all'
+  page?: number
+  limit?: number
+}) {
+  return callAPI('admin/GetCdkHistory', params)
 }
 
 // ==================== 系统维护 ====================

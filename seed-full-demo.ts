@@ -24,6 +24,7 @@ async function main() {
         await seedShopProducts(db);
         await seedInventory(db);
         await seedMails(db);
+        await seedInviteSystem(db);
         await seedCdks(db);
         await seedNotificationStats(db);
         await seedLogAnalytics(db);
@@ -332,27 +333,225 @@ async function seedMails(db: any) {
     console.log('• 邮件样本已写入');
 }
 
-async function seedCdks(db: any) {
-    const cdks = db.collection('cdk_codes');
-    await cdks.deleteMany({ seedTag: SEED_TAG });
-    await cdks.insertMany([
+async function seedInviteSystem(db: any) {
+    const inviteStats = db.collection('invite_stats');
+    const inviteRelations = db.collection('invite_relations');
+    const inviteConfigs = db.collection('invite_reward_configs');
+    const inviteHistory = db.collection('invite_reward_config_history');
+
+    await inviteStats.deleteMany({ seedTag: SEED_TAG });
+    await inviteRelations.deleteMany({ seedTag: SEED_TAG });
+    await inviteConfigs.deleteMany({ seedTag: SEED_TAG });
+    await inviteHistory.deleteMany({ seedTag: SEED_TAG });
+
+    const now = Date.now();
+    const inviterStats = [
         {
             _id: new ObjectId(),
-            code: 'DEMO-CODE-1234',
-            type: 'single',
-            rewards: [{ gold: 5000 }],
-            status: 'active',
+            userId: 'demo_user_1',
+            totalInvites: 5,
+            validInvites: 4,
+            totalRewards: 650,
+            inviteCode: 'INV-A1B2',
+            inviteLink: 'https://game.demo/invite/INV-A1B2',
+            updatedAt: now,
             seedTag: SEED_TAG
         },
         {
             _id: new ObjectId(),
-            code: 'DEMO-CODE-ALL',
-            type: 'global',
-            rewards: [{ diamond: 20 }],
-            status: 'active',
+            userId: 'demo_user_2',
+            totalInvites: 2,
+            validInvites: 2,
+            totalRewards: 260,
+            inviteCode: 'INV-C3D4',
+            inviteLink: 'https://game.demo/invite/INV-C3D4',
+            updatedAt: now,
+            seedTag: SEED_TAG
+        }
+    ];
+    await inviteStats.insertMany(inviterStats);
+
+    await inviteRelations.insertMany([
+        {
+            _id: new ObjectId(),
+            inviterId: 'demo_user_1',
+            inviteeId: 'demo_user_3',
+            inviteCode: 'INV-A1B2',
+            invitedAt: now - 4 * 24 * 3600 * 1000,
+            rewardGiven: true,
+            firstChargeRewardGiven: true,
+            level10RewardGiven: true,
+            seedTag: SEED_TAG
+        },
+        {
+            _id: new ObjectId(),
+            inviterId: 'demo_user_1',
+            inviteeId: 'demo_user_4',
+            inviteCode: 'INV-A1B2',
+            invitedAt: now - 2 * 24 * 3600 * 1000,
+            rewardGiven: true,
+            firstChargeRewardGiven: false,
+            level10RewardGiven: false,
+            seedTag: SEED_TAG
+        },
+        {
+            _id: new ObjectId(),
+            inviterId: 'demo_user_2',
+            inviteeId: 'demo_guest_1',
+            inviteCode: 'INV-C3D4',
+            invitedAt: now - 6 * 24 * 3600 * 1000,
+            rewardGiven: true,
+            firstChargeRewardGiven: true,
+            level10RewardGiven: false,
             seedTag: SEED_TAG
         }
     ]);
+
+    const rewardConfig = {
+        version: 3,
+        config: {
+            registerReward: 8,
+            registerRewardInviter: 8,
+            firstChargeRate: 15,
+            level10Reward: 60,
+            level20Reward: 120,
+            level30Reward: 200
+        },
+        status: 'active',
+        reviewStatus: 'approved',
+        updatedAt: now,
+        updatedBy: { adminId: 'admin_default', username: '管理员' },
+        reviewer: { adminId: 'admin_default', username: '管理员' },
+        reviewedAt: now,
+        comment: '演示环境默认奖励配置',
+        seedTag: SEED_TAG
+    };
+    await inviteConfigs.insertOne(rewardConfig);
+    await inviteHistory.insertMany([
+        {
+            _id: new ObjectId(),
+            historyId: 'invite_hist_1',
+            version: 2,
+            config: {
+                registerReward: 5,
+                registerRewardInviter: 5,
+                firstChargeRate: 10,
+                level10Reward: 50,
+                level20Reward: 100,
+                level30Reward: 150
+            },
+            status: 'archived',
+            reviewStatus: 'approved',
+            updatedAt: now - 7 * 24 * 3600 * 1000,
+            updatedBy: { adminId: 'admin_default', username: '管理员' },
+            reviewer: { adminId: 'admin_default', username: '管理员' },
+            seedTag: SEED_TAG
+        },
+        {
+            _id: new ObjectId(),
+            historyId: 'invite_hist_2',
+            ...rewardConfig,
+            createdAt: now
+        }
+    ]);
+
+    console.log('• 邀请系统样本已写入');
+}
+
+async function seedCdks(db: any) {
+    const cdks = db.collection('cdk_codes');
+    const cdkUsage = db.collection('cdk_usage_logs');
+    const cdkAdminLogs = db.collection('cdk_admin_logs');
+
+    await cdks.deleteMany({ seedTag: SEED_TAG });
+    await cdkUsage.deleteMany({ seedTag: SEED_TAG });
+    await cdkAdminLogs.deleteMany({ seedTag: SEED_TAG });
+
+    const now = Date.now();
+    const batchId = 'batch_demo_reward';
+    await cdks.insertMany([
+        {
+            _id: new ObjectId(),
+            code: 'DEMO-SINGLE-001',
+            batchId,
+            type: 'single',
+            name: '演示单码奖励',
+            rewards: { gold: 5000 },
+            usageLimit: 1,
+            usageCount: 0,
+            expireAt: now + 30 * 24 * 3600 * 1000,
+            createdAt: now - 24 * 3600 * 1000,
+            createdBy: 'admin_default',
+            active: true,
+            seedTag: SEED_TAG
+        },
+        {
+            _id: new ObjectId(),
+            code: 'DEMO-UNIV-ALL',
+            batchId: 'batch_demo_universal',
+            type: 'universal',
+            name: '演示通用礼包',
+            rewards: { gold: 2000, tickets: 5 },
+            usageLimit: 100,
+            usageCount: 12,
+            expireAt: now + 60 * 24 * 3600 * 1000,
+            createdAt: now - 48 * 3600 * 1000,
+            createdBy: 'admin_default',
+            active: true,
+            seedTag: SEED_TAG
+        }
+    ]);
+
+    await cdkUsage.insertMany([
+        {
+            _id: new ObjectId(),
+            code: 'DEMO-UNIV-ALL',
+            batchId: 'batch_demo_universal',
+            userId: 'demo_user_3',
+            rewards: { gold: 2000, tickets: 5 },
+            usedAt: now - 12 * 3600 * 1000,
+            seedTag: SEED_TAG
+        },
+        {
+            _id: new ObjectId(),
+            code: 'DEMO-UNIV-ALL',
+            batchId: 'batch_demo_universal',
+            userId: 'demo_user_4',
+            rewards: { gold: 2000 },
+            usedAt: now - 6 * 3600 * 1000,
+            seedTag: SEED_TAG
+        }
+    ]);
+
+    await cdkAdminLogs.insertMany([
+        {
+            _id: new ObjectId(),
+            actionId: 'cdk_log_1',
+            action: 'generate',
+            batchId,
+            code: undefined,
+            adminId: 'admin_default',
+            adminName: '管理员',
+            comment: '批量生成演示 CDK',
+            payload: { count: 50, rewards: { gold: 5000 } },
+            createdAt: now - 24 * 3600 * 1000,
+            seedTag: SEED_TAG
+        },
+        {
+            _id: new ObjectId(),
+            actionId: 'cdk_log_2',
+            action: 'disable_code',
+            batchId,
+            code: 'DEMO-SINGLE-001',
+            adminId: 'admin_default',
+            adminName: '管理员',
+            comment: '演示禁用单个 CDK',
+            payload: { reason: '测试' },
+            createdAt: now - 6 * 3600 * 1000,
+            seedTag: SEED_TAG
+        }
+    ]);
+
     console.log('• CDK 样本已写入');
 }
 

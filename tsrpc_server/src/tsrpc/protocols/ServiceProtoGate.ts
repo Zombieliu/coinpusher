@@ -9,6 +9,7 @@ import { ReqCreateEvent, ResCreateEvent } from './gate/admin/PtlCreateEvent';
 import { ReqDeleteAnnouncement, ResDeleteAnnouncement } from './gate/admin/PtlDeleteAnnouncement';
 import { ReqDeleteEvent, ResDeleteEvent } from './gate/admin/PtlDeleteEvent';
 import { ReqDisableCdk, ResDisableCdk } from './gate/admin/PtlDisableCdk';
+import { ReqExportInviteLeaderboard, ResExportInviteLeaderboard } from './gate/admin/PtlExportInviteLeaderboard';
 import { ReqGenerateCdk, ResGenerateCdk } from './gate/admin/PtlGenerateCdk';
 import { ReqGetActiveAlerts, ResGetActiveAlerts } from './gate/admin/PtlGetActiveAlerts';
 import { ReqGetAdmins, ResGetAdmins } from './gate/admin/PtlGetAdmins';
@@ -16,11 +17,15 @@ import { ReqGetAdvancedStats, ResGetAdvancedStats } from './gate/admin/PtlGetAdv
 import { ReqGetAnnouncements, ResGetAnnouncements } from './gate/admin/PtlGetAnnouncements';
 import { ReqGetAuditLogs, ResGetAuditLogs } from './gate/admin/PtlGetAuditLogs';
 import { ReqGetAuditStatistics, ResGetAuditStatistics } from './gate/admin/PtlGetAuditStatistics';
+import { ReqGetCdkHistory, ResGetCdkHistory } from './gate/admin/PtlGetCdkHistory';
 import { ReqGetCdkList, ResGetCdkList } from './gate/admin/PtlGetCdkList';
 import { ReqGetConfig, ResGetConfig } from './gate/admin/PtlGetConfig';
 import { ReqGetConfigHistory, ResGetConfigHistory } from './gate/admin/PtlGetConfigHistory';
 import { ReqGetEvents, ResGetEvents } from './gate/admin/PtlGetEvents';
 import { ReqGetFinancialStats, ResGetFinancialStats } from './gate/admin/PtlGetFinancialStats';
+import { ReqGetInviteLeaderboard, ResGetInviteLeaderboard } from './gate/admin/PtlGetInviteLeaderboard';
+import { ReqGetInviteRewardConfig, ResGetInviteRewardConfig } from './gate/admin/PtlGetInviteRewardConfig';
+import { ReqGetInviteRewardHistory, ResGetInviteRewardHistory } from './gate/admin/PtlGetInviteRewardHistory';
 import { ReqGetLiveLogs, ResGetLiveLogs } from './gate/admin/PtlGetLiveLogs';
 import { ReqGetLogAnalytics, ResGetLogAnalytics } from './gate/admin/PtlGetLogAnalytics';
 import { ReqGetLogs, ResGetLogs } from './gate/admin/PtlGetLogs';
@@ -44,6 +49,7 @@ import { ReqUpdateAdminStatus, ResUpdateAdminStatus } from './gate/admin/PtlUpda
 import { ReqUpdateAnnouncement, ResUpdateAnnouncement } from './gate/admin/PtlUpdateAnnouncement';
 import { ReqUpdateConfig, ResUpdateConfig } from './gate/admin/PtlUpdateConfig';
 import { ReqUpdateEvent, ResUpdateEvent } from './gate/admin/PtlUpdateEvent';
+import { ReqUpdateInviteRewardConfig, ResUpdateInviteRewardConfig } from './gate/admin/PtlUpdateInviteRewardConfig';
 import { ReqAddGold, ResAddGold } from './gate/internal/PtlAddGold';
 import { ReqCollectWithReward, ResCollectWithReward } from './gate/internal/PtlCollectWithReward';
 import { ReqDeductGold, ResDeductGold } from './gate/internal/PtlDeductGold';
@@ -136,6 +142,10 @@ export interface ServiceType {
             req: ReqDisableCdk,
             res: ResDisableCdk
         },
+        "admin/ExportInviteLeaderboard": {
+            req: ReqExportInviteLeaderboard,
+            res: ResExportInviteLeaderboard
+        },
         "admin/GenerateCdk": {
             req: ReqGenerateCdk,
             res: ResGenerateCdk
@@ -164,6 +174,10 @@ export interface ServiceType {
             req: ReqGetAuditStatistics,
             res: ResGetAuditStatistics
         },
+        "admin/GetCdkHistory": {
+            req: ReqGetCdkHistory,
+            res: ResGetCdkHistory
+        },
         "admin/GetCdkList": {
             req: ReqGetCdkList,
             res: ResGetCdkList
@@ -183,6 +197,18 @@ export interface ServiceType {
         "admin/GetFinancialStats": {
             req: ReqGetFinancialStats,
             res: ResGetFinancialStats
+        },
+        "admin/GetInviteLeaderboard": {
+            req: ReqGetInviteLeaderboard,
+            res: ResGetInviteLeaderboard
+        },
+        "admin/GetInviteRewardConfig": {
+            req: ReqGetInviteRewardConfig,
+            res: ResGetInviteRewardConfig
+        },
+        "admin/GetInviteRewardHistory": {
+            req: ReqGetInviteRewardHistory,
+            res: ResGetInviteRewardHistory
         },
         "admin/GetLiveLogs": {
             req: ReqGetLiveLogs,
@@ -275,6 +301,10 @@ export interface ServiceType {
         "admin/UpdateEvent": {
             req: ReqUpdateEvent,
             res: ResUpdateEvent
+        },
+        "admin/UpdateInviteRewardConfig": {
+            req: ReqUpdateInviteRewardConfig,
+            res: ResUpdateInviteRewardConfig
         },
         "internal/AddGold": {
             req: ReqAddGold,
@@ -479,7 +509,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 26,
+    "version": 27,
     "services": [
         {
             "id": 47,
@@ -532,6 +562,11 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "type": "api"
         },
         {
+            "id": 94,
+            "name": "admin/ExportInviteLeaderboard",
+            "type": "api"
+        },
+        {
             "id": 85,
             "name": "admin/GenerateCdk",
             "type": "api"
@@ -567,6 +602,11 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "type": "api"
         },
         {
+            "id": 95,
+            "name": "admin/GetCdkHistory",
+            "type": "api"
+        },
+        {
             "id": 86,
             "name": "admin/GetCdkList",
             "type": "api"
@@ -589,6 +629,21 @@ export const serviceProto: ServiceProto<ServiceType> = {
         {
             "id": 76,
             "name": "admin/GetFinancialStats",
+            "type": "api"
+        },
+        {
+            "id": 96,
+            "name": "admin/GetInviteLeaderboard",
+            "type": "api"
+        },
+        {
+            "id": 97,
+            "name": "admin/GetInviteRewardConfig",
+            "type": "api"
+        },
+        {
+            "id": 98,
+            "name": "admin/GetInviteRewardHistory",
             "type": "api"
         },
         {
@@ -704,6 +759,11 @@ export const serviceProto: ServiceProto<ServiceType> = {
         {
             "id": 67,
             "name": "admin/UpdateEvent",
+            "type": "api"
+        },
+        {
+            "id": 99,
+            "name": "admin/UpdateInviteRewardConfig",
             "type": "api"
         },
         {
@@ -1785,6 +1845,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "Boolean"
                     },
                     "optional": true
+                },
+                {
+                    "id": 3,
+                    "name": "reason",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
                 }
             ]
         },
@@ -1805,6 +1873,104 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "String"
                     },
                     "optional": true
+                },
+                {
+                    "id": 2,
+                    "name": "affected",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/PtlExportInviteLeaderboard/ReqExportInviteLeaderboard": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "__ssoToken",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "limit",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 2,
+                    "name": "sortBy",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/InviteAdminSystem/InviteLeaderboardSort"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 3,
+                    "name": "search",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "../../../server/gate/bll/InviteAdminSystem/InviteLeaderboardSort": {
+            "type": "Union",
+            "members": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "invites"
+                    }
+                },
+                {
+                    "id": 1,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "rewards"
+                    }
+                }
+            ]
+        },
+        "admin/PtlExportInviteLeaderboard/ResExportInviteLeaderboard": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "fileName",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "csvBase64",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "generatedAt",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "total",
+                    "type": {
+                        "type": "Number"
+                    }
                 }
             ]
         },
@@ -2952,6 +3118,326 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 }
             ]
         },
+        "admin/PtlGetCdkHistory/ReqGetCdkHistory": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "__ssoToken",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "batchId",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 2,
+                    "name": "code",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 3,
+                    "name": "type",
+                    "type": {
+                        "type": "Reference",
+                        "target": "admin/PtlGetCdkHistory/CdkHistoryType"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 4,
+                    "name": "page",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 5,
+                    "name": "limit",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/PtlGetCdkHistory/CdkHistoryType": {
+            "type": "Union",
+            "members": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "usage"
+                    }
+                },
+                {
+                    "id": 1,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "actions"
+                    }
+                },
+                {
+                    "id": 2,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "all"
+                    }
+                }
+            ]
+        },
+        "admin/PtlGetCdkHistory/ResGetCdkHistory": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "usage",
+                    "type": {
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "list",
+                                "type": {
+                                    "type": "Array",
+                                    "elementType": {
+                                        "type": "Reference",
+                                        "target": "../../../server/gate/bll/CdkSystem/CdkUsageLog"
+                                    }
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "name": "total",
+                                "type": {
+                                    "type": "Number"
+                                }
+                            },
+                            {
+                                "id": 2,
+                                "name": "page",
+                                "type": {
+                                    "type": "Number"
+                                }
+                            },
+                            {
+                                "id": 3,
+                                "name": "pageSize",
+                                "type": {
+                                    "type": "Number"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "actions",
+                    "type": {
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "list",
+                                "type": {
+                                    "type": "Array",
+                                    "elementType": {
+                                        "type": "Reference",
+                                        "target": "../../../server/gate/bll/CdkAdminSystem/CdkAdminActionLog"
+                                    }
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "name": "total",
+                                "type": {
+                                    "type": "Number"
+                                }
+                            },
+                            {
+                                "id": 2,
+                                "name": "page",
+                                "type": {
+                                    "type": "Number"
+                                }
+                            },
+                            {
+                                "id": 3,
+                                "name": "pageSize",
+                                "type": {
+                                    "type": "Number"
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        "../../../server/gate/bll/CdkSystem/CdkUsageLog": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "code",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "userId",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "rewards",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/CdkSystem/CdkReward"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "batchId",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 4,
+                    "name": "usedAt",
+                    "type": {
+                        "type": "Number"
+                    }
+                }
+            ]
+        },
+        "../../../server/gate/bll/CdkAdminSystem/CdkAdminActionLog": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "actionId",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "action",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/CdkAdminSystem/CdkAdminActionType"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "batchId",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "code",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 4,
+                    "name": "adminId",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 5,
+                    "name": "adminName",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 6,
+                    "name": "comment",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 7,
+                    "name": "payload",
+                    "type": {
+                        "type": "Interface",
+                        "indexSignature": {
+                            "keyType": "String",
+                            "type": {
+                                "type": "Any"
+                            }
+                        }
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 8,
+                    "name": "createdAt",
+                    "type": {
+                        "type": "Number"
+                    }
+                }
+            ]
+        },
+        "../../../server/gate/bll/CdkAdminSystem/CdkAdminActionType": {
+            "type": "Union",
+            "members": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "generate"
+                    }
+                },
+                {
+                    "id": 1,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "disable_code"
+                    }
+                },
+                {
+                    "id": 2,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "disable_batch"
+                    }
+                },
+                {
+                    "id": 3,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "export"
+                    }
+                }
+            ]
+        },
         "admin/PtlGetCdkList/ReqGetCdkList": {
             "type": "Interface",
             "properties": [
@@ -3595,6 +4081,607 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 }
                             ]
                         }
+                    }
+                }
+            ]
+        },
+        "admin/PtlGetInviteLeaderboard/ReqGetInviteLeaderboard": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "__ssoToken",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "page",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 2,
+                    "name": "limit",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 3,
+                    "name": "sortBy",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/InviteAdminSystem/InviteLeaderboardSort"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 4,
+                    "name": "search",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/PtlGetInviteLeaderboard/ResGetInviteLeaderboard": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "list",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../../../server/gate/bll/InviteAdminSystem/InviteLeaderboardEntry"
+                        }
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "total",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "page",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "pageSize",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 4,
+                    "name": "summary",
+                    "type": {
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "totalInvites",
+                                "type": {
+                                    "type": "Number"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "name": "totalRewards",
+                                "type": {
+                                    "type": "Number"
+                                }
+                            },
+                            {
+                                "id": 2,
+                                "name": "totalInviters",
+                                "type": {
+                                    "type": "Number"
+                                }
+                            },
+                            {
+                                "id": 3,
+                                "name": "todaysNewInvites",
+                                "type": {
+                                    "type": "Number"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": 5,
+                    "name": "configVersion",
+                    "type": {
+                        "type": "Number"
+                    }
+                }
+            ]
+        },
+        "../../../server/gate/bll/InviteAdminSystem/InviteLeaderboardEntry": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "userId",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "inviteCode",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "inviteLink",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "totalInvites",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 4,
+                    "name": "validInvites",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 5,
+                    "name": "totalRewards",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 6,
+                    "name": "rank",
+                    "type": {
+                        "type": "Number"
+                    }
+                }
+            ]
+        },
+        "admin/PtlGetInviteRewardConfig/ReqGetInviteRewardConfig": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "__ssoToken",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/PtlGetInviteRewardConfig/ResGetInviteRewardConfig": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "version",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "config",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/InviteSystem/InviteRewardConfig"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "updatedAt",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "updatedBy",
+                    "type": {
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "adminId",
+                                "type": {
+                                    "type": "String"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "name": "username",
+                                "type": {
+                                    "type": "String"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": 4,
+                    "name": "reviewer",
+                    "type": {
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "adminId",
+                                "type": {
+                                    "type": "String"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "name": "username",
+                                "type": {
+                                    "type": "String"
+                                }
+                            }
+                        ]
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 5,
+                    "name": "reviewStatus",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/InviteConfigSystem/InviteConfigReviewStatus"
+                    }
+                },
+                {
+                    "id": 6,
+                    "name": "comment",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "../../../server/gate/bll/InviteSystem/InviteRewardConfig": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "registerReward",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "registerRewardInviter",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "firstChargeRate",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "level10Reward",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 4,
+                    "name": "level20Reward",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 5,
+                    "name": "level30Reward",
+                    "type": {
+                        "type": "Number"
+                    }
+                }
+            ]
+        },
+        "../../../server/gate/bll/InviteConfigSystem/InviteConfigReviewStatus": {
+            "type": "Union",
+            "members": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "approved"
+                    }
+                },
+                {
+                    "id": 1,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "pending"
+                    }
+                },
+                {
+                    "id": 2,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "rejected"
+                    }
+                }
+            ]
+        },
+        "admin/PtlGetInviteRewardHistory/ReqGetInviteRewardHistory": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "__ssoToken",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "page",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 2,
+                    "name": "limit",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 3,
+                    "name": "status",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/InviteConfigSystem/InviteConfigReviewStatus"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/PtlGetInviteRewardHistory/ResGetInviteRewardHistory": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "history",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../../../server/gate/bll/InviteConfigSystem/InviteRewardConfigHistory"
+                        }
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "total",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "page",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "pageSize",
+                    "type": {
+                        "type": "Number"
+                    }
+                }
+            ]
+        },
+        "../../../server/gate/bll/InviteConfigSystem/InviteRewardConfigHistory": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/InviteConfigSystem/InviteRewardConfigRecord"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "historyId",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "createdAt",
+                    "type": {
+                        "type": "Number"
+                    }
+                }
+            ]
+        },
+        "../../../server/gate/bll/InviteConfigSystem/InviteRewardConfigRecord": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "_id",
+                    "type": {
+                        "type": "Reference",
+                        "target": "?mongodb/ObjectId"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "version",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "config",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/InviteSystem/InviteRewardConfig"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "status",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/InviteConfigSystem/InviteConfigStatus"
+                    }
+                },
+                {
+                    "id": 4,
+                    "name": "reviewStatus",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/InviteConfigSystem/InviteConfigReviewStatus"
+                    }
+                },
+                {
+                    "id": 5,
+                    "name": "updatedAt",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 6,
+                    "name": "updatedBy",
+                    "type": {
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "adminId",
+                                "type": {
+                                    "type": "String"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "name": "username",
+                                "type": {
+                                    "type": "String"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": 7,
+                    "name": "comment",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 8,
+                    "name": "reviewer",
+                    "type": {
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "adminId",
+                                "type": {
+                                    "type": "String"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "name": "username",
+                                "type": {
+                                    "type": "String"
+                                }
+                            }
+                        ]
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 9,
+                    "name": "reviewedAt",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "../../../server/gate/bll/InviteConfigSystem/InviteConfigStatus": {
+            "type": "Union",
+            "members": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "active"
+                    }
+                },
+                {
+                    "id": 1,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "pending"
+                    }
+                },
+                {
+                    "id": 2,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "archived"
                     }
                 }
             ]
@@ -6399,6 +7486,94 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "String"
                     },
                     "optional": true
+                }
+            ]
+        },
+        "admin/PtlUpdateInviteRewardConfig/ReqUpdateInviteRewardConfig": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "__ssoToken",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "config",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/InviteSystem/InviteRewardConfig"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "comment",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 3,
+                    "name": "reviewerId",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 4,
+                    "name": "reviewerName",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 5,
+                    "name": "reviewStatus",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/InviteConfigSystem/InviteConfigReviewStatus"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/PtlUpdateInviteRewardConfig/ResUpdateInviteRewardConfig": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "success",
+                    "type": {
+                        "type": "Boolean"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "version",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "status",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/InviteConfigSystem/InviteConfigReviewStatus"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "updatedAt",
+                    "type": {
+                        "type": "Number"
+                    }
                 }
             ]
         },

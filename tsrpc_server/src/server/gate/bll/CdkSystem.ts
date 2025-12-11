@@ -39,6 +39,7 @@ export interface CdkUsageLog {
     code: string;
     userId: string;
     rewards: CdkReward;
+    batchId?: string;
     usedAt: number;
 }
 
@@ -142,6 +143,7 @@ export class CdkSystem {
             code,
             userId,
             rewards: cdk.rewards,
+            batchId: cdk.batchId,
             usedAt: now
         });
 
@@ -214,6 +216,57 @@ export class CdkSystem {
         });
 
         return { list: normalizedList, total };
+    }
+
+    /**
+     * 查询CDK使用记录（管理员）
+     */
+    static async getUsageLogs(query: {
+        batchId?: string;
+        code?: string;
+        page?: number;
+        limit?: number;
+    }): Promise<{
+        list: CdkUsageLog[];
+        total: number;
+        page: number;
+        pageSize: number;
+    }> {
+        const collection = MongoDBService.getCollection<CdkUsageLog>('cdk_usage_logs');
+        const page = query.page ?? 1;
+        const limit = query.limit ?? 20;
+        const filter: any = {};
+
+        if (query.code) {
+            filter.code = query.code.trim().toUpperCase();
+        } else if (query.batchId) {
+            const or: any[] = [{ batchId: query.batchId }];
+            const fallbackCodes = await this.getCodesByBatch(query.batchId);
+            if (fallbackCodes.length > 0) {
+                or.push({ code: { $in: fallbackCodes } });
+            }
+            filter.$or = or;
+        }
+
+        const total = await collection.countDocuments(filter);
+        const list = await collection
+            .find(filter)
+            .sort({ usedAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .toArray();
+
+        return { list, total, page, pageSize: limit };
+    }
+
+    private static async getCodesByBatch(batchId: string, max: number = 1000): Promise<string[]> {
+        const collection = MongoDBService.getCollection<CdkCode>('cdk_codes');
+        const docs = await collection
+            .find({ batchId })
+            .project({ code: 1, _id: 0 })
+            .limit(max)
+            .toArray();
+        return docs.map(doc => doc.code);
     }
 }
 

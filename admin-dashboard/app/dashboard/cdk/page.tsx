@@ -9,8 +9,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
-import { fetchCdkList, generateCdk, disableCdk } from '@/lib/api'
-import { Plus, Search, Copy, Ban, Ticket } from 'lucide-react'
+import { fetchCdkList, generateCdk, disableCdk, fetchCdkHistory } from '@/lib/api'
+import { Plus, Search, Copy, Ban, Ticket, History } from 'lucide-react'
 import { format } from 'date-fns'
 
 export default function CdkPage() {
@@ -39,6 +39,11 @@ export default function CdkPage() {
     // 生成结果展示
     const [resultOpen, setResultOpen] = useState(false)
     const [generatedCodes, setGeneratedCodes] = useState<string[]>([])
+    const [historyOpen, setHistoryOpen] = useState(false)
+    const [historyTarget, setHistoryTarget] = useState<{ batchId?: string, code?: string, name?: string } | null>(null)
+    const [usageLogs, setUsageLogs] = useState<any[]>([])
+    const [actionLogs, setActionLogs] = useState<any[]>([])
+    const [historyLoading, setHistoryLoading] = useState(false)
 
     const loadData = async () => {
         setLoading(true)
@@ -58,6 +63,32 @@ export default function CdkPage() {
         } finally {
             setLoading(false)
         }
+    }
+
+    const loadHistory = async (batchId?: string, code?: string) => {
+        setHistoryLoading(true)
+        try {
+            const res = await fetchCdkHistory({
+                batchId,
+                code,
+                type: 'all',
+                limit: 20
+            })
+            if (res.isSucc && res.res) {
+                setUsageLogs(res.res.usage?.list || [])
+                setActionLogs(res.res.actions?.list || [])
+            }
+        } catch (error) {
+            console.error(error)
+        } finally {
+            setHistoryLoading(false)
+        }
+    }
+
+    const openHistory = (item: any) => {
+        setHistoryTarget({ batchId: item.batchId, code: item.code, name: item.name })
+        setHistoryOpen(true)
+        loadHistory(item.batchId, item.code)
     }
 
     useEffect(() => {
@@ -108,8 +139,9 @@ export default function CdkPage() {
 
     const handleDisable = async (code: string, isBatch: boolean) => {
         if (!confirm(isBatch ? "确定要禁用该批次的所有CDK吗？" : "确定禁用该CDK吗？")) return
+        const reason = window.prompt("请输入禁用原因（可选）", "运营手动禁用") || undefined
         try {
-            const res = await disableCdk({ code, disableBatch: isBatch })
+            const res = await disableCdk({ code, disableBatch: isBatch, reason })
             if (res.isSucc) {
                 toast({ title: "操作成功" })
                 loadData()
@@ -211,6 +243,15 @@ export default function CdkPage() {
                                         <Button size="icon" variant="ghost" title="复制" onClick={() => copyToClipboard(item.code)}>
                                             <Copy className="h-4 w-4" />
                                         </Button>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            title="禁用整个批次"
+                                            className="text-orange-500 hover:text-orange-600"
+                                            onClick={() => handleDisable(item.batchId, true)}
+                                        >
+                                            <Ticket className="h-4 w-4" />
+                                        </Button>
                                         <Button 
                                             size="icon" 
                                             variant="ghost" 
@@ -220,6 +261,14 @@ export default function CdkPage() {
                                             title="禁用此CDK"
                                         >
                                             <Ban className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            title="查看历史"
+                                            onClick={() => openHistory(item)}
+                                        >
+                                            <History className="h-4 w-4" />
                                         </Button>
                                     </td>
                                 </tr>
@@ -313,6 +362,76 @@ export default function CdkPage() {
                             <Copy className="mr-2 h-4 w-4" />
                             复制全部
                         </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+                <DialogContent className="max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>
+                            历史记录 · {historyTarget?.name || historyTarget?.batchId?.slice(0, 8)}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-6 max-h-[500px] overflow-y-auto">
+                        <div>
+                            <h4 className="text-sm font-semibold mb-2">玩家使用记录</h4>
+                            <div className="border rounded-md">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="p-2 text-left">用户ID</th>
+                                            <th className="p-2 text-left">CDK</th>
+                                            <th className="p-2 text-left">时间</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {historyLoading ? (
+                                            <tr><td colSpan={3} className="p-4 text-center text-gray-500">加载中...</td></tr>
+                                        ) : usageLogs.length === 0 ? (
+                                            <tr><td colSpan={3} className="p-4 text-center text-gray-500">暂无使用记录</td></tr>
+                                        ) : (
+                                            usageLogs.map(log => (
+                                                <tr key={`${log.code}-${log.userId}-${log.usedAt}`} className="border-b">
+                                                    <td className="p-2 font-mono text-xs">{log.userId}</td>
+                                                    <td className="p-2 font-mono text-xs">{log.code}</td>
+                                                    <td className="p-2">{format(log.usedAt, 'yyyy-MM-dd HH:mm')}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-semibold mb-2">管理员操作日志</h4>
+                            <div className="border rounded-md">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="p-2 text-left">操作</th>
+                                            <th className="p-2 text-left">管理员</th>
+                                            <th className="p-2 text-left">时间</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {historyLoading ? (
+                                            <tr><td colSpan={3} className="p-4 text-center text-gray-500">加载中...</td></tr>
+                                        ) : actionLogs.length === 0 ? (
+                                            <tr><td colSpan={3} className="p-4 text-center text-gray-500">暂无操作记录</td></tr>
+                                        ) : (
+                                            actionLogs.map(log => (
+                                                <tr key={log.actionId} className="border-b">
+                                                    <td className="p-2">{log.action}</td>
+                                                    <td className="p-2">{log.adminName}</td>
+                                                    <td className="p-2">{format(log.createdAt, 'yyyy-MM-dd HH:mm')}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

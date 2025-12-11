@@ -42,6 +42,9 @@ export class InitIndexes {
             console.log('[InitIndexes] Creating indexes for Payment System...');
             await this.createPaymentIndexes(db);
 
+            console.log('[InitIndexes] Creating indexes for CDK System...');
+            await this.createCdkIndexes(db);
+
             console.log('[InitIndexes] Creating indexes for Invite System...');
             await this.createInviteIndexes(db);
 
@@ -188,11 +191,38 @@ export class InitIndexes {
     }
 
     /**
+     * CDK系统索引
+     */
+    private static async createCdkIndexes(db: any) {
+        const cdkCodes = db.collection('cdk_codes');
+        const cdkUsageLogs = db.collection('cdk_usage_logs');
+        const cdkAdminLogs = db.collection('cdk_admin_logs');
+
+        await cdkCodes.createIndex({ code: 1 }, { unique: true });
+        await cdkCodes.createIndex({ batchId: 1 });
+        await cdkCodes.createIndex({ createdAt: -1 });
+        await cdkCodes.createIndex({ active: 1 });
+
+        await cdkUsageLogs.createIndex({ code: 1 });
+        await cdkUsageLogs.createIndex({ userId: 1 });
+        await cdkUsageLogs.createIndex({ usedAt: -1 });
+        await cdkUsageLogs.createIndex({ batchId: 1 });
+
+        await cdkAdminLogs.createIndex({ actionId: 1 }, { unique: true });
+        await cdkAdminLogs.createIndex({ action: 1, createdAt: -1 });
+        await cdkAdminLogs.createIndex({ batchId: 1 });
+        await cdkAdminLogs.createIndex({ code: 1 });
+        await cdkAdminLogs.createIndex({ adminId: 1, createdAt: -1 });
+    }
+
+    /**
      * 邀请系统索引
      */
     private static async createInviteIndexes(db: any) {
         const inviteRelations = db.collection('invite_relations');
         const inviteStats = db.collection('invite_stats');
+        const inviteConfig = db.collection('invite_reward_configs');
+        const inviteConfigHistory = db.collection('invite_reward_config_history');
 
         // invite_relations集合索引
         await inviteRelations.createIndex({ inviterId: 1 });
@@ -205,6 +235,12 @@ export class InitIndexes {
         await inviteStats.createIndex({ userId: 1 }, { unique: true });
         await inviteStats.createIndex({ totalInvites: 1 });
         await inviteStats.createIndex({ totalRewards: 1 });
+
+        await inviteConfig.createIndex({ status: 1, updatedAt: -1 });
+        await inviteConfig.createIndex({ version: -1 }, { unique: true });
+        await inviteConfigHistory.createIndex({ historyId: 1 }, { unique: true });
+        await inviteConfigHistory.createIndex({ createdAt: -1 });
+        await inviteConfigHistory.createIndex({ reviewStatus: 1, createdAt: -1 });
     }
 
     /**

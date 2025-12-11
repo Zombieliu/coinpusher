@@ -87,6 +87,23 @@ const AUDIT_CONFIG: Record<string, {
             targetName: call.req.type,
         }),
     },
+    'admin/GenerateCdk': {
+        category: AuditCategory.GameData,
+        actionName: '生成CDK',
+        getTargetInfo: (call) => ({
+            targetType: 'cdk',
+            targetName: call.req.name
+        })
+    },
+    'admin/DisableCdk': {
+        category: AuditCategory.GameData,
+        actionName: '禁用CDK',
+        getTargetInfo: (call) => ({
+            targetType: 'cdk',
+            targetId: call.req.code,
+            targetName: call.req.disableBatch ? 'batch' : 'code'
+        })
+    },
     'admin/BatchSendMail': {
         category: AuditCategory.GameData,
         actionName: '批量发送邮件',
@@ -111,6 +128,18 @@ const AUDIT_CONFIG: Record<string, {
             targetId: call.req.eventId,
         }),
     },
+    'admin/UpdateInviteRewardConfig': {
+        category: AuditCategory.SystemConfig,
+        actionName: '更新邀请奖励配置',
+        getTargetInfo: () => ({
+            targetType: 'invite_config',
+            targetName: 'invite_reward'
+        })
+    },
+    'admin/ExportInviteLeaderboard': {
+        category: AuditCategory.GameData,
+        actionName: '导出邀请排行榜'
+    }
 };
 
 export class AuditLogMiddleware {

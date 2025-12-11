@@ -58,9 +58,19 @@ test('CDK 生成与禁用流程', async ({ page }) => {
   });
   await page.getByRole('button', { name: '复制全部' }).press('Escape');
   await expect(page.getByText('生成成功')).toBeHidden();
-  page.once('dialog', dialog => dialog.accept());
+  const dialogHandler = (dialog: any) => {
+    if (dialog.type() === 'confirm') {
+      dialog.accept();
+    } else if (dialog.type() === 'prompt') {
+      dialog.accept('测试原因');
+    } else {
+      dialog.dismiss();
+    }
+  };
+  page.on('dialog', dialogHandler);
   const targetRow = page.locator('tr', { hasText: 'VIP-AAA111' });
   await targetRow.getByTitle('禁用此CDK').click();
   await expect(page.getByText('已失效')).toBeVisible();
+  page.off('dialog', dialogHandler);
   expect(disabledCodes).toContain('VIP-AAA111');
 });
