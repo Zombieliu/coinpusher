@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { fetchOrders, fetchFinancialStats, fetchRefunds, processRefund, updateOrderStatus, deliverOrder, resendOrderReward } from '@/lib/api'
 import { DollarSign, ShoppingCart, CreditCard, RefreshCw, Search, Calendar as CalendarIcon, ArrowUpRight, ArrowDownRight, Filter } from 'lucide-react'
@@ -16,10 +17,56 @@ import { format } from 'date-fns'
 export default function FinancePage() {
     const { toast } = useToast()
     const [activeTab, setActiveTab] = useState('orders')
+    const [resetDialogOpen, setResetDialogOpen] = useState(false)
+    const [resetSecret, setResetSecret] = useState('')
+    const [resettingDemo, setResettingDemo] = useState(false)
+
+    const handleDemoReset = async () => {
+        if (!resetSecret) {
+            toast({ title: '请输入安全口令', variant: 'destructive' })
+            return
+        }
+        setResettingDemo(true)
+        try {
+            const response = await fetch('/api/demo-reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ secret: resetSecret })
+            })
+            const result = await response.json().catch(() => ({}))
+            if (!response.ok || !result?.success) {
+                throw new Error(result?.error || '演示数据刷新失败')
+            }
+            toast({
+                title: '演示数据已刷新',
+                description: '订单与退款样本即将重置，请稍候刷新页面'
+            })
+            setResetDialogOpen(false)
+            setResetSecret('')
+        } catch (error: any) {
+            toast({
+                title: '刷新失败',
+                description: error?.message || '请检查服务器日志',
+                variant: 'destructive'
+            })
+        } finally {
+            setResettingDemo(false)
+        }
+    }
 
     return (
         <div className="space-y-6 finance-page">
-            <h1 className="text-3xl font-bold tracking-tight">财务管理</h1>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <h1 className="text-3xl font-bold tracking-tight">财务管理</h1>
+                <div className="flex flex-wrap gap-3">
+                    <Button variant="outline" onClick={() => setResetDialogOpen(true)}>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        刷新演示数据
+                    </Button>
+                </div>
+            </div>
 
             <Tabs defaultValue="orders" className="space-y-4" onValueChange={setActiveTab}>
                 <TabsList>
@@ -49,6 +96,43 @@ export default function FinancePage() {
                     <RefundsPanel />
                 </TabsContent>
             </Tabs>
+
+            <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>刷新演示数据</DialogTitle>
+                        <DialogDescription>
+                            该操作会重新注入种子订单、退款、活动等样本数据，请确保当前环境允许执行。
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="demo-reset-secret">安全口令</Label>
+                            <Input
+                                id="demo-reset-secret"
+                                type="password"
+                                placeholder="输入部署时约定的 DEMO_RESET_SECRET"
+                                value={resetSecret}
+                                onChange={(e) => setResetSecret(e.target.value)}
+                                disabled={resettingDemo}
+                            />
+                        </div>
+                        <p className="text-sm text-gray-500">
+                            · 操作耗时约 5-10 秒，期间请勿重复点击。
+                            <br />
+                            · 如果刷新失败，请检查服务器日志或确认口令是否正确。
+                        </p>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setResetDialogOpen(false)} disabled={resettingDemo}>
+                            取消
+                        </Button>
+                        <Button onClick={handleDemoReset} disabled={resettingDemo || !resetSecret}>
+                            {resettingDemo ? '刷新中...' : '确认刷新'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

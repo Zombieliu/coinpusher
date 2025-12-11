@@ -24,6 +24,18 @@ export interface ApiResponse<T = any> {
   }
 }
 
+const API_ERROR_EVENT = 'oops-api-error'
+
+function emitApiError(method: string, message: string) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(API_ERROR_EVENT, {
+      detail: { method, message }
+    }))
+  } else {
+    console.error(`[API:${method}] ${message}`)
+  }
+}
+
 /**
  * 调用TSRPC API
  */
@@ -47,7 +59,9 @@ export async function callAPI<T = any>(
     })
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
+      const error = `HTTP ${response.status}`
+      emitApiError(method, error)
+      throw new Error(error)
     }
 
     const res = await response.json()
@@ -61,9 +75,14 @@ export async function callAPI<T = any>(
       }
     }
 
+    if (!res.isSucc) {
+      emitApiError(method, res.err?.message || '接口返回错误')
+    }
+
     return res
   } catch (error: any) {
     console.error(`API调用失败 [${method}]:`, error)
+    emitApiError(method, error?.message || '网络错误')
     return {
       isSucc: false,
       err: {

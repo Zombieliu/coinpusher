@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { fetchAuditLogs, fetchAuditStatistics } from '@/lib/api'
 import { Search, Filter, RefreshCw, AlertCircle, CheckCircle, Shield } from 'lucide-react'
 
@@ -37,6 +37,14 @@ const RESULTS = [
   { value: 'failed', label: '失败' },
 ]
 
+const FINANCE_ACTIONS = [
+  { value: '', label: '全部财务操作' },
+  { value: 'admin/DeliverOrder', label: '标记发货' },
+  { value: 'admin/ResendOrderReward', label: '重发奖励' },
+  { value: 'admin/ProcessRefund', label: '退款审批' },
+  { value: 'admin/UpdateOrderStatus', label: '状态变更' },
+]
+
 export default function AuditPage() {
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(false)
@@ -47,7 +55,7 @@ export default function AuditPage() {
 
   // 筛选条件
   const [filters, setFilters] = useState({
-    category: '',
+    category: 'financial',
     result: '',
     adminId: '',
     action: '',
@@ -55,9 +63,25 @@ export default function AuditPage() {
     startTime: 0,
     endTime: 0,
   })
+  const [actionFilter, setActionFilter] = useState('')
 
   const [showFilters, setShowFilters] = useState(false)
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
+
+  const financeActionSet = useMemo(
+    () => new Set(FINANCE_ACTIONS.map(item => item.value).filter(Boolean)),
+    []
+  )
+  const financeLogs = useMemo(
+    () =>
+      logs.filter(
+        log => log.category === 'financial' || financeActionSet.has(log.action)
+      ),
+    [logs, financeActionSet]
+  )
+  const failedFinance = financeLogs.filter(log => log.result === 'failed')
+  const deliverOps = financeLogs.filter(log => log.action === 'admin/DeliverOrder')
+  const refundOps = financeLogs.filter(log => log.action === 'admin/ProcessRefund')
 
   useEffect(() => {
     loadLogs()
@@ -68,6 +92,7 @@ export default function AuditPage() {
     setLoading(true)
     const result = await fetchAuditLogs({
       ...filters,
+      action: (actionFilter || filters.action || undefined) as any,
       category: (filters.category || undefined) as any,
       result: (filters.result || undefined) as any,
       page,
@@ -138,6 +163,27 @@ export default function AuditPage() {
         </div>
       )}
 
+      {/* 财务敏感操作快照 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-5 rounded-lg border border-blue-200">
+          <div className="text-sm text-blue-700">近期发货</div>
+          <div className="text-2xl font-bold text-blue-900 mt-2">{deliverOps.length}</div>
+          <p className="text-xs text-blue-600 mt-1">最近拉取的结果中，标记发货占比 {(deliverOps.length / Math.max(financeLogs.length, 1) * 100).toFixed(1)}%</p>
+        </div>
+        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-5 rounded-lg border border-emerald-200">
+          <div className="text-sm text-emerald-700">退款审批</div>
+          <div className="text-2xl font-bold text-emerald-900 mt-2">{refundOps.length}</div>
+          <p className="text-xs text-emerald-600 mt-1">含批准与拒绝的所有退款操作</p>
+        </div>
+        <div className="bg-gradient-to-br from-rose-50 to-rose-100 p-5 rounded-lg border border-rose-200">
+          <div className="text-sm text-rose-700">失败记录</div>
+          <div className="text-2xl font-bold text-rose-900 mt-2">{failedFinance.length}</div>
+          <p className="text-xs text-rose-600 mt-1">
+            {failedFinance.length === 0 ? '暂无重试需求' : '请关注接口错误与权限问题'}
+          </p>
+        </div>
+      </div>
+
       {/* 筛选和搜索 */}
       <div className="bg-white p-4 rounded-lg shadow">
         <div className="flex items-center justify-between mb-4">
@@ -195,6 +241,21 @@ export default function AuditPage() {
               </select>
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">财务操作聚焦</label>
+              <select
+                value={actionFilter}
+                onChange={(e) => {
+                  setActionFilter(e.target.value)
+                  setPage(1)
+                }}
+                className="w-full px-3 py-2 border rounded-lg"
+              >
+                {FINANCE_ACTIONS.map(action => (
+                  <option key={action.value} value={action.value}>{action.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">管理员ID</label>
               <input
                 type="text"
@@ -228,7 +289,7 @@ export default function AuditPage() {
               <button
                 onClick={() => {
                   setFilters({
-                    category: '',
+                    category: 'financial',
                     result: '',
                     adminId: '',
                     action: '',
@@ -236,6 +297,7 @@ export default function AuditPage() {
                     startTime: 0,
                     endTime: 0,
                   })
+                  setActionFilter('')
                   setPage(1)
                 }}
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
@@ -245,6 +307,34 @@ export default function AuditPage() {
             </div>
           </div>
         )}
+        <div className="mt-4 rounded-lg border bg-white p-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700">财务操作时间线</h3>
+            <span className="text-xs text-gray-500">展示最近 8 条</span>
+          </div>
+          <div className="mt-3 space-y-3 max-h-72 overflow-y-auto">
+            {financeLogs.slice(0, 8).map((log) => (
+              <div key={log.logId} className="flex items-start justify-between gap-3 border-b pb-3 last:border-b-0 last:pb-0">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {getActionLabel(log.action)}
+                    <span className="ml-2 text-xs text-gray-500">{log.targetId || '-'}</span>
+                  </p>
+                  <p className="text-xs text-gray-500">操作人：{log.adminUsername}</p>
+                </div>
+                <div className="text-right text-xs text-gray-500">
+                  <div>{formatTime(log.createdAt)}</div>
+                  <div className={log.result === 'success' ? 'text-green-600' : 'text-red-600'}>
+                    {log.result === 'success' ? '成功' : '失败'}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {financeLogs.length === 0 && (
+              <p className="text-xs text-gray-500">暂无财务操作记录</p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 日志列表 */}

@@ -21,6 +21,7 @@ import {
   Ticket,
   Headphones,
   Wrench,
+  HeartPulse,
 } from 'lucide-react'
 import { NotificationCenter } from '@/components/NotificationCenter'
 
@@ -40,6 +41,7 @@ const navigation = [
   { name: '日志查询', href: '/dashboard/logs', icon: FileText },
   { name: '审计分析', href: '/dashboard/analytics', icon: BarChart3 },
   { name: '审计日志', href: '/dashboard/audit', icon: FileSearch },
+  { name: '健康巡检', href: '/dashboard/health', icon: HeartPulse },
 ]
 
 export default function DashboardLayout({

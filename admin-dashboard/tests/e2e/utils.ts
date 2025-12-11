@@ -21,8 +21,10 @@ interface AdminCredentials {
 export async function loginAsAdmin(page: Page, credentials?: AdminCredentials) {
   const username = credentials?.username || process.env.E2E_ADMIN_USERNAME || 'admin';
   const password = credentials?.password || process.env.E2E_ADMIN_PASSWORD || 'admin123';
+  const envBase = process.env.E2E_BASE_URL?.replace(/\/$/, '') || '';
+  const loginUrl = envBase ? `${envBase}/login` : '/login';
 
-  await page.goto('/login');
+  await page.goto(loginUrl);
   await expect(page.getByRole('heading', { name: '运营后台登录' })).toBeVisible({
     timeout: 30_000
   });

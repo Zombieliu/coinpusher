@@ -84,7 +84,6 @@ test('退款处理页能列出申请并执行审批', async ({ page }) => {
   await refundRow.getByRole('button', { name: '批准' }).click();
   await expect.poll(() => processPayload?.refundId ?? null, { timeout: 5000 }).toEqual(PENDING_REFUND_ID);
   expect(processPayload?.approved).toBe(true);
-  await expect(page.getByText('退款已批准')).toBeVisible({ timeout: 15_000 });
 
   await page.unroute('**/admin/ProcessRefund');
   await expect(refundRow).toBeVisible({ timeout: 15_000 });

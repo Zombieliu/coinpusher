@@ -1,10 +1,10 @@
 import { MongoClient, ObjectId } from 'mongodb';
-import { getMongoDbName, getMongoUri, prettyPrintEnv } from './test-env.ts';
+import { getMongoDbName, getMongoUri, prettyPrintEnv } from './test-env';
 
 const SEED_TAG = 'full-demo-seed';
 const ADMIN_PASSWORD_HASH = '$2a$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yUP1KUOYTa'; // admin123
 
-async function main() {
+export async function runFullDemoSeed() {
     const client = new MongoClient(getMongoUri());
     try {
         await client.connect();
@@ -645,7 +645,9 @@ async function seedLogAnalytics(db: any) {
     console.log('• 审计分析样本已写入');
 }
 
-main().catch(err => {
-    console.error('❌ Seed failed:', err);
-    process.exit(1);
-});
+if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module) {
+    runFullDemoSeed().catch(err => {
+        console.error('❌ Seed failed:', err);
+        process.exit(1);
+    });
+}
