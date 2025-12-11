@@ -9,7 +9,11 @@ export async function ApiResendOrderReward(call: ApiCall<ReqResendOrderReward, R
     if (!auth.authorized) return;
 
     try {
-        const result = await PaymentSystem.resendOrderRewards(call.req.orderId);
+        const result = await PaymentSystem.resendOrderRewards(call.req.orderId, {
+            adminId: auth.adminId,
+            adminRole: auth.role!,
+            adminName: auth.username,
+        });
         if (!result.success) {
             call.error(result.error || '重发奖励失败');
             return;

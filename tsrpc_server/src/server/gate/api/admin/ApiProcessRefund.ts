@@ -16,6 +16,7 @@ export async function ApiProcessRefund(call: ApiCall<ReqProcessRefund, ResProces
             {
                 adminId: auth.adminId,
                 adminName: auth.username,
+                adminRole: auth.role!,
                 note: call.req.note
             }
         );

@@ -21,6 +21,8 @@ import { DragonflyDBService } from '../db/DragonflyDBService';
 import { ShopSystem, ProductConfig, CurrencyType } from './ShopSystem';
 import { UserDB } from '../data/UserDB';
 import crypto from 'crypto';
+import { FinanceSecurityGuard } from './FinanceSecurityGuard';
+import { AdminRole } from './AdminUserSystem';
 
 /** 支付渠道 */
 export enum PaymentChannel {
@@ -547,7 +549,7 @@ export class PaymentSystem {
     static async processRefund(
         refundId: string,
         approved: boolean,
-        options?: { adminId?: string; adminName?: string; note?: string }
+        options?: { adminId?: string; adminName?: string; adminRole?: AdminRole; note?: string }
     ): Promise<{
         success: boolean;
         error?: string;
@@ -574,6 +576,15 @@ export class PaymentSystem {
 
             if (order.status !== OrderStatus.Paid && order.status !== OrderStatus.Delivered) {
                 return { success: false, error: '该订单状态不可退款' };
+            if (options?.adminId && options.adminRole) {
+                await FinanceSecurityGuard.ensureRefundActionAllowed({
+                    adminId: options.adminId,
+                    adminRole: options.adminRole,
+                    adminName: options.adminName,
+                    amount: refund.amount,
+                    refundId,
+                    approved: true
+                });
             }
 
             const channelResult = await this.initiateRefundToChannel(order, refund.amount);
@@ -737,7 +748,11 @@ export class PaymentSystem {
     /**
      * 管理员更新订单状态
      */
-    static async updateOrderStatus(orderId: string, status: OrderStatus): Promise<{ success: boolean; error?: string }> {
+    static async updateOrderStatus(
+        orderId: string,
+        status: OrderStatus,
+        context?: { adminId?: string; adminRole?: AdminRole; adminName?: string }
+    ): Promise<{ success: boolean; error?: string }> {
         const collection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
         const order = await collection.findOne({ orderId });
         if (!order) {
@@ -750,6 +765,16 @@ export class PaymentSystem {
 
         if (order.status === status) {
             return { success: true };
+        }
+
+        if (context?.adminId && context.adminRole) {
+            await FinanceSecurityGuard.ensureOrderActionAllowed('admin/UpdateOrderStatus', {
+                adminId: context.adminId,
+                adminRole: context.adminRole,
+                adminName: context.adminName,
+                amount: order.amount,
+                orderId: order.orderId,
+            });
         }
 
         const updates: any = {
@@ -771,7 +796,10 @@ export class PaymentSystem {
         return { success: true };
     }
 
-    static async manualDeliverOrder(orderId: string): Promise<{ success: boolean; error?: string }> {
+    static async manualDeliverOrder(
+        orderId: string,
+        context?: { adminId?: string; adminRole?: AdminRole; adminName?: string }
+    ): Promise<{ success: boolean; error?: string }> {
         const collection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
         const order = await collection.findOne({ orderId });
         if (!order) {
@@ -780,6 +808,16 @@ export class PaymentSystem {
 
         if (order.status !== OrderStatus.Paid) {
             return { success: false, error: '仅已支付订单可标记发货' };
+        }
+
+        if (context?.adminId && context.adminRole) {
+            await FinanceSecurityGuard.ensureOrderActionAllowed('admin/DeliverOrder', {
+                adminId: context.adminId,
+                adminRole: context.adminRole,
+                adminName: context.adminName,
+                amount: order.amount,
+                orderId: order.orderId,
+            });
         }
 
         await this.applyOrderRewards(order);
@@ -797,7 +835,10 @@ export class PaymentSystem {
         return { success: true };
     }
 
-    static async resendOrderRewards(orderId: string): Promise<{ success: boolean; error?: string }> {
+    static async resendOrderRewards(
+        orderId: string,
+        context?: { adminId?: string; adminRole?: AdminRole; adminName?: string }
+    ): Promise<{ success: boolean; error?: string }> {
         const collection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
         const order = await collection.findOne({ orderId });
         if (!order) {
@@ -806,6 +847,16 @@ export class PaymentSystem {
 
         if (order.status !== OrderStatus.Delivered) {
             return { success: false, error: '仅已发货订单可重发奖励' };
+        }
+
+        if (context?.adminId && context.adminRole) {
+            await FinanceSecurityGuard.ensureOrderActionAllowed('admin/ResendOrderReward', {
+                adminId: context.adminId,
+                adminRole: context.adminRole,
+                adminName: context.adminName,
+                amount: order.amount,
+                orderId: order.orderId,
+            });
         }
 
         await this.applyOrderRewards(order);

@@ -11,7 +11,11 @@ export async function ApiUpdateOrderStatus(call: ApiCall<ReqUpdateOrderStatus, R
     }
 
     try {
-        const result = await PaymentSystem.updateOrderStatus(call.req.orderId, call.req.status);
+        const result = await PaymentSystem.updateOrderStatus(call.req.orderId, call.req.status, {
+            adminId: auth.adminId,
+            adminRole: auth.role!,
+            adminName: auth.username,
+        });
         if (!result.success) {
             call.error(result.error || '更新订单状态失败');
             return;

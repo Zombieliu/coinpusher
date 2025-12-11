@@ -12,6 +12,7 @@ import { ServerGateSystem } from "./server/gate/ServerGateSystem";
 import { UserDB } from "./server/gate/data/UserDB"; // 导入 UserDB
 import { MonitoringServer } from "./server/utils/MonitoringServer";
 import { MetricsCollector } from "./server/utils/MetricsCollector";
+import { FinanceHealthMonitor } from "./server/utils/FinanceHealthMonitor";
 
 /** 网关服务器对象 */
 export var sg: ServerGate = null!
@@ -46,6 +47,7 @@ async function main() { // main 函数改为异步
     MetricsCollector.init();
     const monitoringPort = Number(process.env.MONITORING_PORT || 9090);
     MonitoringServer.start(monitoringPort);
+    FinanceHealthMonitor.start();
 }
 
 main();

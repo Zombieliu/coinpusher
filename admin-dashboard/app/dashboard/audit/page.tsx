@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { fetchAuditLogs, fetchAuditStatistics } from '@/lib/api'
+import { useToast } from '@/components/ui/use-toast'
 import { Search, Filter, RefreshCw, AlertCircle, CheckCircle, Shield } from 'lucide-react'
 
 interface AuditLog {
@@ -52,6 +53,8 @@ export default function AuditPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize] = useState(50)
+  const [exporting, setExporting] = useState(false)
+  const { toast } = useToast()
 
   // 筛选条件
   const [filters, setFilters] = useState({
@@ -123,6 +126,53 @@ export default function AuditPage() {
 
   function getActionLabel(action: string) {
     return action.replace('admin/', '')
+  }
+
+  const handleExportLogs = async () => {
+    setExporting(true)
+    try {
+      const result = await fetchAuditLogs({
+        ...filters,
+        action: (actionFilter || filters.action || undefined) as any,
+        category: (filters.category || undefined) as any,
+        result: (filters.result || undefined) as any,
+        page: 1,
+        limit: 200,
+      })
+
+      if (!result.isSucc || !result.res?.logs?.length) {
+        toast({ title: '暂无日志可导出', variant: 'destructive' })
+        return
+      }
+
+      const rows = [
+        ['时间', '管理员', '操作', '分类', '目标', '结果', '备注'].join(',')
+      ]
+      result.res.logs.forEach((log: AuditLog) => {
+        rows.push([
+          formatTime(log.createdAt),
+          `${log.adminUsername}(${log.adminId})`,
+          getActionLabel(log.action),
+          getCategoryLabel(log.category),
+          log.targetId || log.targetName || '-',
+          log.result,
+          log.errorMessage || ''
+        ].join(','))
+      })
+
+      const blob = new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `audit-logs-${Date.now()}.csv`
+      link.click()
+      URL.revokeObjectURL(url)
+      toast({ title: '审计日志已导出', description: `共 ${result.res.logs.length} 条` })
+    } catch (error: any) {
+      toast({ title: '导出失败', description: error.message, variant: 'destructive' })
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (
@@ -209,6 +259,13 @@ export default function AuditPage() {
             >
               <RefreshCw className="h-4 w-4" />
               刷新
+            </button>
+            <button
+              onClick={handleExportLogs}
+              disabled={exporting}
+              className="flex items-center gap-2 px-4 py-2 text-sm border rounded-lg hover:bg-gray-50"
+            >
+              {exporting ? '导出中...' : '导出 CSV'}
             </button>
           </div>
         </div>

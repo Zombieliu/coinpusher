@@ -9,7 +9,11 @@ export async function ApiDeliverOrder(call: ApiCall<ReqDeliverOrder, ResDeliverO
     if (!auth.authorized) return;
 
     try {
-        const result = await PaymentSystem.manualDeliverOrder(call.req.orderId);
+        const result = await PaymentSystem.manualDeliverOrder(call.req.orderId, {
+            adminId: auth.adminId,
+            adminRole: auth.role!,
+            adminName: auth.username,
+        });
         if (!result.success) {
             call.error(result.error || '发货失败');
             return;

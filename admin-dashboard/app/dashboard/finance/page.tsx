@@ -164,6 +164,7 @@ function OrdersPanel() {
     const [loading, setLoading] = useState(false)
     const [total, setTotal] = useState(0)
     const [page, setPage] = useState(1)
+    const [exporting, setExporting] = useState(false)
     const [filters, setFilters] = useState({
         orderId: '',
         userId: '',
@@ -265,6 +266,47 @@ function OrdersPanel() {
         }
     }
 
+    const handleExportOrders = async () => {
+        setExporting(true)
+        try {
+            const res = await fetchOrders({
+                ...filters,
+                status: filters.status === 'all' ? undefined : filters.status,
+                page: 1,
+                limit: 200
+            })
+            if (!res.isSucc || !res.res?.orders?.length) {
+                toast({ title: '暂无可导出的订单', variant: 'destructive' })
+                return
+            }
+            const csv = [
+                ['订单号', '用户ID', '商品', '金额', '状态', '创建时间'].join(',')
+            ]
+            res.res.orders.forEach((order: any) => {
+                csv.push([
+                    order.orderId,
+                    order.userId,
+                    order.productName,
+                    `${order.currency} ${order.amount}`,
+                    getStatusText(order.status),
+                    new Date(order.createdAt).toLocaleString('zh-CN')
+                ].join(','))
+            })
+            const blob = new Blob(['\ufeff' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' })
+            const url = URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = `orders-${Date.now()}.csv`
+            link.click()
+            URL.revokeObjectURL(url)
+            toast({ title: '订单导出成功', description: `共导出 ${res.res.orders.length} 条记录` })
+        } catch (error: any) {
+            toast({ title: '导出失败', description: error.message, variant: 'destructive' })
+        } finally {
+            setExporting(false)
+        }
+    }
+
     return (
         <Card>
             <CardHeader>
@@ -301,6 +343,9 @@ function OrdersPanel() {
                     <Button onClick={handleSearch}>
                         <Search className="mr-2 h-4 w-4" />
                         搜索
+                    </Button>
+                    <Button variant="outline" onClick={handleExportOrders} disabled={exporting}>
+                        {exporting ? '导出中...' : '导出CSV'}
                     </Button>
                 </div>
             </CardHeader>
@@ -552,6 +597,7 @@ function RefundsPanel() {
     const [refunds, setRefunds] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     const [page, setPage] = useState(1)
+    const [exporting, setExporting] = useState(false)
 
     const loadRefunds = async () => {
         setLoading(true)
@@ -587,10 +633,49 @@ function RefundsPanel() {
         }
     }
 
+    const handleExportRefunds = async () => {
+        setExporting(true)
+        try {
+            const res = await fetchRefunds({ page: 1, limit: 200 })
+            if (!res.isSucc || !res.res?.refunds?.length) {
+                toast({ title: '暂无退款记录可导出', variant: 'destructive' })
+                return
+            }
+            const rows = [
+                ['退款ID', '订单号', '用户ID', '金额', '状态', '申请时间'].join(',')
+            ]
+            res.res.refunds.forEach((refund: any) => {
+                rows.push([
+                    refund.refundId,
+                    refund.orderId,
+                    refund.userId,
+                    refund.amount,
+                    refund.status,
+                    new Date(refund.createdAt).toLocaleString('zh-CN')
+                ].join(','))
+            })
+            const blob = new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+            const url = URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = `refunds-${Date.now()}.csv`
+            link.click()
+            URL.revokeObjectURL(url)
+            toast({ title: '退款记录已导出', description: `共 ${res.res.refunds.length} 条` })
+        } catch (error: any) {
+            toast({ title: '导出失败', description: error.message, variant: 'destructive' })
+        } finally {
+            setExporting(false)
+        }
+    }
+
     return (
         <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>待处理退款申请</CardTitle>
+                <Button variant="outline" size="sm" onClick={handleExportRefunds} disabled={exporting}>
+                    {exporting ? '导出中...' : '导出CSV'}
+                </Button>
             </CardHeader>
             <CardContent>
                  <div className="rounded-md border">

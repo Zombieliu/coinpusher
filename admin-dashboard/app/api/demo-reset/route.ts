@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
+let tsNodeReady = false
+
 const ERROR_MESSAGE = 'DEMO_RESET_SECRET 未配置，无法执行刷新'
 
 export const dynamic = 'force-dynamic'
@@ -26,6 +28,10 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (!tsNodeReady) {
+      await import('ts-node/register')
+      tsNodeReady = true
+    }
     const projectRoot = process.cwd()
     const repoRoot = path.resolve(projectRoot, '..')
     const seedFilePath = path.join(repoRoot, 'seed-full-demo.ts')
