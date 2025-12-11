@@ -22,14 +22,15 @@ export default function LoginPage() {
         password
       })
 
-      if (result.isSucc && result.res.success) {
-        // 保存token
-        localStorage.setItem('admin_token', result.res.token)
-        localStorage.setItem('admin_user', JSON.stringify(result.res.admin))
+        if (result.isSucc && result.res.success) {
+          // 保存token
+          localStorage.setItem('admin_token', result.res.token)
+          localStorage.setItem('admin_user', JSON.stringify(result.res.admin))
+          document.cookie = `admin_token=${result.res.token}; path=/; max-age=86400; SameSite=Lax`
 
-        // 跳转到仪表盘
-        router.push('/dashboard')
-      } else {
+          // 跳转到仪表盘
+          router.push('/dashboard')
+        } else {
         setError(result.res?.message || result.err?.message || '登录失败')
       }
     } catch (err: any) {

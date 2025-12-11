@@ -63,6 +63,7 @@ export default function DashboardLayout({
       router.push('/login')
       return
     }
+    document.cookie = `admin_token=${token}; path=/; max-age=86400; SameSite=Lax`
 
     if (userStr && userStr !== 'undefined') {
       try {
@@ -80,6 +81,7 @@ export default function DashboardLayout({
     if (confirm('确定要退出登录吗？')) {
       localStorage.removeItem('admin_token')
       localStorage.removeItem('admin_user')
+      document.cookie = 'admin_token=; path=/; max-age=0; SameSite=Lax'
       router.push('/login')
     }
   }

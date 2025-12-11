@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { Bell, X, Check, AlertCircle, Info, Mail, Settings, Calendar, Gift } from 'lucide-react'
-import { callAPI } from '@/lib/api'
 
 interface Notification {
   id: string
@@ -18,71 +17,63 @@ export function NotificationCenter() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
-  const [lastTimestamp, setLastTimestamp] = useState(0)
-
-  // 轮询获取新通知
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const result = await callAPI('admin/GetNotifications', {
-        since: lastTimestamp,
-        limit: 20,
-      })
-
-      if (result.isSucc && result.res) {
-        const newNotifications = result.res.notifications
-
-        if (newNotifications.length > 0) {
-          // 添加新通知到列表
-          setNotifications(prev => {
-            const combined = [...newNotifications, ...prev]
-            // 去重
-            const unique = combined.filter((n, i, self) =>
-              i === self.findIndex(t => t.id === n.id)
-            )
-            // 限制数量
-            return unique.slice(0, 50)
-          })
-
-          // 更新最新时间戳
-          const latestTimestamp = Math.max(...newNotifications.map((n: Notification) => n.timestamp))
-          setLastTimestamp(latestTimestamp)
-
-          // 更新未读数量
-          setUnreadCount(prev => prev + newNotifications.length)
-
-          // 显示浏览器通知
-          if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-            newNotifications.forEach((n: Notification) => {
-              new Notification(n.title, {
-                body: n.message,
-                icon: '/favicon.ico',
-              })
-            })
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error)
-    }
-  }, [lastTimestamp])
-
-  // 请求浏览器通知权限
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }
   }, [])
 
-  // 轮询
   useEffect(() => {
-    // 初始加载
-    fetchNotifications()
+    if (typeof window === 'undefined' || typeof window.EventSource === 'undefined') {
+      console.warn('EventSource is not supported by this browser.')
+      return
+    }
 
-    // 每10秒轮询一次
-    const interval = setInterval(fetchNotifications, 10000)
+    let source: EventSource | null = null
+    let retryTimer: any
 
-    return () => clearInterval(interval)
-  }, [fetchNotifications])
+    const handleNewNotification = (notification: Notification) => {
+      setNotifications(prev => {
+        if (prev.find(item => item.id === notification.id)) {
+          return prev
+        }
+        const updated = [notification, ...prev].slice(0, 50)
+        return updated
+      })
+      setUnreadCount(prev => prev + 1)
+
+      if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification(notification.title, {
+          body: notification.message,
+          icon: '/favicon.ico'
+        })
+      }
+    }
+
+    const connect = () => {
+      source = new EventSource('/api/notifications/stream')
+      source.onmessage = event => {
+        if (!event.data) return
+        try {
+          const payload = JSON.parse(event.data)
+          handleNewNotification(payload)
+        } catch (err) {
+          console.error('Failed to parse notification payload', err)
+        }
+      }
+      source.onerror = () => {
+        source?.close()
+        retryTimer = setTimeout(connect, 5000)
+      }
+    }
+
+    connect()
+
+    return () => {
+      source?.close()
+      if (retryTimer) clearTimeout(retryTimer)
+    }
+  }, [])
 
   function markAsRead(id: string) {
     setNotifications(prev =>

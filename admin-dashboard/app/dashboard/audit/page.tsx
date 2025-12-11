@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { fetchAuditLogs, fetchAuditStatistics } from '@/lib/api'
+import { fetchAuditLogs, fetchAuditStatistics, fetchFinancialStats } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
 import { Search, Filter, RefreshCw, AlertCircle, CheckCircle, Shield } from 'lucide-react'
 
@@ -45,6 +45,7 @@ const FINANCE_ACTIONS = [
   { value: 'admin/ProcessRefund', label: '退款审批' },
   { value: 'admin/UpdateOrderStatus', label: '状态变更' },
 ]
+const ONE_DAY = 24 * 60 * 60 * 1000
 
 export default function AuditPage() {
   const [logs, setLogs] = useState<AuditLog[]>([])
@@ -54,6 +55,9 @@ export default function AuditPage() {
   const [page, setPage] = useState(1)
   const [pageSize] = useState(50)
   const [exporting, setExporting] = useState(false)
+  const [reportRange, setReportRange] = useState('7')
+  const [reportContent, setReportContent] = useState('')
+  const [reportLoading, setReportLoading] = useState(false)
   const { toast } = useToast()
 
   // 筛选条件
@@ -85,6 +89,52 @@ export default function AuditPage() {
   const failedFinance = financeLogs.filter(log => log.result === 'failed')
   const deliverOps = financeLogs.filter(log => log.action === 'admin/DeliverOrder')
   const refundOps = financeLogs.filter(log => log.action === 'admin/ProcessRefund')
+
+  const handleGenerateReport = async () => {
+    const days = Number(reportRange || '7')
+    const end = Date.now()
+    const start = end - days * ONE_DAY
+    setReportLoading(true)
+    try {
+      const [financeRes, auditStatsRes] = await Promise.all([
+        fetchFinancialStats({ startDate: start, endDate: end }),
+        fetchAuditStatistics({ startTime: start, endTime: end })
+      ])
+      if (!financeRes.isSucc || !auditStatsRes.isSucc || !financeRes.res || !auditStatsRes.res?.data) {
+        throw new Error('报表数据获取失败')
+      }
+      const finance = financeRes.res
+      const auditStats = auditStatsRes.res.data
+      const topAction = auditStats.topActions?.[0]
+      const topAdmins = auditStats.topAdmins?.slice(0, 2)?.map((admin: any) => `${admin.adminUsername}(${admin.count})`).join('、') || '暂无'
+      const vipSummary = (finance.topSpenders || []).slice(0, 3).map((user: any) => `${user.userId}:${user.total.toFixed(2)}`).join('、') || '暂无'
+      const rangeText = `${new Date(start).toLocaleDateString()} - ${new Date(end).toLocaleDateString()}`
+
+      const content = [
+        `【财务运营报表】`,
+        `周期：${rangeText}（${days} 天）`,
+        `总收入：¥${(finance.totalRevenue || 0).toFixed(2)} / 订单数：${finance.totalOrders || 0}`,
+        `平均客单价：¥${(finance.avgOrderValue || 0).toFixed(2)}`,
+        `审核操作：${auditStats.totalLogs || 0} 次，成功率 ${(auditStats.successRate || 0).toFixed(1)}%`,
+        `最高频操作：${topAction ? `${topAction.action}（${topAction.count} 次）` : '暂无'}`,
+        `活跃管理员：${topAdmins}`,
+        `大R用户：${vipSummary}`,
+        `风险提示：失败操作 ${failedFinance.length} 条，退款审批 ${refundOps.length} 次`
+      ].join('\n')
+
+      setReportContent(content)
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(content)
+        toast({ title: '报表已生成并复制' })
+      } else {
+        toast({ title: '报表已生成', description: '复制功能不可用，请手动复制文本。' })
+      }
+    } catch (error: any) {
+      toast({ title: '生成报表失败', description: error.message, variant: 'destructive' })
+    } finally {
+      setReportLoading(false)
+    }
+  }
 
   useEffect(() => {
     loadLogs()
@@ -212,6 +262,43 @@ export default function AuditPage() {
           </div>
         </div>
       )}
+
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">自动报表</h3>
+            <p className="text-xs text-gray-500 mt-1">根据选择的时间范围快速生成财务 & 审计摘要，并复制到剪贴板。</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={reportRange}
+              onChange={(e) => setReportRange(e.target.value)}
+              className="px-3 py-2 border rounded-lg text-sm"
+            >
+              <option value="7">最近7天</option>
+              <option value="14">最近14天</option>
+              <option value="30">最近30天</option>
+            </select>
+            <button
+              onClick={handleGenerateReport}
+              disabled={reportLoading}
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              {reportLoading ? '生成中...' : '生成并复制'}
+            </button>
+          </div>
+        </div>
+        {reportContent && (
+          <div className="mt-3">
+            <textarea
+              value={reportContent}
+              readOnly
+              rows={6}
+              className="w-full rounded border p-3 text-sm font-mono bg-gray-50"
+            />
+          </div>
+        )}
+      </div>
 
       {/* 财务敏感操作快照 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
@@ -10,9 +10,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
-import { fetchOrders, fetchFinancialStats, fetchRefunds, processRefund, updateOrderStatus, deliverOrder, resendOrderReward } from '@/lib/api'
+import { fetchOrders, fetchFinancialStats, fetchRefunds, processRefund, updateOrderStatus, deliverOrder, resendOrderReward, fetchAuditLogs } from '@/lib/api'
 import { DollarSign, ShoppingCart, CreditCard, RefreshCw, Search, Calendar as CalendarIcon, ArrowUpRight, ArrowDownRight, Filter } from 'lucide-react'
 import { format } from 'date-fns'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import { useVirtualizer } from '@tanstack/react-virtual'
 
 export default function FinancePage() {
     const { toast } = useToast()
@@ -20,10 +22,16 @@ export default function FinancePage() {
     const [resetDialogOpen, setResetDialogOpen] = useState(false)
     const [resetSecret, setResetSecret] = useState('')
     const [resettingDemo, setResettingDemo] = useState(false)
+    const [resetTarget, setResetTarget] = useState('staging')
+    const guardStatus = useFinanceGuardStatus()
 
     const handleDemoReset = async () => {
         if (!resetSecret) {
             toast({ title: '请输入安全口令', variant: 'destructive' })
+            return
+        }
+        if (!resetTarget) {
+            toast({ title: '请选择目标环境', variant: 'destructive' })
             return
         }
         setResettingDemo(true)
@@ -33,7 +41,7 @@ export default function FinancePage() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ secret: resetSecret })
+                body: JSON.stringify({ secret: resetSecret, target: resetTarget })
             })
             const result = await response.json().catch(() => ({}))
             if (!response.ok || !result?.success) {
@@ -67,6 +75,7 @@ export default function FinancePage() {
                     </Button>
                 </div>
             </div>
+            <FinanceGuardBanner status={guardStatus} />
 
             <Tabs defaultValue="orders" className="space-y-4" onValueChange={setActiveTab}>
                 <TabsList>
@@ -107,6 +116,18 @@ export default function FinancePage() {
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="space-y-2">
+                            <Label htmlFor="demo-reset-target">目标环境</Label>
+                            <Select value={resetTarget} onValueChange={setResetTarget} disabled={resettingDemo}>
+                                <SelectTrigger id="demo-reset-target">
+                                    <SelectValue placeholder="选择环境" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="staging">Staging / 测试</SelectItem>
+                                    <SelectItem value="production">Production / 生产</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
                             <Label htmlFor="demo-reset-secret">安全口令</Label>
                             <Input
                                 id="demo-reset-secret"
@@ -137,6 +158,138 @@ export default function FinancePage() {
     )
 }
 
+const ONE_DAY = 24 * 60 * 60 * 1000
+const ACTION_LIMITS = {
+    deliver: Number(process.env.NEXT_PUBLIC_FINANCE_DELIVER_LIMIT || 20),
+    resend: Number(process.env.NEXT_PUBLIC_FINANCE_RESEND_LIMIT || 20),
+    status: Number(process.env.NEXT_PUBLIC_FINANCE_STATUS_LIMIT || 50),
+    refund: Number(process.env.NEXT_PUBLIC_FINANCE_REFUND_LIMIT || 15)
+}
+const HIGH_VALUE_THRESHOLD = Number(process.env.NEXT_PUBLIC_FINANCE_HIGH_THRESHOLD || 500)
+const ACTION_MAP: Record<string, keyof typeof ACTION_LIMITS> = {
+    'admin/DeliverOrder': 'deliver',
+    'admin/ResendOrderReward': 'resend',
+    'admin/UpdateOrderStatus': 'status',
+    'admin/ProcessRefund': 'refund'
+}
+
+function useFinanceGuardStatus() {
+    const [status, setStatus] = useState<{
+        counts: Record<keyof typeof ACTION_LIMITS, number>
+        loading: boolean
+        error?: string
+    }>({
+        counts: {
+            deliver: 0,
+            resend: 0,
+            status: 0,
+            refund: 0
+        },
+        loading: true
+    })
+
+    useEffect(() => {
+        let mounted = true
+        const stored = (typeof window !== 'undefined' && window.localStorage.getItem('admin_user')) || ''
+        if (!stored) {
+            setStatus(prev => ({ ...prev, loading: false }))
+            return
+        }
+        let parsed: any
+        try {
+            parsed = JSON.parse(stored)
+        } catch {
+            setStatus(prev => ({ ...prev, loading: false }))
+            return
+        }
+        const loadUsage = async () => {
+            try {
+                const since = Date.now() - ONE_DAY
+                const result = await fetchAuditLogs({
+                    adminId: parsed.adminId,
+                    category: 'financial',
+                    startTime: since,
+                    page: 1,
+                    limit: 200
+                })
+                if (mounted && result.isSucc && result.res?.logs) {
+                    const counts = { deliver: 0, resend: 0, status: 0, refund: 0 }
+                    for (const log of result.res.logs) {
+                        if (log.result !== 'success') continue
+                        const key = ACTION_MAP[log.action]
+                        if (key) {
+                            counts[key] = (counts[key] || 0) + 1
+                        }
+                    }
+                    setStatus({ counts, loading: false })
+                } else if (mounted) {
+                    setStatus({ counts: { deliver: 0, resend: 0, status: 0, refund: 0 }, loading: false, error: result.err?.message || '获取审核数据失败' })
+                }
+            } catch (error: any) {
+                if (mounted) {
+                    setStatus(prev => ({ ...prev, loading: false, error: error.message }))
+                }
+            }
+        }
+        loadUsage()
+        return () => {
+            mounted = false
+        }
+    }, [])
+
+    return status
+}
+
+function FinanceGuardBanner({ status }: { status: ReturnType<typeof useFinanceGuardStatus> }) {
+    const usage = status.counts
+    const items = [
+        { key: 'deliver', label: '标记发货', description: '当日最多执行 20 次' },
+        { key: 'resend', label: '重发奖励', description: '当日最多执行 20 次' },
+        { key: 'status', label: '更新订单状态', description: '当日最多执行 50 次' },
+        { key: 'refund', label: '退款审批', description: '当日最多执行 15 次' }
+    ]
+
+    return (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <p className="font-semibold text-amber-900">高风险操作提示</p>
+                    <p className="text-amber-800 mt-1 text-xs">
+                        单笔金额 ≥ {HIGH_VALUE_THRESHOLD} 将被拦截并需由超级管理员执行。剩余配额如下（统计最近24小时成功操作）：
+                    </p>
+                </div>
+                <p className="text-xs text-amber-700">配额与后端安全策略同步刷新</p>
+            </div>
+            <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+                {items.map(item => {
+                    const used = usage[item.key as keyof typeof usage] || 0
+                    const limit = ACTION_LIMITS[item.key as keyof typeof ACTION_LIMITS]
+                    const remaining = Math.max(limit - used, 0)
+                    return (
+                        <div key={item.key} className="rounded border border-amber-200 bg-white p-3">
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="font-medium text-amber-900">{item.label}</span>
+                                <span className="text-amber-700">{used}/{limit}</span>
+                            </div>
+                            <div className="mt-1 text-[11px] text-amber-600">{item.description}</div>
+                            <div className="mt-2 h-1.5 w-full rounded-full bg-amber-100">
+                                <div
+                                    className="h-1.5 rounded-full bg-amber-500 transition-all"
+                                    style={{ width: `${Math.min((used / limit) * 100, 100)}%` }}
+                                />
+                            </div>
+                            <div className="mt-1 text-[11px] text-amber-700">剩余额度：{remaining}</div>
+                        </div>
+                    )
+                })}
+            </div>
+            {status.error && (
+                <p className="mt-2 text-xs text-red-600">无法同步额度：{status.error}</p>
+            )}
+        </div>
+    )
+}
+
 function BarChartIcon(props: any) {
     return (
         <svg
@@ -160,6 +313,9 @@ function BarChartIcon(props: any) {
 
 function OrdersPanel() {
     const { toast } = useToast()
+    const router = useRouter()
+    const searchParams = useSearchParams()
+    const pathname = usePathname()
     const [orders, setOrders] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     const [total, setTotal] = useState(0)
@@ -170,6 +326,13 @@ function OrdersPanel() {
         userId: '',
         status: 'all'
     })
+    const ordersParentRef = useRef<HTMLDivElement>(null)
+    const rowVirtualizer = useVirtualizer({
+        count: orders.length,
+        getScrollElement: () => ordersParentRef.current,
+        estimateSize: () => 72,
+        overscan: 8
+    })
     const [statusDialog, setStatusDialog] = useState<{
         open: boolean;
         order?: any;
@@ -179,6 +342,20 @@ function OrdersPanel() {
         status: 'pending'
     })
 
+    useEffect(() => {
+        const queryOrderId = searchParams.get('orderId') || ''
+        const queryUserId = searchParams.get('userId') || ''
+        const queryStatus = searchParams.get('status') || 'all'
+        const queryPage = parseInt(searchParams.get('page') || '1', 10) || 1
+        setFilters(prev => {
+            if (prev.orderId === queryOrderId && prev.userId === queryUserId && prev.status === queryStatus) {
+                return prev
+            }
+            return { orderId: queryOrderId, userId: queryUserId, status: queryStatus }
+        })
+        setPage(prev => (prev === queryPage ? prev : queryPage))
+    }, [searchParams])
+
     const loadOrders = async () => {
         setLoading(true)
         try {
@@ -186,7 +363,7 @@ function OrdersPanel() {
                 ...filters,
                 status: filters.status === 'all' ? undefined : filters.status,
                 page,
-                limit: 10
+                limit: 100
             })
             if (res.isSucc && res.res) {
                 setOrders(res.res.orders || [])
@@ -208,8 +385,19 @@ function OrdersPanel() {
     // but for internal tools it's often OK or we add a search button.
     // Let's verify with a search button for text inputs.
 
+    const syncQuery = (nextFilters: typeof filters, nextPage: number) => {
+        const params = new URLSearchParams(searchParams.toString())
+        if (nextFilters.orderId) params.set('orderId', nextFilters.orderId); else params.delete('orderId')
+        if (nextFilters.userId) params.set('userId', nextFilters.userId); else params.delete('userId')
+        if (nextFilters.status && nextFilters.status !== 'all') params.set('status', nextFilters.status); else params.delete('status')
+        params.set('page', String(nextPage))
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+    }
+
     const handleSearch = () => {
-        setPage(1)
+        const nextPage = 1
+        setPage(nextPage)
+        syncQuery(filters, nextPage)
         loadOrders()
     }
 
@@ -351,83 +539,95 @@ function OrdersPanel() {
             </CardHeader>
             <CardContent>
                 <div className="rounded-md border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-gray-50 border-b">
-                            <tr>
-                                <th className="p-3 text-left font-medium">订单号</th>
-                                <th className="p-3 text-left font-medium">用户</th>
-                                <th className="p-3 text-left font-medium">商品</th>
-                                <th className="p-3 text-right font-medium">金额</th>
-                                <th className="p-3 text-center font-medium">状态</th>
-                                <th className="p-3 text-right font-medium">时间</th>
-                                <th className="p-3 text-center font-medium">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={6} className="p-8 text-center text-gray-500">加载中...</td>
-                                </tr>
-                            ) : orders.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="p-8 text-center text-gray-500">暂无订单</td>
-                                </tr>
-                            ) : (
-                                orders.map((order) => (
-                                    <tr key={order.orderId} className="border-b hover:bg-gray-50">
-                                        <td className="p-3 font-mono">{order.orderId}</td>
-                                        <td className="p-3 font-mono">{order.userId}</td>
-                                        <td className="p-3">{order.productName}</td>
-                                        <td className="p-3 text-right font-medium">
-                                            {order.currency} {order.amount}
-                                        </td>
-                                        <td className="p-3 text-center">
-                                            <Badge variant={getStatusVariant(order.status)}>
-                                                {getStatusText(order.status)}
-                                            </Badge>
-                                        </td>
-                                        <td className="p-3 text-right text-gray-500">
-                                            {format(order.createdAt, 'yyyy-MM-dd HH:mm')}
-                                        </td>
-                                        <td className="p-3 text-center space-x-2">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => openStatusDialog(order)}
-                                            >
-                                                更新状态
-                                            </Button>
-                                            {order.status === 'paid' && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleManualDeliver(order.orderId)}
-                                                >
-                                                    标记发货
-                                                </Button>
-                                            )}
-                                            {order.status === 'delivered' && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleResendReward(order.orderId)}
-                                                >
-                                                    重发奖励
-                                                </Button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                    <div className="hidden md:grid grid-cols-[1.4fr,1fr,1fr,1fr,0.8fr,1.2fr] gap-2 border-b bg-gray-50 px-4 py-2 text-xs font-medium text-gray-600">
+                        <span>订单号</span>
+                        <span>用户</span>
+                        <span>商品</span>
+                        <span className="text-right">金额</span>
+                        <span className="text-center">状态</span>
+                        <span className="text-right">时间 / 操作</span>
+                    </div>
+                    <div ref={ordersParentRef} className="max-h-[520px] overflow-auto">
+                        {loading ? (
+                            <div className="p-8 text-center text-gray-500">加载中...</div>
+                        ) : orders.length === 0 ? (
+                            <div className="p-8 text-center text-gray-500">暂无订单</div>
+                        ) : (
+                            <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
+                                {rowVirtualizer.getVirtualItems().map(virtualRow => {
+                                    const order = orders[virtualRow.index]
+                                    if (!order) return null
+                                    return (
+                                        <div
+                                            key={order.orderId}
+                                            className="grid grid-cols-1 gap-3 border-b px-4 py-3 text-sm md:grid-cols-[1.4fr,1fr,1fr,1fr,0.8fr,1.2fr]"
+                                            style={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: '100%',
+                                                transform: `translateY(${virtualRow.start}px)`
+                                            }}
+                                        >
+                                            <div className="font-mono break-all">{order.orderId}</div>
+                                            <div className="font-mono break-all">{order.userId}</div>
+                                            <div>{order.productName}</div>
+                                            <div className="text-right font-medium">
+                                                {order.currency} {order.amount}
+                                            </div>
+                                            <div className="text-center">
+                                                <Badge variant={getStatusVariant(order.status)}>
+                                                    {getStatusText(order.status)}
+                                                </Badge>
+                                            </div>
+                                            <div className="text-right text-gray-500">
+                                                <div>{format(order.createdAt, 'yyyy-MM-dd HH:mm')}</div>
+                                                <div className="mt-2 flex flex-wrap justify-end gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => openStatusDialog(order)}
+                                                    >
+                                                        更新状态
+                                                    </Button>
+                                                    {order.status === 'paid' && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleManualDeliver(order.orderId)}
+                                                        >
+                                                            标记发货
+                                                        </Button>
+                                                    )}
+                                                    {order.status === 'delivered' && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleResendReward(order.orderId)}
+                                                        >
+                                                            重发奖励
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    </div>
                 </div>
+                        ...
                 <div className="flex justify-end gap-2 mt-4">
                     <Button 
                         variant="outline" 
                         size="sm" 
                         disabled={page <= 1}
-                        onClick={() => setPage(p => p - 1)}
+                        onClick={() => {
+                            const nextPage = Math.max(1, page - 1)
+                            setPage(nextPage)
+                            syncQuery(filters, nextPage)
+                        }}
                     >
                         上一页
                     </Button>
@@ -435,8 +635,12 @@ function OrdersPanel() {
                     <Button 
                         variant="outline" 
                         size="sm" 
-                        disabled={orders.length < 10}
-                        onClick={() => setPage(p => p + 1)}
+                        disabled={orders.length < 100}
+                        onClick={() => {
+                            const nextPage = page + 1
+                            setPage(nextPage)
+                            syncQuery(filters, nextPage)
+                        }}
                     >
                         下一页
                     </Button>
@@ -594,15 +798,30 @@ function FinancialStatsPanel() {
 
 function RefundsPanel() {
     const { toast } = useToast()
+    const router = useRouter()
+    const searchParams = useSearchParams()
+    const pathname = usePathname()
     const [refunds, setRefunds] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     const [page, setPage] = useState(1)
     const [exporting, setExporting] = useState(false)
+    const refundsParentRef = useRef<HTMLDivElement>(null)
+    const rowVirtualizer = useVirtualizer({
+        count: refunds.length,
+        getScrollElement: () => refundsParentRef.current,
+        estimateSize: () => 72,
+        overscan: 8
+    })
+
+    useEffect(() => {
+        const queryPage = parseInt(searchParams.get('refundPage') || '1', 10) || 1
+        setPage(prev => (prev === queryPage ? prev : queryPage))
+    }, [searchParams])
 
     const loadRefunds = async () => {
         setLoading(true)
         try {
-            const res = await fetchRefunds({ page, limit: 10, status: 'pending' })
+            const res = await fetchRefunds({ page, limit: 100, status: 'pending' })
             if (res.isSucc && res.res) {
                 setRefunds(res.res.refunds || [])
             }
@@ -616,6 +835,12 @@ function RefundsPanel() {
     useEffect(() => {
         loadRefunds()
     }, [page])
+
+    const syncRefundPage = (nextPage: number) => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('refundPage', String(nextPage))
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+    }
 
     const handleProcess = async (refundId: string, approved: boolean) => {
         if (!confirm(approved ? '确定批准退款吗？此操作不可撤销。' : '确定拒绝退款吗？')) return
@@ -679,55 +904,95 @@ function RefundsPanel() {
             </CardHeader>
             <CardContent>
                  <div className="rounded-md border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-gray-50 border-b">
-                            <tr>
-                                <th className="p-3 text-left font-medium">申请ID</th>
-                                <th className="p-3 text-left font-medium">用户</th>
-                                <th className="p-3 text-left font-medium">关联订单</th>
-                                <th className="p-3 text-right font-medium">金额</th>
-                                <th className="p-3 text-left font-medium">理由</th>
-                                <th className="p-3 text-right font-medium">申请时间</th>
-                                <th className="p-3 text-center font-medium">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
-                                <tr><td colSpan={7} className="p-8 text-center">加载中...</td></tr>
-                            ) : refunds.length === 0 ? (
-                                <tr><td colSpan={7} className="p-8 text-center text-gray-500">无待处理退款</td></tr>
-                            ) : (
-                                refunds.map((refund) => (
-                                    <tr key={refund.refundId} className="border-b hover:bg-gray-50">
-                                        <td className="p-3 font-mono">{refund.refundId}</td>
-                                        <td className="p-3 font-mono">{refund.userId}</td>
-                                        <td className="p-3 font-mono">{refund.orderId}</td>
-                                        <td className="p-3 text-right font-bold">${refund.amount}</td>
-                                        <td className="p-3 text-gray-600 truncate max-w-[200px]">{refund.reason}</td>
-                                        <td className="p-3 text-right text-gray-500">
-                                            {format(refund.createdAt, 'MM-dd HH:mm')}
-                                        </td>
-                                        <td className="p-3 text-center space-x-2">
-                                            <Button 
-                                                size="sm" 
-                                                className="bg-green-600 hover:bg-green-700"
-                                                onClick={() => handleProcess(refund.refundId, true)}
-                                            >
-                                                批准
-                                            </Button>
-                                            <Button 
-                                                size="sm" 
-                                                variant="destructive"
-                                                onClick={() => handleProcess(refund.refundId, false)}
-                                            >
-                                                拒绝
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                    <div className="hidden md:grid grid-cols-[1.4fr,1fr,1fr,0.8fr,1.2fr,1fr] gap-2 border-b bg-gray-50 px-4 py-2 text-xs font-medium text-gray-600">
+                        <span>申请ID</span>
+                        <span>用户</span>
+                        <span>关联订单</span>
+                        <span className="text-right">金额</span>
+                        <span>理由</span>
+                        <span className="text-right">申请时间 / 操作</span>
+                    </div>
+                    <div ref={refundsParentRef} className="max-h-[500px] overflow-auto">
+                        {loading ? (
+                            <div className="p-8 text-center text-gray-500">加载中...</div>
+                        ) : refunds.length === 0 ? (
+                            <div className="p-8 text-center text-gray-500">无待处理退款</div>
+                        ) : (
+                            <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
+                                {rowVirtualizer.getVirtualItems().map(virtualRow => {
+                                    const refund = refunds[virtualRow.index]
+                                    if (!refund) return null
+                                    return (
+                                        <div
+                                            key={refund.refundId}
+                                            className="grid grid-cols-1 gap-3 border-b px-4 py-3 text-sm md:grid-cols-[1.4fr,1fr,1fr,0.8fr,1.2fr,1fr]"
+                                            style={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: '100%',
+                                                transform: `translateY(${virtualRow.start}px)`
+                                            }}
+                                        >
+                                            <div className="font-mono break-all">{refund.refundId}</div>
+                                            <div className="font-mono break-all">{refund.userId}</div>
+                                            <div className="font-mono break-all">{refund.orderId}</div>
+                                            <div className="text-right font-bold">${refund.amount}</div>
+                                            <div className="text-gray-600 truncate">{refund.reason}</div>
+                                            <div className="text-right text-gray-500">
+                                                <div>{format(refund.createdAt, 'MM-dd HH:mm')}</div>
+                                                <div className="mt-2 flex flex-wrap justify-end gap-2">
+                                                    <Button 
+                                                        size="sm" 
+                                                        className="bg-green-600 hover:bg-green-700"
+                                                        onClick={() => handleProcess(refund.refundId, true)}
+                                                    >
+                                                        批准
+                                                    </Button>
+                                                    <Button 
+                                                        size="sm" 
+                                                        variant="destructive"
+                                                        onClick={() => handleProcess(refund.refundId, false)}
+                                                    >
+                                                        拒绝
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </CardContent>
+            <CardContent>
+                <div className="flex justify-end gap-2 mt-4">
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        disabled={page <= 1}
+                        onClick={() => {
+                            const nextPage = Math.max(1, page - 1)
+                            setPage(nextPage)
+                            syncRefundPage(nextPage)
+                        }}
+                    >
+                        上一页
+                    </Button>
+                    <span className="text-sm py-2">第 {page} 页</span>
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        disabled={refunds.length < 100}
+                        onClick={() => {
+                            const nextPage = page + 1
+                            setPage(nextPage)
+                            syncRefundPage(nextPage)
+                        }}
+                    >
+                        下一页
+                    </Button>
                 </div>
             </CardContent>
         </Card>
