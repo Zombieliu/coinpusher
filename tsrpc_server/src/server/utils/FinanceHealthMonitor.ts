@@ -1,13 +1,16 @@
 import { MongoDBService } from "../gate/db/MongoDBService";
 import { NotificationSystem } from "../gate/bll/NotificationSystem";
 import { OrderStatus, PaymentOrder } from "../gate/bll/PaymentSystem";
-import nodemailer, { Transporter } from "nodemailer";
+import tls from "node:tls";
+import net from "node:net";
+import { Buffer } from "node:buffer";
+
+type SmtpSocket = tls.TLSSocket | net.Socket;
 
 export class FinanceHealthMonitor {
     private static initialized = false;
     private static lastAlerts: Map<string, number> = new Map();
     private static interval: NodeJS.Timeout | null = null;
-    private static transporter: Transporter | null = null;
 
     static start(intervalMs: number = Number(process.env.FINANCE_HEALTH_INTERVAL || 5 * 60 * 1000)) {
         if (this.initialized) return;
@@ -69,41 +72,146 @@ export class FinanceHealthMonitor {
         await this.sendEmailAlert(key, message, data);
     }
 
-    private static getMailer(): Transporter | null {
-        if (this.transporter) return this.transporter;
-        const host = process.env.FINANCE_EMAIL_SMTP_HOST;
-        const port = Number(process.env.FINANCE_EMAIL_SMTP_PORT || 465);
-        if (!host) return null;
-        const secure = (process.env.FINANCE_EMAIL_SMTP_SECURE || 'true').toLowerCase() !== 'false';
-        const user = process.env.FINANCE_EMAIL_SMTP_USER;
-        const pass = process.env.FINANCE_EMAIL_SMTP_PASS;
-        this.transporter = nodemailer.createTransport({
-            host,
-            port,
-            secure,
-            auth: user ? { user, pass } : undefined,
-        });
-        return this.transporter;
-    }
-
     private static async sendEmailAlert(key: string, message: string, data?: any) {
         const to = process.env.FINANCE_EMAIL_TO;
         const from = process.env.FINANCE_EMAIL_FROM;
-        if (!to || !from) return;
-        const mailer = this.getMailer();
-        if (!mailer) return;
+        const host = process.env.FINANCE_EMAIL_SMTP_HOST;
+        if (!to || !from || !host) return;
+
+        const port = Number(process.env.FINANCE_EMAIL_SMTP_PORT || 465);
+        const secure = (process.env.FINANCE_EMAIL_SMTP_SECURE || 'true').toLowerCase() !== 'false';
+        const user = process.env.FINANCE_EMAIL_SMTP_USER;
+        const pass = process.env.FINANCE_EMAIL_SMTP_PASS;
+        const recipients = to.split(/[,;]+/).map(addr => addr.trim()).filter(Boolean);
+        if (!recipients.length) return;
 
         try {
-            const text = `财务健康告警 (${key})\n${message}\n${JSON.stringify(data || {}, null, 2)}`;
-            await mailer.sendMail({
-                from,
-                to,
-                subject: `[Oops Finance Alert] ${key}`,
-                text,
-                html: `<h3>财务健康告警 (${key})</h3><p>${message}</p><pre>${JSON.stringify(data || {}, null, 2)}</pre>`
-            });
+            const socket = await this.createSmtpSocket({ host, port, secure });
+            try {
+                await this.expectResponse(socket, 220);
+                await this.sendCommand(socket, `EHLO finance-monitor\r\n`, 250);
+
+                if (user && pass) {
+                    await this.sendCommand(socket, `AUTH LOGIN\r\n`, 334);
+                    await this.sendCommand(socket, `${Buffer.from(user).toString('base64')}\r\n`, 334);
+                    await this.sendCommand(socket, `${Buffer.from(pass).toString('base64')}\r\n`, 235);
+                }
+
+                await this.sendCommand(socket, `MAIL FROM:<${from}>\r\n`, 250);
+                for (const recipient of recipients) {
+                    await this.sendCommand(socket, `RCPT TO:<${recipient}>\r\n`, 250);
+                }
+
+                await this.sendCommand(socket, `DATA\r\n`, 354);
+                const subject = `[Oops Finance Alert] ${key}`;
+                const payload = this.composeEmail({ from, to: recipients.join(', '), subject, key, message, data });
+                await this.sendCommand(socket, `${payload}\r\n.\r\n`, 250);
+                await this.sendCommand(socket, `QUIT\r\n`, 221);
+            } finally {
+                socket.end();
+            }
         } catch (error) {
             console.error('[FinanceHealthMonitor] sendEmailAlert failed:', error);
         }
+    }
+
+    private static composeEmail(params: { from: string; to: string; subject: string; key: string; message: string; data?: any }) {
+        const lines = [
+            `From: ${params.from}`,
+            `To: ${params.to}`,
+            `Subject: ${params.subject}`,
+            `Date: ${new Date().toUTCString()}`,
+            '',
+            `类型: ${params.key}`,
+            params.message,
+            '',
+            JSON.stringify(params.data || {}, null, 2),
+            ''
+        ];
+        const body = lines.join('\r\n').replace(/\r?\n/g, '\r\n');
+        return body.replace(/\r\n\./g, '\r\n..');
+    }
+
+    private static createSmtpSocket(opts: { host: string; port: number; secure: boolean }): Promise<SmtpSocket> {
+        return new Promise((resolve, reject) => {
+            const socket = opts.secure
+                ? tls.connect({ host: opts.host, port: opts.port, servername: opts.host })
+                : net.connect({ host: opts.host, port: opts.port });
+
+            const onError = (err: Error) => {
+                socket.removeListener('timeout', onTimeout);
+                reject(err);
+            };
+            const onTimeout = () => {
+                socket.destroy(new Error('SMTP connection timeout'));
+                reject(new Error('SMTP connection timeout'));
+            };
+            const onConnect = () => {
+                socket.removeListener('error', onError);
+                socket.removeListener('connect', onConnect);
+                socket.removeListener('secureConnect', onConnect);
+                socket.setTimeout(15000, onTimeout);
+                socket.on('timeout', onTimeout);
+                resolve(socket);
+            };
+
+            socket.once('error', onError);
+            if (opts.secure) {
+                (socket as tls.TLSSocket).once('secureConnect', onConnect);
+            } else {
+                socket.once('connect', onConnect);
+            }
+        });
+    }
+
+    private static async sendCommand(socket: SmtpSocket, command: string, expectedCode: number) {
+        socket.write(command, 'utf8');
+        const response = await this.readResponse(socket);
+        if (response.code !== expectedCode) {
+            throw new Error(`SMTP command failed (${command.trim()}): ${response.text.trim()}`);
+        }
+    }
+
+    private static async expectResponse(socket: SmtpSocket, expectedCode: number) {
+        const response = await this.readResponse(socket);
+        if (response.code !== expectedCode) {
+            throw new Error(`Unexpected SMTP response: ${response.text.trim()}`);
+        }
+    }
+
+    private static readResponse(socket: SmtpSocket): Promise<{ code: number; text: string }> {
+        return new Promise((resolve, reject) => {
+            let buffer = '';
+            const onData = (chunk: Buffer) => {
+                buffer += chunk.toString('utf8');
+                const lines = buffer.split(/\r?\n/).filter(Boolean);
+                if (!lines.length) {
+                    return;
+                }
+
+                const lastLine = lines[lines.length - 1];
+                if (lastLine.length >= 4 && /^\d{3}/.test(lastLine.slice(0, 3)) && lastLine[3] === ' ') {
+                    cleanup();
+                    resolve({ code: parseInt(lastLine.slice(0, 3), 10), text: buffer });
+                }
+            };
+            const onError = (err: Error) => {
+                cleanup();
+                reject(err);
+            };
+            const onClose = () => {
+                cleanup();
+                reject(new Error('SMTP connection closed'));
+            };
+            const cleanup = () => {
+                socket.off('data', onData);
+                socket.off('error', onError);
+                socket.off('close', onClose);
+            };
+
+            socket.on('data', onData);
+            socket.once('error', onError);
+            socket.once('close', onClose);
+        });
     }
 }
