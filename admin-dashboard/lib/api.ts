@@ -375,6 +375,18 @@ export async function processRefund(params: {
   return callAPI('admin/ProcessRefund', params)
 }
 
+export async function updateOrderStatus(orderId: string, status: string) {
+  return callAPI('admin/UpdateOrderStatus', { orderId, status })
+}
+
+export async function deliverOrder(orderId: string) {
+  return callAPI('admin/DeliverOrder', { orderId })
+}
+
+export async function resendOrderReward(orderId: string) {
+  return callAPI('admin/ResendOrderReward', { orderId })
+}
+
 // ==================== 公告管理API ====================
 
 /**

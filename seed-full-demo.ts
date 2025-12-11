@@ -25,6 +25,7 @@ async function main() {
         await seedInventory(db);
         await seedMails(db);
         await seedInviteSystem(db);
+        await seedRefunds(db);
         await seedCdks(db);
         await seedNotificationStats(db);
         await seedLogAnalytics(db);
@@ -331,6 +332,38 @@ async function seedMails(db: any) {
         }
     ]);
     console.log('• 邮件样本已写入');
+}
+
+async function seedRefunds(db: any) {
+    const refunds = db.collection('refund_requests');
+    await refunds.deleteMany({ seedTag: SEED_TAG });
+    const now = Date.now();
+    await refunds.insertMany([
+        {
+            _id: new ObjectId(),
+            refundId: 'refund_demo_1',
+            orderId: 'order_1',
+            userId: 'demo_user_2',
+            amount: 19.9,
+            reason: '重复扣款',
+            status: 'pending',
+            createdAt: now - 2 * 3600 * 1000,
+            seedTag: SEED_TAG
+        },
+        {
+            _id: new ObjectId(),
+            refundId: 'refund_demo_2',
+            orderId: 'order_2',
+            userId: 'demo_user_3',
+            amount: 9.9,
+            reason: '订单异常',
+            status: 'approved',
+            createdAt: now - 24 * 3600 * 1000,
+            processedAt: now - 12 * 3600 * 1000,
+            seedTag: SEED_TAG
+        }
+    ]);
+    console.log('• 退款申请样本已写入');
 }
 
 async function seedInviteSystem(db: any) {

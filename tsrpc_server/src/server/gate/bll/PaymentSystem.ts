@@ -62,6 +62,7 @@ export interface PaymentOrder {
     createdAt: number;
     paidAt?: number;
     deliveredAt?: number;
+    refundedAt?: number;
 
     // 回调
     notifyUrl?: string;
@@ -92,6 +93,11 @@ export interface RefundRequest {
     status: 'pending' | 'approved' | 'rejected' | 'completed';
     createdAt: number;
     processedAt?: number;
+    processedBy?: string;
+    processedByName?: string;
+    channelRefundId?: string;
+    adminNote?: string;
+    evidenceUrls?: string[];
 }
 
 export class PaymentSystem {
@@ -217,6 +223,64 @@ export class PaymentSystem {
     }
 
     /**
+     * 发起渠道退款（示例）
+     */
+    private static async initiateRefundToChannel(
+        order: PaymentOrder,
+        amount: number
+    ): Promise<{ success: boolean; error?: string; transactionId?: string }> {
+        switch (order.channel) {
+            case PaymentChannel.Wechat:
+                return await this.refundWechat(order.orderId, amount);
+            case PaymentChannel.Alipay:
+                return await this.refundAlipay(order.orderId, amount);
+            case PaymentChannel.PayPal:
+                return await this.refundPayPal(order.orderId, amount);
+            case PaymentChannel.Stripe:
+                return await this.refundStripe(order.orderId, amount);
+            case PaymentChannel.Sui:
+                return await this.refundSui(order.orderId, amount);
+            default:
+                return { success: false, error: '不支持的支付渠道' };
+        }
+    }
+
+    private static async refundWechat(orderId: string, amount: number) {
+        return {
+            success: true,
+            transactionId: `wx_ref_${orderId}_${amount}`
+        };
+    }
+
+    private static async refundAlipay(orderId: string, amount: number) {
+        return {
+            success: true,
+            transactionId: `ali_ref_${orderId}_${amount}`
+        };
+    }
+
+    private static async refundPayPal(orderId: string, amount: number) {
+        return {
+            success: true,
+            transactionId: `paypal_ref_${orderId}_${amount}`
+        };
+    }
+
+    private static async refundStripe(orderId: string, amount: number) {
+        return {
+            success: true,
+            transactionId: `stripe_ref_${orderId}_${amount}`
+        };
+    }
+
+    private static async refundSui(orderId: string, amount: number) {
+        return {
+            success: true,
+            transactionId: `sui_ref_${orderId}_${amount}`
+        };
+    }
+
+    /**
      * 支付宝支付（示例）
      */
     private static async initiateAlipay(order: PaymentOrder): Promise<any> {
@@ -330,6 +394,23 @@ export class PaymentSystem {
      * 发货
      */
     private static async deliverOrder(order: PaymentOrder): Promise<void> {
+        await this.applyOrderRewards(order);
+
+        const collection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
+        await collection.updateOne(
+            { orderId: order.orderId },
+            {
+                $set: {
+                    status: OrderStatus.Delivered,
+                    deliveredAt: Date.now()
+                }
+            }
+        );
+
+        console.log(`[PaymentSystem] 订单 ${order.orderId} 发货完成`);
+    }
+
+    private static async applyOrderRewards(order: PaymentOrder): Promise<void> {
         const product = ShopSystem.getProduct(order.productId);
         if (!product) {
             console.error(`[PaymentSystem] 商品不存在：${order.productId}`);
@@ -365,19 +446,6 @@ export class PaymentSystem {
             await UserDB.addTickets(order.userId, totalTickets);
         }
 
-        // 更新订单状态
-        const collection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
-        await collection.updateOne(
-            { orderId: order.orderId },
-            {
-                $set: {
-                    status: OrderStatus.Delivered,
-                    deliveredAt: Date.now()
-                }
-            }
-        );
-
-        console.log(`[PaymentSystem] 订单 ${order.orderId} 发货完成`);
     }
 
     /**
@@ -478,7 +546,8 @@ export class PaymentSystem {
      */
     static async processRefund(
         refundId: string,
-        approved: boolean
+        approved: boolean,
+        options?: { adminId?: string; adminName?: string; note?: string }
     ): Promise<{
         success: boolean;
         error?: string;
@@ -494,29 +563,49 @@ export class PaymentSystem {
             return { success: false, error: '该退款申请已处理' };
         }
 
-        if (approved) {
-            // 执行退款
-            // TODO: 调用第三方支付退款API
+        const now = Date.now();
+        const orderCollection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
 
-            // 更新退款状态
+        if (approved) {
+            const order = await orderCollection.findOne({ orderId: refund.orderId });
+            if (!order) {
+                return { success: false, error: '关联订单不存在' };
+            }
+
+            if (order.status !== OrderStatus.Paid && order.status !== OrderStatus.Delivered) {
+                return { success: false, error: '该订单状态不可退款' };
+            }
+
+            const channelResult = await this.initiateRefundToChannel(order, refund.amount);
+            if (!channelResult.success) {
+                return { success: false, error: channelResult.error || '支付渠道退款失败' };
+            }
+
             await refundCollection.updateOne(
                 { refundId },
                 {
                     $set: {
                         status: 'completed',
-                        processedAt: Date.now()
+                        processedAt: now,
+                        processedBy: options?.adminId,
+                        processedByName: options?.adminName,
+                        channelRefundId: channelResult.transactionId,
+                        adminNote: options?.note
                     }
                 }
             );
 
-            // 更新订单状态
-            const orderCollection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
             await orderCollection.updateOne(
                 { orderId: refund.orderId },
-                { $set: { status: OrderStatus.Refunded } }
+                {
+                    $set: {
+                        status: OrderStatus.Refunded,
+                        refundedAt: now
+                    }
+                }
             );
 
-            console.log(`[PaymentSystem] 退款 ${refundId} 已完成`);
+            console.log(`[PaymentSystem] 退款 ${refundId} 已完成，渠道流水 ${channelResult.transactionId}`);
         } else {
             // 拒绝退款
             await refundCollection.updateOne(
@@ -524,7 +613,10 @@ export class PaymentSystem {
                 {
                     $set: {
                         status: 'rejected',
-                        processedAt: Date.now()
+                        processedAt: now,
+                        processedBy: options?.adminId,
+                        processedByName: options?.adminName,
+                        adminNote: options?.note
                     }
                 }
             );
@@ -640,6 +732,85 @@ export class PaymentSystem {
             .toArray();
 
         return { orders, total };
+    }
+
+    /**
+     * 管理员更新订单状态
+     */
+    static async updateOrderStatus(orderId: string, status: OrderStatus): Promise<{ success: boolean; error?: string }> {
+        const collection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
+        const order = await collection.findOne({ orderId });
+        if (!order) {
+            return { success: false, error: '订单不存在' };
+        }
+
+        if (!Object.values(OrderStatus).includes(status)) {
+            return { success: false, error: '无效的订单状态' };
+        }
+
+        if (order.status === status) {
+            return { success: true };
+        }
+
+        const updates: any = {
+            status,
+            updatedAt: Date.now()
+        };
+
+        if (status === OrderStatus.Paid && !order.paidAt) {
+            updates.paidAt = Date.now();
+        }
+
+        if (status === OrderStatus.Delivered && !order.deliveredAt) {
+            updates.deliveredAt = Date.now();
+        }
+
+        await collection.updateOne({ orderId }, { $set: updates });
+        console.log(`[PaymentSystem] 管理员更新订单 ${orderId} 状态为 ${status}`);
+
+        return { success: true };
+    }
+
+    static async manualDeliverOrder(orderId: string): Promise<{ success: boolean; error?: string }> {
+        const collection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
+        const order = await collection.findOne({ orderId });
+        if (!order) {
+            return { success: false, error: '订单不存在' };
+        }
+
+        if (order.status !== OrderStatus.Paid) {
+            return { success: false, error: '仅已支付订单可标记发货' };
+        }
+
+        await this.applyOrderRewards(order);
+        await collection.updateOne(
+            { orderId },
+            {
+                $set: {
+                    status: OrderStatus.Delivered,
+                    deliveredAt: Date.now()
+                }
+            }
+        );
+
+        console.log(`[PaymentSystem] 管理员手动发货订单 ${orderId}`);
+        return { success: true };
+    }
+
+    static async resendOrderRewards(orderId: string): Promise<{ success: boolean; error?: string }> {
+        const collection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
+        const order = await collection.findOne({ orderId });
+        if (!order) {
+            return { success: false, error: '订单不存在' };
+        }
+
+        if (order.status !== OrderStatus.Delivered) {
+            return { success: false, error: '仅已发货订单可重发奖励' };
+        }
+
+        await this.applyOrderRewards(order);
+        console.log(`[PaymentSystem] 管理员重发了订单 ${orderId} 的奖励`);
+        return { success: true };
     }
 
     /**

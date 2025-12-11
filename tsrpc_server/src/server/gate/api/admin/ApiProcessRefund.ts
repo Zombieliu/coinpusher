@@ -12,7 +12,12 @@ export async function ApiProcessRefund(call: ApiCall<ReqProcessRefund, ResProces
     try {
         const result = await PaymentSystem.processRefund(
             call.req.refundId,
-            call.req.approved
+            call.req.approved,
+            {
+                adminId: auth.adminId,
+                adminName: auth.username,
+                note: call.req.note
+            }
         );
 
         if (!result.success) {

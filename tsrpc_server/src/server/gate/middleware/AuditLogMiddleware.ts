@@ -104,6 +104,38 @@ const AUDIT_CONFIG: Record<string, {
             targetName: call.req.disableBatch ? 'batch' : 'code'
         })
     },
+    'admin/UpdateOrderStatus': {
+        category: AuditCategory.Financial,
+        actionName: '更新订单状态',
+        getTargetInfo: (call) => ({
+            targetType: 'order',
+            targetId: call.req.orderId
+        })
+    },
+    'admin/ProcessRefund': {
+        category: AuditCategory.Financial,
+        actionName: '处理退款',
+        getTargetInfo: (call) => ({
+            targetType: 'refund',
+            targetId: call.req.refundId
+        })
+    },
+    'admin/DeliverOrder': {
+        category: AuditCategory.Financial,
+        actionName: '手动发货',
+        getTargetInfo: (call) => ({
+            targetType: 'order',
+            targetId: call.req.orderId
+        })
+    },
+    'admin/ResendOrderReward': {
+        category: AuditCategory.Financial,
+        actionName: '重发订单奖励',
+        getTargetInfo: (call) => ({
+            targetType: 'order',
+            targetId: call.req.orderId
+        })
+    },
     'admin/BatchSendMail': {
         category: AuditCategory.GameData,
         actionName: '批量发送邮件',

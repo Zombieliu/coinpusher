@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
-import { fetchOrders, fetchFinancialStats, fetchRefunds, processRefund } from '@/lib/api'
+import { fetchOrders, fetchFinancialStats, fetchRefunds, processRefund, updateOrderStatus, deliverOrder, resendOrderReward } from '@/lib/api'
 import { DollarSign, ShoppingCart, CreditCard, RefreshCw, Search, Calendar as CalendarIcon, ArrowUpRight, ArrowDownRight, Filter } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -18,7 +18,7 @@ export default function FinancePage() {
     const [activeTab, setActiveTab] = useState('orders')
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 finance-page">
             <h1 className="text-3xl font-bold tracking-tight">财务管理</h1>
 
             <Tabs defaultValue="orders" className="space-y-4" onValueChange={setActiveTab}>
@@ -75,6 +75,7 @@ function BarChartIcon(props: any) {
 }
 
 function OrdersPanel() {
+    const { toast } = useToast()
     const [orders, setOrders] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     const [total, setTotal] = useState(0)
@@ -83,6 +84,14 @@ function OrdersPanel() {
         orderId: '',
         userId: '',
         status: 'all'
+    })
+    const [statusDialog, setStatusDialog] = useState<{
+        open: boolean;
+        order?: any;
+        status: string;
+    }>({
+        open: false,
+        status: 'pending'
     })
 
     const loadOrders = async () => {
@@ -117,6 +126,59 @@ function OrdersPanel() {
     const handleSearch = () => {
         setPage(1)
         loadOrders()
+    }
+
+    const openStatusDialog = (order: any) => {
+        setStatusDialog({
+            open: true,
+            order,
+            status: order.status
+        })
+    }
+
+    const handleUpdateStatus = async () => {
+        if (!statusDialog.order) return
+        try {
+            const res = await updateOrderStatus(statusDialog.order.orderId, statusDialog.status)
+            if (res.isSucc && res.res?.success) {
+                toast({ title: "订单状态已更新" })
+                setStatusDialog({ open: false, status: 'pending' })
+                loadOrders()
+            } else {
+                toast({ title: "更新失败", description: res.err?.message, variant: "destructive" })
+            }
+        } catch (error: any) {
+            toast({ title: "更新失败", description: error.message, variant: "destructive" })
+        }
+    }
+
+    const handleManualDeliver = async (orderId: string) => {
+        if (!confirm('确认标记该订单已发货并发放奖励？')) return
+        try {
+            const res = await deliverOrder(orderId)
+            if (res.isSucc && res.res?.success) {
+                toast({ title: "订单已发货" })
+                loadOrders()
+            } else {
+                toast({ title: "操作失败", description: res.err?.message, variant: "destructive" })
+            }
+        } catch (error: any) {
+            toast({ title: "操作失败", description: error.message, variant: "destructive" })
+        }
+    }
+
+    const handleResendReward = async (orderId: string) => {
+        if (!confirm('确认重发该订单的奖励吗？')) return
+        try {
+            const res = await resendOrderReward(orderId)
+            if (res.isSucc && res.res?.success) {
+                toast({ title: "奖励已重新发放" })
+            } else {
+                toast({ title: "操作失败", description: res.err?.message, variant: "destructive" })
+            }
+        } catch (error: any) {
+            toast({ title: "操作失败", description: error.message, variant: "destructive" })
+        }
     }
 
     return (
@@ -169,6 +231,7 @@ function OrdersPanel() {
                                 <th className="p-3 text-right font-medium">金额</th>
                                 <th className="p-3 text-center font-medium">状态</th>
                                 <th className="p-3 text-right font-medium">时间</th>
+                                <th className="p-3 text-center font-medium">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -197,6 +260,33 @@ function OrdersPanel() {
                                         <td className="p-3 text-right text-gray-500">
                                             {format(order.createdAt, 'yyyy-MM-dd HH:mm')}
                                         </td>
+                                        <td className="p-3 text-center space-x-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => openStatusDialog(order)}
+                                            >
+                                                更新状态
+                                            </Button>
+                                            {order.status === 'paid' && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleManualDeliver(order.orderId)}
+                                                >
+                                                    标记发货
+                                                </Button>
+                                            )}
+                                            {order.status === 'delivered' && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleResendReward(order.orderId)}
+                                                >
+                                                    重发奖励
+                                                </Button>
+                                            )}
+                                        </td>
                                     </tr>
                                 ))
                             )}
@@ -223,6 +313,35 @@ function OrdersPanel() {
                     </Button>
                 </div>
             </CardContent>
+            <Dialog open={statusDialog.open} onOpenChange={(open) => setStatusDialog(prev => ({ ...prev, open }))}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>更新订单状态</DialogTitle>
+                        <DialogDescription>
+                            订单号：{statusDialog.order?.orderId}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="order-status-select">订单状态</Label>
+                            <Select value={statusDialog.status} onValueChange={(value) => setStatusDialog(prev => ({ ...prev, status: value }))}>
+                                <SelectTrigger id="order-status-select">
+                                    <SelectValue placeholder="选择订单状态" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {ORDER_STATUS_OPTIONS.map(option => (
+                                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setStatusDialog({ open: false, status: 'pending' })}>取消</Button>
+                        <Button onClick={handleUpdateStatus}>保存</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Card>
     )
 }
@@ -445,6 +564,15 @@ function RefundsPanel() {
         </Card>
     )
 }
+
+const ORDER_STATUS_OPTIONS = [
+    { value: 'pending', label: '待支付' },
+    { value: 'paid', label: '已支付' },
+    { value: 'delivered', label: '已发货' },
+    { value: 'failed', label: '失败' },
+    { value: 'cancelled', label: '已取消' },
+    { value: 'refunded', label: '已退款' }
+]
 
 function getStatusVariant(status: string) {
     switch (status) {

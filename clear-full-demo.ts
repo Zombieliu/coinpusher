@@ -30,6 +30,7 @@ async function clearSeedData(db: any) {
         'shop_products',
         'user_items',
         'mails',
+        'refund_requests',
         'cdk_codes',
         'cdk_usage_logs',
         'cdk_admin_logs',

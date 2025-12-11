@@ -8,6 +8,7 @@ import { ReqCreateAnnouncement, ResCreateAnnouncement } from './gate/admin/PtlCr
 import { ReqCreateEvent, ResCreateEvent } from './gate/admin/PtlCreateEvent';
 import { ReqDeleteAnnouncement, ResDeleteAnnouncement } from './gate/admin/PtlDeleteAnnouncement';
 import { ReqDeleteEvent, ResDeleteEvent } from './gate/admin/PtlDeleteEvent';
+import { ReqDeliverOrder, ResDeliverOrder } from './gate/admin/PtlDeliverOrder';
 import { ReqDisableCdk, ResDisableCdk } from './gate/admin/PtlDisableCdk';
 import { ReqExportInviteLeaderboard, ResExportInviteLeaderboard } from './gate/admin/PtlExportInviteLeaderboard';
 import { ReqGenerateCdk, ResGenerateCdk } from './gate/admin/PtlGenerateCdk';
@@ -41,6 +42,7 @@ import { ReqGetUsers, ResGetUsers } from './gate/admin/PtlGetUsers';
 import { ReqGrantReward, ResGrantReward } from './gate/admin/PtlGrantReward';
 import { ReqProcessRefund, ResProcessRefund } from './gate/admin/PtlProcessRefund';
 import { ReqReplyTicket, ResReplyTicket } from './gate/admin/PtlReplyTicket';
+import { ReqResendOrderReward, ResResendOrderReward } from './gate/admin/PtlResendOrderReward';
 import { ReqRollbackConfig, ResRollbackConfig } from './gate/admin/PtlRollbackConfig';
 import { ReqSendMail, ResSendMail } from './gate/admin/PtlSendMail';
 import { ReqSetMaintenance, ResSetMaintenance } from './gate/admin/PtlSetMaintenance';
@@ -50,6 +52,7 @@ import { ReqUpdateAnnouncement, ResUpdateAnnouncement } from './gate/admin/PtlUp
 import { ReqUpdateConfig, ResUpdateConfig } from './gate/admin/PtlUpdateConfig';
 import { ReqUpdateEvent, ResUpdateEvent } from './gate/admin/PtlUpdateEvent';
 import { ReqUpdateInviteRewardConfig, ResUpdateInviteRewardConfig } from './gate/admin/PtlUpdateInviteRewardConfig';
+import { ReqUpdateOrderStatus, ResUpdateOrderStatus } from './gate/admin/PtlUpdateOrderStatus';
 import { ReqAddGold, ResAddGold } from './gate/internal/PtlAddGold';
 import { ReqCollectWithReward, ResCollectWithReward } from './gate/internal/PtlCollectWithReward';
 import { ReqDeductGold, ResDeductGold } from './gate/internal/PtlDeductGold';
@@ -137,6 +140,10 @@ export interface ServiceType {
         "admin/DeleteEvent": {
             req: ReqDeleteEvent,
             res: ResDeleteEvent
+        },
+        "admin/DeliverOrder": {
+            req: ReqDeliverOrder,
+            res: ResDeliverOrder
         },
         "admin/DisableCdk": {
             req: ReqDisableCdk,
@@ -270,6 +277,10 @@ export interface ServiceType {
             req: ReqReplyTicket,
             res: ResReplyTicket
         },
+        "admin/ResendOrderReward": {
+            req: ReqResendOrderReward,
+            res: ResResendOrderReward
+        },
         "admin/RollbackConfig": {
             req: ReqRollbackConfig,
             res: ResRollbackConfig
@@ -305,6 +316,10 @@ export interface ServiceType {
         "admin/UpdateInviteRewardConfig": {
             req: ReqUpdateInviteRewardConfig,
             res: ResUpdateInviteRewardConfig
+        },
+        "admin/UpdateOrderStatus": {
+            req: ReqUpdateOrderStatus,
+            res: ResUpdateOrderStatus
         },
         "internal/AddGold": {
             req: ReqAddGold,
@@ -509,7 +524,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 27,
+    "version": 30,
     "services": [
         {
             "id": 47,
@@ -554,6 +569,11 @@ export const serviceProto: ServiceProto<ServiceType> = {
         {
             "id": 52,
             "name": "admin/DeleteEvent",
+            "type": "api"
+        },
+        {
+            "id": 101,
+            "name": "admin/DeliverOrder",
             "type": "api"
         },
         {
@@ -722,6 +742,11 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "type": "api"
         },
         {
+            "id": 102,
+            "name": "admin/ResendOrderReward",
+            "type": "api"
+        },
+        {
             "id": 63,
             "name": "admin/RollbackConfig",
             "type": "api"
@@ -764,6 +789,11 @@ export const serviceProto: ServiceProto<ServiceType> = {
         {
             "id": 99,
             "name": "admin/UpdateInviteRewardConfig",
+            "type": "api"
+        },
+        {
+            "id": 100,
+            "name": "admin/UpdateOrderStatus",
             "type": "api"
         },
         {
@@ -1817,6 +1847,38 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "String"
                     },
                     "optional": true
+                }
+            ]
+        },
+        "admin/PtlDeliverOrder/ReqDeliverOrder": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "__ssoToken",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "orderId",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "admin/PtlDeliverOrder/ResDeliverOrder": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "success",
+                    "type": {
+                        "type": "Boolean"
+                    }
                 }
             ]
         },
@@ -5423,6 +5485,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "optional": true
                 },
                 {
+                    "id": 16,
+                    "name": "refundedAt",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
                     "id": 13,
                     "name": "notifyUrl",
                     "type": {
@@ -5637,6 +5707,49 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "name": "processedAt",
                     "type": {
                         "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 8,
+                    "name": "processedBy",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 9,
+                    "name": "processedByName",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 10,
+                    "name": "channelRefundId",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 11,
+                    "name": "adminNote",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 12,
+                    "name": "evidenceUrls",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "String"
+                        }
                     },
                     "optional": true
                 }
@@ -6868,6 +6981,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "type": {
                         "type": "Boolean"
                     }
+                },
+                {
+                    "id": 3,
+                    "name": "note",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
                 }
             ]
         },
@@ -6943,6 +7064,38 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "String"
                     },
                     "optional": true
+                }
+            ]
+        },
+        "admin/PtlResendOrderReward/ReqResendOrderReward": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "__ssoToken",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "orderId",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "admin/PtlResendOrderReward/ResResendOrderReward": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "success",
+                    "type": {
+                        "type": "Boolean"
+                    }
                 }
             ]
         },
@@ -7573,6 +7726,46 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "name": "updatedAt",
                     "type": {
                         "type": "Number"
+                    }
+                }
+            ]
+        },
+        "admin/PtlUpdateOrderStatus/ReqUpdateOrderStatus": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "__ssoToken",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "orderId",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "status",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../../../server/gate/bll/PaymentSystem/OrderStatus"
+                    }
+                }
+            ]
+        },
+        "admin/PtlUpdateOrderStatus/ResUpdateOrderStatus": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "success",
+                    "type": {
+                        "type": "Boolean"
                     }
                 }
             ]

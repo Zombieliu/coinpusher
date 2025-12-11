@@ -16,13 +16,17 @@ test('退款处理页能列出申请并执行审批', async ({ page }) => {
     }
   ];
 
-  await mockApi(page, 'admin/GetRefunds', () => ({
-    isSucc: true,
-    res: {
-      refunds,
-      total: refunds.length
-    }
-  }));
+  let refundsLoaded = 0;
+  await mockApi(page, 'admin/GetRefunds', () => {
+    refundsLoaded++;
+    return {
+      isSucc: true,
+      res: {
+        refunds,
+        total: refunds.length
+      }
+    };
+  });
 
   await mockApi(page, 'admin/ProcessRefund', body => {
     refunds.splice(0, refunds.length);
@@ -33,7 +37,9 @@ test('退款处理页能列出申请并执行审批', async ({ page }) => {
   });
 
   await page.goto('/dashboard/finance');
-  await page.getByRole('tab', { name: '退款处理' }).click();
+  await expect.poll(() => refundsLoaded, { timeout: 15000 }).toBeGreaterThan(0);
+  await expect(page.getByRole('tab', { name: /退款处理/ })).toBeVisible();
+  await page.getByRole('tab', { name: /退款处理/ }).click();
 
   await expect(page.getByText('refund_demo_1')).toBeVisible();
 
