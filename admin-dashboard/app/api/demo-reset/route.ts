@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const ERROR_MESSAGE = 'DEMO_RESET_SECRET 未配置，无法执行刷新'
 
@@ -24,7 +26,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { runFullDemoSeed } = await import('../../../../../seed-full-demo')
+    const projectRoot = process.cwd()
+    const repoRoot = path.resolve(projectRoot, '..')
+    const seedFilePath = path.join(repoRoot, 'seed-full-demo.ts')
+    const seedModule = await import(pathToFileURL(seedFilePath).href)
+    const runFullDemoSeed = seedModule.runFullDemoSeed || seedModule.default
+    if (typeof runFullDemoSeed !== 'function') {
+      throw new Error('runFullDemoSeed 未导出，无法执行演示数据刷新')
+    }
     await runFullDemoSeed()
     return NextResponse.json({ success: true })
   } catch (error: any) {
