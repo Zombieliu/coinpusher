@@ -128,7 +128,7 @@ function BatchBanPanel() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center gap-4">
-                        <Button variant="outline" className="relative" aria-label="上传用户列表文件">
+                        <Button variant="outline" className="relative" aria-label="上传封禁用户文件">
                             <Upload className="mr-2 h-4 w-4" />
                             上传TXT/CSV
                             <input 
@@ -143,9 +143,9 @@ function BatchBanPanel() {
                         </span>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="batch-mail-users">目标用户列表</Label>
+                        <Label htmlFor="batch-ban-users">封禁用户列表</Label>
                         <Textarea 
-                            id="batch-mail-users"
+                            id="batch-ban-users"
                             placeholder="user_123456&#10;user_789012" 
                             className="h-[300px] font-mono"
                             value={rawInput}
@@ -162,16 +162,18 @@ function BatchBanPanel() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label>封禁原因 (必填)</Label>
+                        <Label htmlFor="batch-ban-reason">封禁原因 (必填)</Label>
                         <Textarea 
+                            id="batch-ban-reason"
                             placeholder="例如：涉及工作室刷号行为" 
                             value={reason}
                             onChange={e => setReason(e.target.value)}
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label>封禁时长 (小时)</Label>
+                        <Label htmlFor="batch-ban-duration">封禁时长 (小时)</Label>
                         <Input 
+                            id="batch-ban-duration"
                             type="number" 
                             value={duration}
                             onChange={e => setDuration(e.target.value)}

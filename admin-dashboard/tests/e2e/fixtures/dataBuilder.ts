@@ -42,14 +42,29 @@ export function buildOrder(overrides: Partial<any> = {}) {
 }
 
 export function buildRefund(overrides: Partial<any> = {}) {
-  return {
-    refundId: `refund_${Math.random().toString(36).slice(2, 7)}`,
-    userId: 'user_demo',
-    orderId: 'order_demo',
-    amount: 30,
-    reason: '重复扣款',
-    createdAt: now(),
-    status: 'pending',
-    ...overrides
-  };
+    return {
+        refundId: `refund_${Math.random().toString(36).slice(2, 7)}`,
+        userId: 'user_demo',
+        orderId: 'order_demo',
+        amount: 30,
+        reason: '重复扣款',
+        createdAt: now(),
+        status: 'pending',
+        ...overrides
+    };
+}
+
+export function buildCdk(overrides: Partial<any> = {}) {
+    return {
+        code: `CDK-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+        batchId: 'batch_demo_1',
+        name: '限时礼包',
+        type: 'single',
+        rewards: { gold: 100 },
+        usageLimit: 1,
+        usageCount: 0,
+        expireAt: now() + 7 * 24 * 60 * 60 * 1000,
+        active: true,
+        ...overrides
+    };
 }

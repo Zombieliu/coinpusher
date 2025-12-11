@@ -44,8 +44,14 @@ admin-dashboard/
 | `login.spec.ts` | 表单登录、token 落地与跳转 |
 | `dashboard.spec.ts` | 核心指标卡片正常渲染 |
 | `analytics.spec.ts` | 基础审计与高级运营 Tab 数据展示 |
-| `announcements.spec.ts` | 公告列表加载 + 发布流程 |
+| `announcements.spec.ts` | 公告列表加载、发布、上下架/删除 |
+| `batch-mail.spec.ts` | 批量邮件/奖励下发（文件上传 + 确认流程） |
+| `batch-ban.spec.ts` | 批量封禁（文本解析 + 原因/时长配置） |
+| `finance-orders.spec.ts` | 财务订单列表筛选、状态切换 |
 | `finance-refund.spec.ts` | 退款列表展示 + 批准流程（含确认对话） |
+| `support.spec.ts` | 客服工单回复、关闭 |
+| `auth-guard.spec.ts` | 未登录访问敏感页面时的重定向 |
+| `cdk.spec.ts` | CDK 生成弹窗、结果展示与禁用操作 |
 
 ## 编写规范
 ### 网络拦截

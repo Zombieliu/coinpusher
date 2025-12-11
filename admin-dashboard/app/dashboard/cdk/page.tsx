@@ -243,14 +243,14 @@ export default function CdkPage() {
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="space-y-2">
-                            <Label>批次名称</Label>
-                            <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="例如：开服补偿" />
+                            <Label htmlFor="cdk-name">批次名称</Label>
+                            <Input id="cdk-name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="例如：开服补偿" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>类型</Label>
+                                <Label htmlFor="cdk-type">类型</Label>
                                 <Select value={formData.type} onValueChange={v => setFormData({...formData, type: v})}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectTrigger id="cdk-type"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="single">单次使用 (一人一码)</SelectItem>
                                         <SelectItem value="universal">通用码 (一人一码，总数限制)</SelectItem>
@@ -258,37 +258,37 @@ export default function CdkPage() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label>生成数量</Label>
-                                <Input type="number" value={formData.count} onChange={e => setFormData({...formData, count: e.target.value})} disabled={formData.type === 'universal'} />
+                                <Label htmlFor="cdk-count">生成数量</Label>
+                                <Input id="cdk-count" type="number" value={formData.count} onChange={e => setFormData({...formData, count: e.target.value})} disabled={formData.type === 'universal'} />
                             </div>
                         </div>
                         
                         {formData.type === 'universal' && (
                             <div className="space-y-2">
-                                <Label>总使用次数限制 (-1为无限)</Label>
-                                <Input type="number" value={formData.usageLimit} onChange={e => setFormData({...formData, usageLimit: e.target.value})} />
+                                <Label htmlFor="cdk-usage-limit">总使用次数限制 (-1为无限)</Label>
+                                <Input id="cdk-usage-limit" type="number" value={formData.usageLimit} onChange={e => setFormData({...formData, usageLimit: e.target.value})} />
                             </div>
                         )}
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>金币奖励</Label>
-                                <Input type="number" value={formData.rewards.gold} onChange={e => setFormData({...formData, rewards: {...formData.rewards, gold: e.target.value}})} />
+                                <Label htmlFor="cdk-gold">金币奖励</Label>
+                                <Input id="cdk-gold" type="number" value={formData.rewards.gold} onChange={e => setFormData({...formData, rewards: {...formData.rewards, gold: e.target.value}})} />
                             </div>
                             <div className="space-y-2">
-                                <Label>彩票奖励</Label>
-                                <Input type="number" value={formData.rewards.tickets} onChange={e => setFormData({...formData, rewards: {...formData.rewards, tickets: e.target.value}})} />
+                                <Label htmlFor="cdk-tickets">彩票奖励</Label>
+                                <Input id="cdk-tickets" type="number" value={formData.rewards.tickets} onChange={e => setFormData({...formData, rewards: {...formData.rewards, tickets: e.target.value}})} />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>前缀 (可选)</Label>
-                                <Input value={formData.prefix} onChange={e => setFormData({...formData, prefix: e.target.value})} placeholder="例如：VIP" />
+                                <Label htmlFor="cdk-prefix">前缀 (可选)</Label>
+                                <Input id="cdk-prefix" value={formData.prefix} onChange={e => setFormData({...formData, prefix: e.target.value})} placeholder="例如：VIP" />
                             </div>
                             <div className="space-y-2">
-                                <Label>有效期 (天)</Label>
-                                <Input type="number" value={formData.expireDays} onChange={e => setFormData({...formData, expireDays: e.target.value})} />
+                                <Label htmlFor="cdk-expire">有效期 (天)</Label>
+                                <Input id="cdk-expire" type="number" value={formData.expireDays} onChange={e => setFormData({...formData, expireDays: e.target.value})} />
                             </div>
                         </div>
                     </div>
