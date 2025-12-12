@@ -15,22 +15,24 @@ import {
   LineChart
 } from 'lucide-react'
 import { formatNumber } from '@/lib/utils'
+import { useTranslation } from '@/components/providers/i18n-provider'
 
 // ... existing interfaces ...
 
 export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState('basic')
+  const { t } = useTranslation('analytics')
   
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">数据分析</h2>
+        <h2 className="text-2xl font-bold text-gray-900">{t('title')}</h2>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="basic">基础审计</TabsTrigger>
-          <TabsTrigger value="advanced">高级运营 (LTV/留存)</TabsTrigger>
+          <TabsTrigger value="basic">{t('tabs.basic')}</TabsTrigger>
+          <TabsTrigger value="advanced">{t('tabs.advanced')}</TabsTrigger>
         </TabsList>
         
         <TabsContent value="basic">
@@ -79,6 +81,8 @@ function BasicAnalytics() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const { t, locale } = useTranslation('analytics')
+  const localeCode = locale === 'zh' ? 'zh-CN' : 'en-US'
   const loadData = useCallback(async () => {
     setLoading(true)
     const now = Date.now()
@@ -97,20 +101,20 @@ function BasicAnalytics() {
         setStats(statsRes.res as DashboardStats)
       } else {
         setStats(null)
-        errors.push(statsRes.err?.message || '获取用户统计失败')
+        errors.push(statsRes.err?.message || t('errors.stats'))
       }
 
       if (logRes.isSucc && logRes.res) {
         setLogData(logRes.res as LogAnalyticsData)
       } else {
         setLogData(null)
-        errors.push(logRes.err?.message || '获取后台操作数据失败')
+        errors.push(logRes.err?.message || t('errors.logs'))
       }
 
-      setError(errors.length ? errors.join('；') : null)
+      setError(errors.length ? errors.join(' / ') : null)
     } catch (err: any) {
       console.error(err)
-      setError(err.message || '加载基础分析失败')
+      setError(err.message || t('errors.basic'))
       setStats(null)
       setLogData(null)
     } finally {
@@ -133,52 +137,56 @@ function BasicAnalytics() {
 
   const summaryCards = [
     {
-      title: '总用户数',
+      key: 'totalUsers',
+      title: t('summaryCards.totalUsers.title'),
       value: formatNumber(stats?.totalUsers ?? 0),
-      desc: '累计注册',
+      desc: t('summaryCards.totalUsers.desc'),
       icon: Users,
       gradient: 'from-blue-500 to-indigo-500'
     },
     {
-      title: '活跃用户 (5分钟)',
+      key: 'activeUsers',
+      title: t('summaryCards.activeUsers.title'),
       value: formatNumber(stats?.activeUsers ?? 0),
-      desc: '当前在线',
+      desc: t('summaryCards.activeUsers.desc'),
       icon: Clock,
       gradient: 'from-emerald-500 to-teal-500'
     },
     {
-      title: '总收入',
-      value: formatCurrency(stats?.totalRevenue),
-      desc: `今日 ${formatCurrency(stats?.todayRevenue)}`,
+      key: 'revenue',
+      title: t('summaryCards.revenue.title'),
+      value: formatCurrency(stats?.totalRevenue, 0, localeCode),
+      desc: t('summaryCards.revenue.desc', { value: formatCurrency(stats?.todayRevenue, 0, localeCode) }),
       icon: TrendingUp,
       gradient: 'from-orange-500 to-pink-500'
     },
     {
-      title: '今日新增',
+      key: 'newUsers',
+      title: t('summaryCards.newUsers.title'),
       value: formatNumber(stats?.newUsersToday ?? 0),
-      desc: `DAU ${formatNumber(stats?.dau ?? 0)}`,
+      desc: t('summaryCards.newUsers.desc', { value: formatNumber(stats?.dau ?? 0) }),
       icon: Calendar,
       gradient: 'from-purple-500 to-fuchsia-500'
     }
   ]
 
   const kpiCards = [
-    { label: 'ARPU', value: formatCurrency(stats?.arpu, 2), helper: '每用户平均收入' },
-    { label: 'ARPPU', value: formatCurrency(stats?.arppu, 2), helper: '每付费用户收入' },
-    { label: '付费率', value: formatPercent(stats?.payRate), helper: '付费用户 / 总用户' },
-    { label: '总对局数', value: formatNumber(stats?.totalMatches ?? 0), helper: '匹配场次' }
+    { label: 'ARPU', value: formatCurrency(stats?.arpu, 2, localeCode), helper: t('kpis.arpu') },
+    { label: 'ARPPU', value: formatCurrency(stats?.arppu, 2, localeCode), helper: t('kpis.arppu') },
+    { label: t('kpis.payRate'), value: formatPercent(stats?.payRate), helper: t('kpis.payRateHelper') },
+    { label: t('kpis.matches'), value: formatNumber(stats?.totalMatches ?? 0), helper: t('kpis.matchesHelper') }
   ]
 
   const logSummary = [
-    { label: '总操作数', value: formatNumber(logData?.totalOperations ?? 0) },
-    { label: '活跃管理员', value: formatNumber(logData?.activeAdmins ?? 0) },
-    { label: '最常见操作', value: formatActionLabel(logData?.mostCommonAction) }
+    { label: t('logSummary.totalOperations'), value: formatNumber(logData?.totalOperations ?? 0) },
+    { label: t('logSummary.activeAdmins'), value: formatNumber(logData?.activeAdmins ?? 0) },
+    { label: t('logSummary.commonAction'), value: formatActionLabel(logData?.mostCommonAction, t('format.unknownAction')) }
   ]
 
   if (initialLoading) {
     return (
       <div className="py-16 text-center text-gray-500">
-        加载基础分析数据...
+        {t('loadingBasic')}
       </div>
     )
   }
@@ -187,24 +195,24 @@ function BasicAnalytics() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          {RANGE_OPTIONS.map(option => (
+          {['7d', '30d', '90d'].map(value => (
             <Button
-              key={option.value}
+              key={value}
               size="sm"
-              variant={timeRange === option.value ? 'default' : 'outline'}
-              onClick={() => setTimeRange(option.value)}
+              variant={timeRange === value ? 'default' : 'outline'}
+              onClick={() => setTimeRange(value as TimeRange)}
             >
-              {option.label}
+              {t(`ranges.${value}` as const)}
             </Button>
           ))}
         </div>
         <div className="flex items-center gap-2">
           {loading && (stats || logData) && (
-            <span className="text-xs text-gray-500">更新中...</span>
+            <span className="text-xs text-gray-500">{t('updating')}</span>
           )}
           <Button variant="outline" size="sm" onClick={loadData}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            刷新
+            {t('refresh')}
           </Button>
         </div>
       </div>
@@ -263,14 +271,14 @@ function BasicAnalytics() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <BarChart3 className="h-4 w-4 text-blue-600" />
-              操作类型分布
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BarChart3 className="h-4 w-4 text-blue-600" />
+              {t('actionDistribution.title')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {actionStats.length === 0 ? (
-              <div className="text-sm text-gray-500">暂无操作数据</div>
+              <div className="text-sm text-gray-500">{t('actionDistribution.empty')}</div>
             ) : (
               <div className="space-y-4">
                 {actionStats.map((item, index) => (
@@ -278,9 +286,9 @@ function BasicAnalytics() {
                     <div className="flex items-center justify-between text-sm text-gray-700">
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-400">#{index + 1}</span>
-                        <span>{formatActionLabel(item.action)}</span>
-                      </div>
-                      <span>{item.count} 次</span>
+                      <span>{formatActionLabel(item.action, t('format.unknownAction'))}</span>
+                    </div>
+                      <span>{t('actionDistribution.times', { count: item.count })}</span>
                     </div>
                     <div className="mt-2 h-2 rounded-full bg-gray-100">
                       <div
@@ -299,12 +307,12 @@ function BasicAnalytics() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Users className="h-4 w-4 text-green-600" />
-              管理员活跃度
+              {t('adminActivity.title')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {adminStats.length === 0 ? (
-              <div className="text-sm text-gray-500">暂无管理员操作记录</div>
+              <div className="text-sm text-gray-500">{t('adminActivity.empty')}</div>
             ) : (
               <div className="space-y-3">
                 {adminStats.slice(0, 6).map((admin, index) => (
@@ -314,10 +322,10 @@ function BasicAnalytics() {
                         {index < 3 ? MEDALS[index] : `${index + 1}.`} {admin.adminName || admin.adminId}
                       </span>
                       <span className="text-xs text-gray-500">
-                        最后操作: {formatTimestamp(admin.lastOperation)}
+                        {t('adminActivity.lastAction', { time: formatTimestamp(admin.lastOperation, localeCode) })}
                       </span>
                     </div>
-                    <span className="text-gray-700">{admin.operationCount} 次</span>
+                    <span className="text-gray-700">{t('adminActivity.operations', { count: admin.operationCount })}</span>
                   </div>
                 ))}
               </div>
@@ -331,12 +339,12 @@ function BasicAnalytics() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Clock className="h-4 w-4 text-purple-600" />
-              24小时分布
+              {t('timeDistribution.title')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {timeDistribution.length === 0 ? (
-              <div className="text-sm text-gray-500">暂无数据</div>
+              <div className="text-sm text-gray-500">{t('timeDistribution.empty')}</div>
             ) : (
               <div className="grid grid-cols-2 gap-3 text-xs md:grid-cols-4">
                 {timeDistribution.map(item => (
@@ -362,12 +370,12 @@ function BasicAnalytics() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <LineChart className="h-4 w-4 text-indigo-600" />
-              近7天趋势
+              {t('trend.title')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {dailyTrend.length === 0 || dailyMax === 0 ? (
-              <div className="text-sm text-gray-500">暂无趋势数据</div>
+              <div className="text-sm text-gray-500">{t('trend.empty')}</div>
             ) : (
               <div className="flex items-end gap-2 h-48">
                 {dailyTrend.map(item => (
@@ -377,7 +385,7 @@ function BasicAnalytics() {
                       style={{
                         height: `${(item.count / dailyMax) * 100}%`
                       }}
-                      title={`${item.date} - ${item.count} 次`}
+                      title={t('trend.tooltip', { date: item.date, count: item.count })}
                     />
                     <span className="text-xs text-gray-500">{item.date.slice(5)}</span>
                   </div>
@@ -391,21 +399,15 @@ function BasicAnalytics() {
   )
 }
 
-const RANGE_OPTIONS: Array<{ label: string; value: TimeRange }> = [
-  { label: '近7天', value: '7d' },
-  { label: '近30天', value: '30d' },
-  { label: '近90天', value: '90d' }
-]
-
 const MEDALS = ['🥇', '🥈', '🥉']
 
-function formatActionLabel(action?: string) {
-  if (!action) return '未知操作'
+function formatActionLabel(action?: string, fallback = 'Unknown action') {
+  if (!action) return fallback
   return action.replace('admin/', '')
 }
 
-function formatTimestamp(timestamp: number) {
-  return new Date(timestamp).toLocaleString('zh-CN', {
+function formatTimestamp(timestamp: number, locale: string) {
+  return new Date(timestamp).toLocaleString(locale, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -413,9 +415,9 @@ function formatTimestamp(timestamp: number) {
   })
 }
 
-function formatCurrency(amount?: number, fractionDigits = 0) {
+function formatCurrency(amount?: number, fractionDigits = 0, locale = 'zh-CN') {
   const value = typeof amount === 'number' && !isNaN(amount) ? amount : 0
-  return `¥${value.toLocaleString('zh-CN', {
+  return `¥${value.toLocaleString(locale, {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits
   })}`
@@ -430,6 +432,7 @@ function AdvancedAnalytics() {
   const [ltvData, setLtvData] = useState<any[]>([])
   const [retentionData, setRetentionData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const { t } = useTranslation('analytics')
 
   useEffect(() => {
     const load = async () => {
@@ -446,21 +449,21 @@ function AdvancedAnalytics() {
     load()
   }, [])
 
-  if (loading) return <div>加载中...</div>
+  if (loading) return <div>{t('advanced.loading')}</div>
 
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader><CardTitle>用户留存率 (Retention)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t('advanced.retentionTitle')}</CardTitle></CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-3">日期</th>
-                  <th className="p-3">次日留存</th>
-                  <th className="p-3">3日留存</th>
-                  <th className="p-3">7日留存</th>
+                  <th className="p-3">{t('advanced.retentionHeaders.date')}</th>
+                  <th className="p-3">{t('advanced.retentionHeaders.d1')}</th>
+                  <th className="p-3">{t('advanced.retentionHeaders.d3')}</th>
+                  <th className="p-3">{t('advanced.retentionHeaders.d7')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -479,7 +482,7 @@ function AdvancedAnalytics() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>LTV (30日趋势)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t('advanced.ltvTitle')}</CardTitle></CardHeader>
         <CardContent>
           <div className="h-[300px] flex items-end gap-2">
              {ltvData.map((row) => (
@@ -488,7 +491,7 @@ function AdvancedAnalytics() {
                    {row.date.slice(5)}
                  </div>
                  <div className="hidden group-hover:block absolute bottom-full bg-black text-white text-xs p-1 rounded">
-                   ${row.ltv.toFixed(2)}
+                   ¥{row.ltv.toFixed(2)}
                  </div>
                </div>
              ))}

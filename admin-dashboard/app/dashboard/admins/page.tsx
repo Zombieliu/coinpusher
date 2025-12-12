@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { fetchAdmins, createAdmin, updateAdminStatus } from '@/lib/api'
 import { formatDate } from '@/lib/utils'
 import { UserPlus, Shield, ShieldCheck, ShieldOff, Users } from 'lucide-react'
+import { useTranslation } from '@/components/providers/i18n-provider'
 
 interface Admin {
   adminId: string
@@ -13,13 +14,6 @@ interface Admin {
   status: string
   createdAt: number
   lastLoginAt?: number
-}
-
-const roleLabels: Record<string, string> = {
-  super_admin: '超级管理员',
-  operator: '运营人员',
-  customer_service: '客服',
-  analyst: '数据分析师',
 }
 
 const roleColors: Record<string, string> = {
@@ -39,6 +33,8 @@ export default function AdminsPage() {
     role: 'operator' as 'super_admin' | 'operator' | 'customer_service' | 'analyst',
     email: '',
   })
+  const { t } = useTranslation('admins')
+  const { t: tCommon } = useTranslation('common')
 
   useEffect(() => {
     loadAdmins()
@@ -55,41 +51,46 @@ export default function AdminsPage() {
 
   async function handleCreate() {
     if (!createForm.username || !createForm.password) {
-      alert('请填写用户名和密码')
+      alert(t('alerts.fillRequired'))
       return
     }
 
     if (createForm.username.length < 3) {
-      alert('用户名至少需要3个字符')
+      alert(t('alerts.usernameMin'))
       return
     }
 
     if (createForm.password.length < 6) {
-      alert('密码至少需要6个字符')
+      alert(t('alerts.passwordMin'))
       return
     }
 
     const result = await createAdmin(createForm)
     if (result.isSucc) {
-      alert('创建成功')
+      alert(t('alerts.createSuccess'))
       setShowCreateModal(false)
       setCreateForm({ username: '', password: '', role: 'operator', email: '' })
       loadAdmins()
     } else {
-      alert(`创建失败: ${result.err?.message}`)
+      alert(t('alerts.createFailed', { message: result.err?.message || tCommon('unknownError') }))
     }
   }
 
   async function handleUpdateStatus(adminId: string, status: 'active' | 'disabled') {
-    const action = status === 'disabled' ? '禁用' : '启用'
-    if (!confirm(`确定要${action}该管理员吗？`)) return
+    const isDisable = status === 'disabled'
+    const confirmText = isDisable ? t('alerts.confirmDisable') : t('alerts.confirmEnable')
+    if (!confirm(confirmText)) return
 
     const result = await updateAdminStatus(adminId, status)
     if (result.isSucc) {
-      alert(`${action}成功`)
+      alert(isDisable ? t('alerts.disableSuccess') : t('alerts.enableSuccess'))
       loadAdmins()
     } else {
-      alert(`${action}失败: ${result.err?.message}`)
+      alert(
+        isDisable
+          ? t('alerts.disableFailed', { message: result.err?.message || tCommon('unknownError') })
+          : t('alerts.enableFailed', { message: result.err?.message || tCommon('unknownError') })
+      )
     }
   }
 
@@ -103,48 +104,48 @@ export default function AdminsPage() {
 
   return (
     <div className="space-y-6">
-      {/* 标题和操作 */}
+      {/* header */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Users className="w-6 h-6 text-blue-600" />
-            <h1 className="text-2xl font-bold">管理员管理</h1>
+            <h1 className="text-2xl font-bold">{t('title')}</h1>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
             <UserPlus className="w-5 h-5" />
-            创建管理员
+            {t('createButton')}
           </button>
         </div>
       </div>
 
-      {/* 管理员列表 */}
+      {/* admin list */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                用户名
+                {t('table.username')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                角色
+                {t('table.role')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                邮箱
+                {t('table.email')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                状态
+                {t('table.status')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                创建时间
+                {t('table.createdAt')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                最后登录
+                {t('table.lastLogin')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                操作
+                {t('table.actions')}
               </th>
             </tr>
           </thead>
@@ -163,7 +164,7 @@ export default function AdminsPage() {
                       roleColors[admin.role] || 'bg-gray-100 text-gray-800'
                     }`}
                   >
-                    {roleLabels[admin.role] || admin.role}
+                    {t(`roles.${admin.role}` as const)}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -173,12 +174,12 @@ export default function AdminsPage() {
                   {admin.status === 'active' ? (
                     <span className="flex items-center gap-1 text-green-600">
                       <ShieldCheck className="w-4 h-4" />
-                      正常
+                      {t('status.active')}
                     </span>
                   ) : (
                     <span className="flex items-center gap-1 text-red-600">
                       <ShieldOff className="w-4 h-4" />
-                      已禁用
+                      {t('status.disabled')}
                     </span>
                   )}
                 </td>
@@ -194,14 +195,14 @@ export default function AdminsPage() {
                       onClick={() => handleUpdateStatus(admin.adminId, 'disabled')}
                       className="text-red-600 hover:text-red-800"
                     >
-                      禁用
+                      {t('status.disabled')}
                     </button>
                   ) : (
                     <button
                       onClick={() => handleUpdateStatus(admin.adminId, 'active')}
                       className="text-green-600 hover:text-green-800"
                     >
-                      启用
+                      {t('status.active')}
                     </button>
                   )}
                 </td>
@@ -211,46 +212,46 @@ export default function AdminsPage() {
         </table>
 
         {admins.length === 0 && (
-          <div className="text-center py-12 text-gray-500">暂无管理员</div>
+          <div className="text-center py-12 text-gray-500">{t('table.empty')}</div>
         )}
       </div>
 
-      {/* 创建管理员模态框 */}
+      {/* create admin modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">创建管理员</h2>
+            <h2 className="text-xl font-bold mb-4">{t('modal.title')}</h2>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  用户名 <span className="text-red-500">*</span>
+                  {t('modal.username')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={createForm.username}
                   onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="至少3个字符"
+                  placeholder={t('modal.usernamePlaceholder')}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  密码 <span className="text-red-500">*</span>
+                  {t('modal.password')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="password"
                   value={createForm.password}
                   onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="至少6个字符"
+                  placeholder={t('modal.passwordPlaceholder')}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  角色 <span className="text-red-500">*</span>
+                  {t('modal.role')} <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={createForm.role}
@@ -262,21 +263,21 @@ export default function AdminsPage() {
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="operator">运营人员</option>
-                  <option value="customer_service">客服</option>
-                  <option value="analyst">数据分析师</option>
-                  <option value="super_admin">超级管理员</option>
+                  <option value="operator">{t('roles.operator')}</option>
+                  <option value="customer_service">{t('roles.customer_service')}</option>
+                  <option value="analyst">{t('roles.analyst')}</option>
+                  <option value="super_admin">{t('roles.super_admin')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('modal.email')}</label>
                 <input
                   type="email"
                   value={createForm.email}
                   onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="可选"
+                  placeholder={t('modal.emailPlaceholder')}
                 />
               </div>
             </div>
@@ -286,7 +287,7 @@ export default function AdminsPage() {
                 onClick={handleCreate}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
               >
-                创建
+                {t('modal.confirm')}
               </button>
               <button
                 onClick={() => {
@@ -295,7 +296,7 @@ export default function AdminsPage() {
                 }}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
               >
-                取消
+                {t('modal.cancel')}
               </button>
             </div>
           </div>

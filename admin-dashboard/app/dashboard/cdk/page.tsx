@@ -12,9 +12,11 @@ import { useToast } from "@/components/ui/use-toast"
 import { fetchCdkList, generateCdk, disableCdk, fetchCdkHistory } from '@/lib/api'
 import { Plus, Search, Copy, Ban, Ticket, History } from 'lucide-react'
 import { format } from 'date-fns'
+import { useTranslation } from '@/components/providers/i18n-provider'
 
 export default function CdkPage() {
     const { toast } = useToast()
+    const { t } = useTranslation('cdk')
     const [list, setList] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     const [total, setTotal] = useState(0)
@@ -97,7 +99,7 @@ export default function CdkPage() {
 
     const handleGenerate = async () => {
         if (!formData.name) {
-            toast({ title: "请输入批次名称", variant: "destructive" })
+            toast({ title: t('toast.nameRequired'), variant: "destructive" })
             return
         }
 
@@ -106,7 +108,7 @@ export default function CdkPage() {
         if (formData.rewards.tickets) rewards.tickets = parseInt(formData.rewards.tickets)
         
         if (Object.keys(rewards).length === 0) {
-            toast({ title: "请设置奖励", variant: "destructive" })
+            toast({ title: t('toast.rewardRequired'), variant: "destructive" })
             return
         }
 
@@ -122,7 +124,7 @@ export default function CdkPage() {
             })
 
             if (res.isSucc && res.res) {
-                toast({ title: "生成成功" })
+                toast({ title: t('toast.generateSuccess') })
                 setCreateOpen(false)
                 if (res.res.codes) {
                     setGeneratedCodes(res.res.codes)
@@ -130,39 +132,39 @@ export default function CdkPage() {
                 }
                 loadData()
             } else {
-                toast({ title: "操作失败", description: res.err?.message, variant: "destructive" })
+                toast({ title: t('toast.actionFailed'), description: res.err?.message, variant: "destructive" })
             }
         } catch (error) {
-            toast({ title: "操作异常", variant: "destructive" })
+            toast({ title: t('toast.actionError'), variant: "destructive" })
         }
     }
 
     const handleDisable = async (code: string, isBatch: boolean) => {
-        if (!confirm(isBatch ? "确定要禁用该批次的所有CDK吗？" : "确定禁用该CDK吗？")) return
-        const reason = window.prompt("请输入禁用原因（可选）", "运营手动禁用") || undefined
+        if (!confirm(isBatch ? t('confirm.disableBatch') : t('confirm.disableSingle'))) return
+        const reason = window.prompt(t('confirm.reason'), t('confirm.reasonDefault')) || undefined
         try {
             const res = await disableCdk({ code, disableBatch: isBatch, reason })
             if (res.isSucc) {
-                toast({ title: "操作成功" })
+                toast({ title: t('toast.actionSuccess') })
                 loadData()
             }
         } catch (error) {
-            toast({ title: "操作异常", variant: "destructive" })
+            toast({ title: t('toast.actionError'), variant: "destructive" })
         }
     }
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text)
-        toast({ title: "已复制" })
+        toast({ title: t('toast.copy') })
     }
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold tracking-tight">CDK管理</h1>
+                <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
                 <Button onClick={() => setCreateOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" />
-                    生成CDK
+                    {t('createButton')}
                 </Button>
             </div>
 
@@ -170,20 +172,20 @@ export default function CdkPage() {
             <Card>
                 <CardContent className="p-4 flex gap-4">
                     <Input 
-                        placeholder="搜索CDK..." 
+                        placeholder={t('filters.codePlaceholder')} 
                         value={searchCode}
                         onChange={e => setSearchCode(e.target.value)}
                         className="max-w-[200px]"
                     />
                     <Input 
-                        placeholder="搜索批次ID..." 
+                        placeholder={t('filters.batchPlaceholder')} 
                         value={searchBatch}
                         onChange={e => setSearchBatch(e.target.value)}
                         className="max-w-[200px]"
                     />
                     <Button onClick={() => { setPage(1); loadData(); }}>
                         <Search className="mr-2 h-4 w-4" />
-                        搜索
+                        {t('filters.search')}
                     </Button>
                 </CardContent>
             </Card>
@@ -193,20 +195,20 @@ export default function CdkPage() {
                 <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b">
                         <tr>
-                            <th className="p-3 text-left">CDK / 批次名称</th>
-                            <th className="p-3 text-left">类型</th>
-                            <th className="p-3 text-left">奖励内容</th>
-                            <th className="p-3 text-center">使用情况</th>
-                            <th className="p-3 text-left">过期时间</th>
-                            <th className="p-3 text-center">状态</th>
-                            <th className="p-3 text-right">操作</th>
+                            <th className="p-3 text-left">{t('table.code')}</th>
+                            <th className="p-3 text-left">{t('table.type')}</th>
+                            <th className="p-3 text-left">{t('table.rewards')}</th>
+                            <th className="p-3 text-center">{t('table.usage')}</th>
+                            <th className="p-3 text-left">{t('table.expireAt')}</th>
+                            <th className="p-3 text-center">{t('table.status')}</th>
+                            <th className="p-3 text-right">{t('table.actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan={7} className="p-8 text-center">加载中...</td></tr>
+                            <tr><td colSpan={7} className="p-8 text-center">{t('table.loading')}</td></tr>
                         ) : list.length === 0 ? (
-                            <tr><td colSpan={7} className="p-8 text-center text-gray-500">暂无数据</td></tr>
+                            <tr><td colSpan={7} className="p-8 text-center text-gray-500">{t('table.empty')}</td></tr>
                         ) : (
                             list.map((item) => (
                                 <tr key={item.code} className="border-b hover:bg-gray-50">
@@ -218,7 +220,7 @@ export default function CdkPage() {
                                         </div>
                                     </td>
                                     <td className="p-3">
-                                        <Badge variant="outline">{item.type === 'single' ? '单次' : '通用'}</Badge>
+                                        <Badge variant="outline">{item.type === 'single' ? t('badge.single') : t('badge.universal')}</Badge>
                                     </td>
                                     <td className="p-3">
                                         <div className="space-x-2">
@@ -234,19 +236,19 @@ export default function CdkPage() {
                                     </td>
                                     <td className="p-3 text-center">
                                         {item.active ? (
-                                            <Badge className="bg-green-600">生效中</Badge>
+                                            <Badge className="bg-green-600">{t('badge.active')}</Badge>
                                         ) : (
-                                            <Badge variant="destructive">已失效</Badge>
+                                            <Badge variant="destructive">{t('badge.inactive')}</Badge>
                                         )}
                                     </td>
                                     <td className="p-3 text-right">
-                                        <Button size="icon" variant="ghost" title="复制" onClick={() => copyToClipboard(item.code)}>
+                                        <Button size="icon" variant="ghost" title={t('actions.copy')} onClick={() => copyToClipboard(item.code)}>
                                             <Copy className="h-4 w-4" />
                                         </Button>
                                         <Button
                                             size="icon"
                                             variant="ghost"
-                                            title="禁用整个批次"
+                                            title={t('actions.disableBatch')}
                                             className="text-orange-500 hover:text-orange-600"
                                             onClick={() => handleDisable(item.batchId, true)}
                                         >
@@ -258,14 +260,14 @@ export default function CdkPage() {
                                             className="text-red-500 hover:text-red-600"
                                             onClick={() => handleDisable(item.code, false)}
                                             disabled={!item.active}
-                                            title="禁用此CDK"
+                                            title={t('actions.disableSingle')}
                                         >
                                             <Ban className="h-4 w-4" />
                                         </Button>
                                         <Button
                                             size="icon"
                                             variant="ghost"
-                                            title="查看历史"
+                                            title={t('actions.history')}
                                             onClick={() => openHistory(item)}
                                         >
                                             <History className="h-4 w-4" />
@@ -279,70 +281,70 @@ export default function CdkPage() {
             </div>
             
             <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>上一页</Button>
-                <span className="py-2 text-sm">第 {page} 页</span>
-                <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={list.length < 20}>下一页</Button>
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>{t('table.prev')}</Button>
+                <span className="py-2 text-sm">{t('table.page', { page })}</span>
+                <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={list.length < 20}>{t('table.next')}</Button>
             </div>
 
             {/* 生成对话框 */}
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>生成CDK</DialogTitle>
+                        <DialogTitle>{t('dialog.generateTitle')}</DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="cdk-name">批次名称</Label>
-                            <Input id="cdk-name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="例如：开服补偿" />
+                            <Label htmlFor="cdk-name">{t('dialog.nameLabel')}</Label>
+                            <Input id="cdk-name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder={t('dialog.namePlaceholder')} />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="cdk-type">类型</Label>
+                                <Label htmlFor="cdk-type">{t('dialog.typeLabel')}</Label>
                                 <Select value={formData.type} onValueChange={v => setFormData({...formData, type: v})}>
                                     <SelectTrigger id="cdk-type"><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="single">单次使用 (一人一码)</SelectItem>
-                                        <SelectItem value="universal">通用码 (一人一码，总数限制)</SelectItem>
+                                        <SelectItem value="single">{t('dialog.typeSingle')}</SelectItem>
+                                        <SelectItem value="universal">{t('dialog.typeUniversal')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="cdk-count">生成数量</Label>
+                                <Label htmlFor="cdk-count">{t('dialog.countLabel')}</Label>
                                 <Input id="cdk-count" type="number" value={formData.count} onChange={e => setFormData({...formData, count: e.target.value})} disabled={formData.type === 'universal'} />
                             </div>
                         </div>
                         
                         {formData.type === 'universal' && (
                             <div className="space-y-2">
-                                <Label htmlFor="cdk-usage-limit">总使用次数限制 (-1为无限)</Label>
+                                <Label htmlFor="cdk-usage-limit">{t('dialog.usageLabel')}</Label>
                                 <Input id="cdk-usage-limit" type="number" value={formData.usageLimit} onChange={e => setFormData({...formData, usageLimit: e.target.value})} />
                             </div>
                         )}
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="cdk-gold">金币奖励</Label>
+                                <Label htmlFor="cdk-gold">{t('dialog.goldLabel')}</Label>
                                 <Input id="cdk-gold" type="number" value={formData.rewards.gold} onChange={e => setFormData({...formData, rewards: {...formData.rewards, gold: e.target.value}})} />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="cdk-tickets">彩票奖励</Label>
+                                <Label htmlFor="cdk-tickets">{t('dialog.ticketsLabel')}</Label>
                                 <Input id="cdk-tickets" type="number" value={formData.rewards.tickets} onChange={e => setFormData({...formData, rewards: {...formData.rewards, tickets: e.target.value}})} />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="cdk-prefix">前缀 (可选)</Label>
-                                <Input id="cdk-prefix" value={formData.prefix} onChange={e => setFormData({...formData, prefix: e.target.value})} placeholder="例如：VIP" />
+                                <Label htmlFor="cdk-prefix">{t('dialog.prefixLabel')}</Label>
+                                <Input id="cdk-prefix" value={formData.prefix} onChange={e => setFormData({...formData, prefix: e.target.value})} placeholder={t('dialog.prefixPlaceholder')} />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="cdk-expire">有效期 (天)</Label>
+                                <Label htmlFor="cdk-expire">{t('dialog.expireLabel')}</Label>
                                 <Input id="cdk-expire" type="number" value={formData.expireDays} onChange={e => setFormData({...formData, expireDays: e.target.value})} />
                             </div>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button onClick={handleGenerate}>确认生成</Button>
+                        <Button onClick={handleGenerate}>{t('dialog.submit')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -351,16 +353,16 @@ export default function CdkPage() {
             <Dialog open={resultOpen} onOpenChange={setResultOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>生成成功</DialogTitle>
+                        <DialogTitle>{t('dialog.resultTitle')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
-                        <p className="text-sm text-gray-500">已生成 {generatedCodes.length} 个CDK，请复制保存：</p>
+                        <p className="text-sm text-gray-500">{t('dialog.resultDesc', { count: generatedCodes.length })}</p>
                         <div className="bg-gray-50 p-4 rounded-md max-h-[300px] overflow-y-auto font-mono text-sm">
                             {generatedCodes.join('\n')}
                         </div>
                         <Button onClick={() => copyToClipboard(generatedCodes.join('\n'))} className="w-full">
                             <Copy className="mr-2 h-4 w-4" />
-                            复制全部
+                            {t('dialog.copyAll')}
                         </Button>
                     </div>
                 </DialogContent>
@@ -370,26 +372,26 @@ export default function CdkPage() {
                 <DialogContent className="max-w-3xl">
                     <DialogHeader>
                         <DialogTitle>
-                            历史记录 · {historyTarget?.name || historyTarget?.batchId?.slice(0, 8)}
+                            {t('dialog.historyTitle', { name: historyTarget?.name || historyTarget?.batchId?.slice(0, 8) })}
                         </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-6 max-h-[500px] overflow-y-auto">
                         <div>
-                            <h4 className="text-sm font-semibold mb-2">玩家使用记录</h4>
+                            <h4 className="text-sm font-semibold mb-2">{t('dialog.usageTitle')}</h4>
                             <div className="border rounded-md">
                                 <table className="w-full text-sm">
                                     <thead className="bg-gray-50">
                                         <tr>
-                                            <th className="p-2 text-left">用户ID</th>
-                                            <th className="p-2 text-left">CDK</th>
-                                            <th className="p-2 text-left">时间</th>
+                                            <th className="p-2 text-left">{t('dialog.usageColumns.user')}</th>
+                                            <th className="p-2 text-left">{t('dialog.usageColumns.code')}</th>
+                                            <th className="p-2 text-left">{t('dialog.usageColumns.time')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {historyLoading ? (
-                                            <tr><td colSpan={3} className="p-4 text-center text-gray-500">加载中...</td></tr>
+                                            <tr><td colSpan={3} className="p-4 text-center text-gray-500">{t('dialog.loading')}</td></tr>
                                         ) : usageLogs.length === 0 ? (
-                                            <tr><td colSpan={3} className="p-4 text-center text-gray-500">暂无使用记录</td></tr>
+                                            <tr><td colSpan={3} className="p-4 text-center text-gray-500">{t('dialog.usageEmpty')}</td></tr>
                                         ) : (
                                             usageLogs.map(log => (
                                                 <tr key={`${log.code}-${log.userId}-${log.usedAt}`} className="border-b">
@@ -404,21 +406,21 @@ export default function CdkPage() {
                             </div>
                         </div>
                         <div>
-                            <h4 className="text-sm font-semibold mb-2">管理员操作日志</h4>
+                            <h4 className="text-sm font-semibold mb-2">{t('dialog.actionsTitle')}</h4>
                             <div className="border rounded-md">
                                 <table className="w-full text-sm">
                                     <thead className="bg-gray-50">
                                         <tr>
-                                            <th className="p-2 text-left">操作</th>
-                                            <th className="p-2 text-left">管理员</th>
-                                            <th className="p-2 text-left">时间</th>
+                                            <th className="p-2 text-left">{t('dialog.actionColumns.action')}</th>
+                                            <th className="p-2 text-left">{t('dialog.actionColumns.admin')}</th>
+                                            <th className="p-2 text-left">{t('dialog.actionColumns.time')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {historyLoading ? (
-                                            <tr><td colSpan={3} className="p-4 text-center text-gray-500">加载中...</td></tr>
+                                            <tr><td colSpan={3} className="p-4 text-center text-gray-500">{t('dialog.loading')}</td></tr>
                                         ) : actionLogs.length === 0 ? (
-                                            <tr><td colSpan={3} className="p-4 text-center text-gray-500">暂无操作记录</td></tr>
+                                            <tr><td colSpan={3} className="p-4 text-center text-gray-500">{t('dialog.actionsEmpty')}</td></tr>
                                         ) : (
                                             actionLogs.map(log => (
                                                 <tr key={log.actionId} className="border-b">

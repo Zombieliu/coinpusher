@@ -24,24 +24,26 @@ import {
   HeartPulse,
 } from 'lucide-react'
 import { NotificationCenter } from '@/components/NotificationCenter'
+import { useTranslation } from '@/components/providers/i18n-provider'
+import { LanguageSwitcher } from '@/components/language-switcher'
 
 const navigation = [
-  { name: '数据看板', href: '/dashboard', icon: LayoutDashboard },
-  { name: '用户管理', href: '/dashboard/users', icon: Users },
-  { name: '客服工单', href: '/dashboard/support', icon: Headphones },
-  { name: '财务管理', href: '/dashboard/finance', icon: DollarSign },
-  { name: '游戏配置', href: '/dashboard/config', icon: Settings },
-  { name: '活动管理', href: '/dashboard/events', icon: Calendar },
-  { name: '公告管理', href: '/dashboard/announcements', icon: Megaphone },
-  { name: '邀请系统', href: '/dashboard/invite', icon: Activity },
-  { name: 'CDK管理', href: '/dashboard/cdk', icon: Ticket },
-  { name: '系统维护', href: '/dashboard/maintenance', icon: Wrench },
-  { name: '管理员', href: '/dashboard/admins', icon: Shield },
-  { name: '邮件系统', href: '/dashboard/mails', icon: Mail },
-  { name: '日志查询', href: '/dashboard/logs', icon: FileText },
-  { name: '审计分析', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: '审计日志', href: '/dashboard/audit', icon: FileSearch },
-  { name: '健康巡检', href: '/dashboard/health', icon: HeartPulse },
+  { key: 'dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { key: 'users', href: '/dashboard/users', icon: Users },
+  { key: 'support', href: '/dashboard/support', icon: Headphones },
+  { key: 'finance', href: '/dashboard/finance', icon: DollarSign },
+  { key: 'config', href: '/dashboard/config', icon: Settings },
+  { key: 'events', href: '/dashboard/events', icon: Calendar },
+  { key: 'announcements', href: '/dashboard/announcements', icon: Megaphone },
+  { key: 'invite', href: '/dashboard/invite', icon: Activity },
+  { key: 'cdk', href: '/dashboard/cdk', icon: Ticket },
+  { key: 'maintenance', href: '/dashboard/maintenance', icon: Wrench },
+  { key: 'admins', href: '/dashboard/admins', icon: Shield },
+  { key: 'mails', href: '/dashboard/mails', icon: Mail },
+  { key: 'logs', href: '/dashboard/logs', icon: FileText },
+  { key: 'analytics', href: '/dashboard/analytics', icon: BarChart3 },
+  { key: 'audit', href: '/dashboard/audit', icon: FileSearch },
+  { key: 'health', href: '/dashboard/health', icon: HeartPulse },
 ]
 
 export default function DashboardLayout({
@@ -53,6 +55,9 @@ export default function DashboardLayout({
   const router = useRouter()
   const [adminUser, setAdminUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const { t: tLayout } = useTranslation('layout')
+  const { t: tNav } = useTranslation('nav')
+  const { t: tCommon } = useTranslation('common')
 
   useEffect(() => {
     // 检查登录状态
@@ -78,7 +83,7 @@ export default function DashboardLayout({
   }, [router])
 
   function handleLogout() {
-    if (confirm('确定要退出登录吗？')) {
+    if (confirm(tLayout('logoutConfirm'))) {
       localStorage.removeItem('admin_token')
       localStorage.removeItem('admin_user')
       document.cookie = 'admin_token=; path=/; max-age=0; SameSite=Lax'
@@ -91,18 +96,20 @@ export default function DashboardLayout({
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
+          <p className="text-gray-600">{tLayout('loading')}</p>
         </div>
       </div>
     )
   }
+
+  const activeNav = navigation.find((item) => item.href === pathname)
 
   return (
     <div className="min-h-screen bg-gray-100">
       {/* 侧边栏 */}
       <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg">
         <div className="flex h-16 items-center justify-center border-b">
-          <h1 className="text-xl font-bold text-blue-600">Oops MOBA 后台</h1>
+          <h1 className="text-xl font-bold text-blue-600">{tCommon('appName')}</h1>
         </div>
         <nav className="mt-6 px-3">
           {navigation.map((item) => {
@@ -110,7 +117,7 @@ export default function DashboardLayout({
             const isActive = pathname === item.href
             return (
               <Link
-                key={item.name}
+                key={item.key}
                 href={item.href}
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
@@ -120,7 +127,7 @@ export default function DashboardLayout({
                 )}
               >
                 <Icon className="h-5 w-5" />
-                {item.name}
+                {tNav(item.key)}
               </Link>
             )
           })}
@@ -131,7 +138,7 @@ export default function DashboardLayout({
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
           >
             <LogOut className="h-5 w-5" />
-            退出登录
+            {tLayout('logout')}
           </button>
         </div>
       </div>
@@ -141,13 +148,14 @@ export default function DashboardLayout({
         {/* 顶部栏 */}
         <div className="flex h-16 items-center justify-between border-b bg-white px-8">
           <h2 className="text-lg font-semibold">
-            {navigation.find((item) => item.href === pathname)?.name || '运营后台'}
+            {activeNav ? tNav(activeNav.key) : tLayout('titleFallback')}
           </h2>
           <div className="flex items-center gap-4">
+            <LanguageSwitcher />
             <NotificationCenter />
             <div className="text-right">
               <div className="text-sm font-medium text-gray-900">
-                {adminUser?.username || '管理员'}
+                {adminUser?.username || tLayout('defaultRole')}
               </div>
               <div className="text-xs text-gray-500">
                 {adminUser?.role || 'admin'}

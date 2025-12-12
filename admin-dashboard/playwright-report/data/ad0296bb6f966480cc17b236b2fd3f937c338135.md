@@ -1,0 +1,120 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - heading "Oops MOBA Admin Console" [level=1] [ref=e5]
+      - navigation [ref=e6]:
+        - link "Dashboard" [ref=e7] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e8]
+          - text: Dashboard
+        - link "Users" [ref=e13] [cursor=pointer]:
+          - /url: /dashboard/users
+          - img [ref=e14]
+          - text: Users
+        - link "Support" [ref=e19] [cursor=pointer]:
+          - /url: /dashboard/support
+          - img [ref=e20]
+          - text: Support
+        - link "Finance" [ref=e22] [cursor=pointer]:
+          - /url: /dashboard/finance
+          - img [ref=e23]
+          - text: Finance
+        - link "Game Config" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/config
+          - img [ref=e27]
+          - text: Game Config
+        - link "Events" [ref=e30] [cursor=pointer]:
+          - /url: /dashboard/events
+          - img [ref=e31]
+          - text: Events
+        - link "Announcements" [ref=e36] [cursor=pointer]:
+          - /url: /dashboard/announcements
+          - img [ref=e37]
+          - text: Announcements
+        - link "Invite System" [ref=e41] [cursor=pointer]:
+          - /url: /dashboard/invite
+          - img [ref=e42]
+          - text: Invite System
+        - link "CDK" [ref=e44] [cursor=pointer]:
+          - /url: /dashboard/cdk
+          - img [ref=e45]
+          - text: CDK
+        - link "Maintenance" [ref=e50] [cursor=pointer]:
+          - /url: /dashboard/maintenance
+          - img [ref=e51]
+          - text: Maintenance
+        - link "Administrators" [ref=e53] [cursor=pointer]:
+          - /url: /dashboard/admins
+          - img [ref=e54]
+          - text: Administrators
+        - link "Mail Center" [ref=e56] [cursor=pointer]:
+          - /url: /dashboard/mails
+          - img [ref=e57]
+          - text: Mail Center
+        - link "Logs" [ref=e60] [cursor=pointer]:
+          - /url: /dashboard/logs
+          - img [ref=e61]
+          - text: Logs
+        - link "Analytics" [ref=e67] [cursor=pointer]:
+          - /url: /dashboard/analytics
+          - img [ref=e68]
+          - text: Analytics
+        - link "Audit Logs" [ref=e73] [cursor=pointer]:
+          - /url: /dashboard/audit
+          - img [ref=e74]
+          - text: Audit Logs
+        - link "Health Checks" [ref=e79] [cursor=pointer]:
+          - /url: /dashboard/health
+          - img [ref=e80]
+          - text: Health Checks
+      - button "Sign out" [ref=e84] [cursor=pointer]:
+        - img [ref=e85]
+        - text: Sign out
+    - generic [ref=e89]:
+      - generic [ref=e90]:
+        - heading "Maintenance" [level=2] [ref=e91]
+        - generic [ref=e92]:
+          - generic [ref=e93]:
+            - generic [ref=e94]: Language
+            - combobox "Language" [ref=e95]:
+              - option "中文"
+              - option "English" [selected]
+          - button [ref=e97] [cursor=pointer]:
+            - img [ref=e98]
+          - generic [ref=e101]:
+            - generic [ref=e102]: admin_tester
+            - generic [ref=e103]: admin
+          - generic [ref=e104]: A
+      - main [ref=e105]:
+        - generic [ref=e106]:
+          - heading "System Maintenance" [level=1] [ref=e107]
+          - generic [ref=e108]:
+            - generic [ref=e109]:
+              - generic [ref=e110]:
+                - heading "Maintenance Mode" [level=3] [ref=e111]:
+                  - img [ref=e112]
+                  - text: Maintenance Mode
+                - paragraph [ref=e116]: Only whitelisted users/IPs can log in when maintenance is enabled.
+              - generic [ref=e117]:
+                - generic [ref=e118]: "Current status: Online ✅"
+                - button "Enable maintenance" [ref=e119] [cursor=pointer]
+            - generic [ref=e120]:
+              - heading "Maintenance Settings" [level=3] [ref=e122]
+              - generic [ref=e123]:
+                - generic [ref=e124]:
+                  - text: Announcement message
+                  - textbox "Server upgrade in progress, ETA..." [ref=e125]: 维护公告
+                - generic [ref=e126]:
+                  - text: Whitelist IPs (comma separated)
+                  - textbox "127.0.0.1, 192.168.1.1" [ref=e127]: 127.0.0.1
+                - generic [ref=e128]:
+                  - text: Whitelist user IDs (comma separated)
+                  - textbox "user_admin, user_test" [ref=e129]: tester
+                - button "Save settings" [ref=e130] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e136] [cursor=pointer]:
+    - img [ref=e137]
+  - alert [ref=e141]
+```

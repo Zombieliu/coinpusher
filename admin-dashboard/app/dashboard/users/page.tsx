@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { fetchUsers, banUser, unbanUser, grantReward, sendMail } from '@/lib/api'
 import { formatDate, formatNumber } from '@/lib/utils'
 import { Search, Filter, Ban, Gift, Mail, Layers } from 'lucide-react'
+import { useTranslation } from '@/components/providers/i18n-provider'
 
 interface User {
   userId: string
@@ -24,6 +25,8 @@ export default function UsersPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
+  const { t } = useTranslation('users')
+  const { t: tCommon } = useTranslation('common')
 
   useEffect(() => {
     loadUsers()
@@ -40,38 +43,38 @@ export default function UsersPage() {
   }
 
   async function handleBan(userId: string) {
-    if (!confirm('确定要封禁该用户吗？')) return
-    const result = await banUser(userId, '违规操作', 7 * 24 * 60 * 60 * 1000)
+    if (!confirm(t('confirmBan'))) return
+    const result = await banUser(userId, t('banReason'), 7 * 24 * 60 * 60 * 1000)
     if (result.isSucc) {
-      alert('封禁成功')
+      alert(t('banSuccess'))
       loadUsers()
     } else {
-      alert(`封禁失败: ${result.err?.message}`)
+      alert(t('banFailed', { message: result.err?.message || tCommon('unknownError') }))
     }
   }
 
   async function handleUnban(userId: string) {
     const result = await unbanUser(userId)
     if (result.isSucc) {
-      alert('解封成功')
+      alert(t('unbanSuccess'))
       loadUsers()
     }
   }
 
   async function handleGrant(userId: string) {
-    const gold = prompt('发放金币数量:')
+    const gold = prompt(`${t('goldPrompt')}:`)
     if (!gold) return
     const result = await grantReward(userId, { gold: parseInt(gold) })
     if (result.isSucc) {
-      alert('发放成功')
+      alert(t('grantSuccess'))
       loadUsers()
     }
   }
 
   async function handleSendMail(userId: string) {
-    const title = prompt('邮件标题', '系统通知')
+    const title = prompt(t('mailTitlePrompt'), t('mailDefaultTitle'))
     if (!title) return
-    const content = prompt('邮件内容')
+    const content = prompt(t('mailContentPrompt'))
     if (!content) return
 
     const result = await sendMail({
@@ -82,9 +85,9 @@ export default function UsersPage() {
     })
 
     if (result.isSucc) {
-      alert('邮件已发送')
+      alert(t('mailSuccess'))
     } else {
-      alert(`发送失败: ${result.err?.message}`)
+      alert(t('mailFailed', { message: result.err?.message || tCommon('unknownError') }))
     }
   }
 
@@ -99,13 +102,13 @@ export default function UsersPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">用户管理</h1>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
         <button
             onClick={() => router.push('/dashboard/users/batch')}
             className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition"
         >
             <Layers size={18} />
-            批量操作
+            {t('batchAction')}
         </button>
       </div>
 
@@ -116,7 +119,7 @@ export default function UsersPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
-              placeholder="搜索用户ID或用户名..."
+              placeholder={t('searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && loadUsers()}
@@ -127,11 +130,11 @@ export default function UsersPage() {
             onClick={loadUsers}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
-            搜索
+            {t('search')}
           </button>
           <button className="px-6 py-2 border rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
             <Filter className="h-5 w-5" />
-            筛选
+            {t('filter')}
           </button>
         </div>
       </div>
@@ -141,14 +144,14 @@ export default function UsersPage() {
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户名</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">等级</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">金币</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">充值</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">最后登录</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.userId')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.username')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.level')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.gold')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.recharge')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.lastLogin')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.status')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -168,7 +171,7 @@ export default function UsersPage() {
                         : 'bg-red-100 text-red-800'
                     }`}
                   >
-                    {user.status === 'normal' ? '正常' : '已封禁'}
+                    {user.status === 'normal' ? t('table.normal') : t('table.banned')}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm">
@@ -177,7 +180,7 @@ export default function UsersPage() {
                       <button
                         onClick={() => handleBan(user.userId)}
                         className="text-red-600 hover:text-red-800"
-                        title="封禁"
+                        title={t('actions.ban')}
                       >
                         <Ban className="h-4 w-4" />
                       </button>
@@ -185,22 +188,22 @@ export default function UsersPage() {
                       <button
                         onClick={() => handleUnban(user.userId)}
                         className="text-green-600 hover:text-green-800"
-                        title="解封"
+                        title={t('actions.unban')}
                       >
-                        解封
+                        {t('actions.unban')}
                       </button>
                     )}
                     <button
                       onClick={() => handleGrant(user.userId)}
                       className="text-blue-600 hover:text-blue-800"
-                      title="发放奖励"
+                      title={t('actions.grant')}
                     >
                       <Gift className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleSendMail(user.userId)}
                       className="text-gray-600 hover:text-gray-800"
-                      title="发送邮件"
+                      title={t('actions.mail')}
                     >
                       <Mail className="h-4 w-4" />
                     </button>
@@ -214,7 +217,7 @@ export default function UsersPage() {
         {/* 分页 */}
         <div className="px-6 py-4 border-t flex items-center justify-between">
           <div className="text-sm text-gray-600">
-            共 {total} 条记录，第 {page} 页
+            {tCommon('totalRecords', { count: total, page })}
           </div>
           <div className="flex gap-2">
             <button
@@ -222,14 +225,14 @@ export default function UsersPage() {
               disabled={page === 1}
               className="px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              上一页
+              {t('actions.paginationPrev')}
             </button>
             <button
               onClick={() => setPage(page + 1)}
               disabled={users.length < 20}
               className="px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              下一页
+              {t('actions.paginationNext')}
             </button>
           </div>
         </div>

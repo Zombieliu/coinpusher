@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
 import { fetchOrders, fetchRefunds, fetchFinancialStats, fetchSystemMetrics } from '@/lib/api'
 import { AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react'
+import { useTranslation } from '@/components/providers/i18n-provider'
 
 type HealthStatus = 'ok' | 'warning' | 'critical'
 
@@ -20,6 +21,7 @@ interface HealthCheck {
 
 export default function HealthPage() {
   const { toast } = useToast()
+  const { t } = useTranslation('health')
   const [loading, setLoading] = useState(true)
   const [checks, setChecks] = useState<HealthCheck[]>([])
   const [lastUpdated, setLastUpdated] = useState<number | null>(null)
@@ -34,7 +36,7 @@ export default function HealthPage() {
     )
   }, [checks])
 
-  const runHealthChecks = async () => {
+  const runHealthChecks = useCallback(async () => {
     setLoading(true)
     try {
       const now = Date.now()
@@ -71,104 +73,87 @@ export default function HealthPage() {
 
       const nextChecks: HealthCheck[] = []
 
+      const refundsStatus = pendingRefunds.length === 0 ? 'ok' : pendingRefunds.length > 5 ? 'critical' : 'warning'
       nextChecks.push({
         id: 'pending-refunds',
-        title: '待处理退款',
-        status: pendingRefunds.length === 0 ? 'ok' : pendingRefunds.length > 5 ? 'critical' : 'warning',
+        title: t('checks.pendingRefunds.title'),
+        status: refundsStatus,
         description:
           pendingRefunds.length === 0
-            ? '暂无待处理退款'
-            : `当前有 ${pendingRefunds.length} 条退款申请等待审批`,
-        suggestion:
-          pendingRefunds.length === 0
-            ? undefined
-            : '请尽快在“退款处理”页完成审核，避免影响玩家退款体验',
+            ? t('checks.pendingRefunds.description.ok')
+            : t('checks.pendingRefunds.description.warn', { count: pendingRefunds.length }),
+        suggestion: pendingRefunds.length === 0 ? undefined : t('checks.pendingRefunds.suggestion'),
       })
 
+      const stuckStatus = stuckPaidOrders.length === 0 ? 'ok' : stuckPaidOrders.length > 5 ? 'critical' : 'warning'
       nextChecks.push({
         id: 'stuck-orders',
-        title: '长时间未发货订单',
-        status: stuckPaidOrders.length === 0 ? 'ok' : stuckPaidOrders.length > 5 ? 'critical' : 'warning',
+        title: t('checks.stuckOrders.title'),
+        status: stuckStatus,
         description:
           stuckPaidOrders.length === 0
-            ? '所有已支付订单都在可接受的发货时限内'
-            : `${stuckPaidOrders.length} 个已支付订单超过 2 小时仍未发货`,
-        suggestion:
-          stuckPaidOrders.length === 0
-            ? undefined
-            : '在“订单管理”页使用订单筛选工具定位这些订单，并手动执行发货/重试',
+            ? t('checks.stuckOrders.description.ok')
+            : t('checks.stuckOrders.description.warn', { count: stuckPaidOrders.length }),
+        suggestion: stuckPaidOrders.length === 0 ? undefined : t('checks.stuckOrders.suggestion'),
       })
 
+      const failedStatus = failedOrders.length > 10 ? 'critical' : failedOrders.length > 0 ? 'warning' : 'ok'
       nextChecks.push({
         id: 'failed-orders',
-        title: '失败订单监控',
-        status: failedOrders.length > 10 ? 'critical' : failedOrders.length > 0 ? 'warning' : 'ok',
+        title: t('checks.failedOrders.title'),
+        status: failedStatus,
         description:
           failedOrders.length === 0
-            ? '暂无失败订单'
-            : `最近有 ${failedOrders.length} 个订单失败，建议关注渠道回调`,
-        suggestion:
-          failedOrders.length === 0
-            ? undefined
-            : '查看支付渠道日志或财务审计记录，确认是否存在大面积支付异常',
+            ? t('checks.failedOrders.description.ok')
+            : t('checks.failedOrders.description.warn', { count: failedOrders.length }),
+        suggestion: failedOrders.length === 0 ? undefined : t('checks.failedOrders.suggestion'),
       })
 
       nextChecks.push({
         id: 'delivered-orders',
-        title: '已发货订单追踪',
+        title: t('checks.deliveredOrders.title'),
         status: pendingDeliveries.length === 0 ? 'ok' : 'warning',
         description:
           pendingDeliveries.length === 0
-            ? '不存在长时间未确认收货的订单'
-            : `${pendingDeliveries.length} 个订单发货超过 24 小时仍未确认，建议核对奖励派发`,
+            ? t('checks.deliveredOrders.description.ok')
+            : t('checks.deliveredOrders.description.warn', { count: pendingDeliveries.length }),
       })
 
       if (businessMetrics) {
+        const paymentErrors = businessMetrics.errors?.paymentErrors ?? 0
         nextChecks.push({
           id: 'payment-errors',
-          title: '支付错误率',
-          status:
-            businessMetrics.errors?.paymentErrors > 20
-              ? 'critical'
-              : businessMetrics.errors?.paymentErrors > 0
-              ? 'warning'
-              : 'ok',
-          description: `近 5 分钟支付错误数：${businessMetrics.errors?.paymentErrors ?? 0}`,
-          suggestion:
-            businessMetrics.errors?.paymentErrors > 0
-              ? '请检查支付渠道配置或联系渠道方排查波动'
-              : undefined,
+          title: t('checks.paymentErrors.title'),
+          status: paymentErrors > 20 ? 'critical' : paymentErrors > 0 ? 'warning' : 'ok',
+          description: t('checks.paymentErrors.description', { count: paymentErrors }),
+          suggestion: paymentErrors > 0 ? t('checks.paymentErrors.suggestion') : undefined,
         })
       }
 
       if (serverMetrics) {
+        const errorRateValue = serverMetrics.requests?.errorRate ?? 0
+        const ratePercent = ((errorRateValue) * 100 || 0).toFixed(2)
+        const qps = serverMetrics.requests?.qps || 0
         nextChecks.push({
           id: 'error-rate',
-          title: '接口错误率',
-          status:
-            serverMetrics.requests?.errorRate > 0.05
-              ? 'critical'
-              : serverMetrics.requests?.errorRate > 0.02
-              ? 'warning'
-              : 'ok',
-          description: `当前错误率 ${(serverMetrics.requests?.errorRate * 100 || 0).toFixed(2)}%，QPS ${serverMetrics.requests?.qps || 0}`,
-          suggestion:
-            serverMetrics.requests?.errorRate > 0.02
-              ? '请查看日志服务与监控面板，定位具体失败接口'
-              : undefined,
+          title: t('checks.errorRate.title'),
+          status: errorRateValue > 0.05 ? 'critical' : errorRateValue > 0.02 ? 'warning' : 'ok',
+          description: t('checks.errorRate.description', { rate: ratePercent, qps }),
+          suggestion: errorRateValue > 0.02 ? t('checks.errorRate.suggestion') : undefined,
         })
       }
 
       if (stats) {
+        const revenueStatus = stats.todayRevenue > 0 ? 'ok' : 'warning'
         nextChecks.push({
           id: 'revenue-trend',
-          title: '营收趋势',
-          status: stats.todayRevenue > 0 ? 'ok' : 'warning',
+          title: t('checks.revenueTrend.title'),
+          status: revenueStatus,
           description:
             stats.todayRevenue > 0
-              ? `今日收入 ¥${stats.todayRevenue.toFixed(2)}`
-              : '今日收入为 0，可能是尚未开服或渠道回调异常',
-          suggestion: stats.todayRevenue > 0 ? undefined : '检查支付渠道与网关服务是否正常运行',
+              ? t('checks.revenueTrend.description.ok', { value: stats.todayRevenue.toFixed(2) })
+              : t('checks.revenueTrend.description.warn'),
+          suggestion: stats.todayRevenue > 0 ? undefined : t('checks.revenueTrend.suggestion'),
         })
       }
 
@@ -176,19 +161,18 @@ export default function HealthPage() {
       setLastUpdated(Date.now())
     } catch (error: any) {
       toast({
-        title: '健康巡检失败',
-        description: error?.message || '请稍后再试',
+        title: t('toast.failed'),
+        description: error?.message || t('toast.description'),
         variant: 'destructive',
       })
     } finally {
       setLoading(false)
     }
-  }
+  }, [t, toast])
 
   useEffect(() => {
     runHealthChecks()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [runHealthChecks])
 
   const renderStatusIcon = (status: HealthStatus) => {
     if (status === 'ok') {
@@ -201,20 +185,20 @@ export default function HealthPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">健康巡检</h1>
+          <h1 className="text-3xl font-bold">{t('title')}</h1>
           <p className="text-sm text-gray-600 mt-1">
-            快速发现财务与系统异常，涵盖订单、退款、支付渠道、接口错误率等关键指标
+            {t('description')}
           </p>
         </div>
         <div className="flex items-center gap-3">
           {lastUpdated && (
             <span className="text-xs text-gray-500">
-              上次检测：{new Date(lastUpdated).toLocaleTimeString()}
+              {t('lastRun', { time: new Date(lastUpdated).toLocaleTimeString() })}
             </span>
           )}
           <Button onClick={runHealthChecks} disabled={loading}>
             <RefreshCw className="h-4 w-4 mr-2" />
-            重新巡检
+            {t('refresh')}
           </Button>
         </div>
       </div>
@@ -222,26 +206,26 @@ export default function HealthPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>整体状态</CardTitle>
+            <CardTitle>{t('cards.overall.title')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>正常</span>
+              <span>{t('cards.overall.ok')}</span>
               <Badge variant="secondary">{statusStats.ok}</Badge>
             </div>
             <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>关注</span>
+              <span>{t('cards.overall.warning')}</span>
               <Badge variant="outline">{statusStats.warning}</Badge>
             </div>
             <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>告警</span>
+              <span>{t('cards.overall.critical')}</span>
               <Badge variant="destructive">{statusStats.critical}</Badge>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>最新建议</CardTitle>
+            <CardTitle>{t('cards.tips.title')}</CardTitle>
           </CardHeader>
           <CardContent>
             {checks.filter((check) => check.suggestion).slice(0, 3).map((check) => (
@@ -251,25 +235,25 @@ export default function HealthPage() {
               </div>
             ))}
             {!checks.some((check) => check.suggestion) && (
-              <p className="text-sm text-gray-600">暂无需要处理的事项</p>
+              <p className="text-sm text-gray-600">{t('cards.tips.empty')}</p>
             )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>巡检说明</CardTitle>
+            <CardTitle>{t('cards.notes.title')}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-gray-600 space-y-2">
-            <p>· 数据基于最近 100 条订单与退款样本。</p>
-            <p>· 支付错误率来源于监控服务的 business metrics。</p>
-            <p>· 若检测持续失败，请检查 API 密钥与后端服务连通性。</p>
+            <p>{t('cards.notes.line1')}</p>
+            <p>{t('cards.notes.line2')}</p>
+            <p>{t('cards.notes.line3')}</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-4">
         {loading ? (
-          <div className="flex h-48 items-center justify-center text-gray-500">巡检中，请稍候...</div>
+          <div className="flex h-48 items-center justify-center text-gray-500">{t('loading')}</div>
         ) : (
           checks.map((check) => (
             <Card key={check.id} className={check.status === 'critical' ? 'border-red-200 bg-red-50' : check.status === 'warning' ? 'border-yellow-200 bg-yellow-50' : ''}>

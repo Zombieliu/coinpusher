@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Bell, X, Check, AlertCircle, Info, Mail, Settings, Calendar, Gift } from 'lucide-react'
+import { useTranslation } from '@/components/providers/i18n-provider'
 
 interface Notification {
   id: string
@@ -17,6 +18,7 @@ export function NotificationCenter() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
+  const { t, locale } = useTranslation('notifications')
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
@@ -130,10 +132,10 @@ export function NotificationCenter() {
     const now = Date.now()
     const diff = now - timestamp
 
-    if (diff < 60000) return '刚刚'
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
-    return new Date(timestamp).toLocaleString('zh-CN')
+    if (diff < 60000) return t('justNow')
+    if (diff < 3600000) return t('minutesAgo', { value: Math.floor(diff / 60000) })
+    if (diff < 86400000) return t('hoursAgo', { value: Math.floor(diff / 3600000) })
+    return new Date(timestamp).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US')
   }
 
   return (
@@ -162,11 +164,10 @@ export function NotificationCenter() {
 
           {/* 通知列表 */}
           <div className="absolute right-0 top-12 z-50 w-96 max-h-[600px] bg-white rounded-lg shadow-xl border overflow-hidden">
-            {/* 头部 */}
             <div className="p-4 border-b flex items-center justify-between bg-gray-50">
               <div className="flex items-center gap-2">
                 <Bell className="h-5 w-5 text-gray-600" />
-                <h3 className="font-semibold">通知中心</h3>
+                <h3 className="font-semibold">{t('title')}</h3>
                 {unreadCount > 0 && (
                   <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
                     {unreadCount}
@@ -178,7 +179,7 @@ export function NotificationCenter() {
                   onClick={markAllAsRead}
                   className="text-sm text-blue-600 hover:text-blue-700"
                 >
-                  全部已读
+                  {t('markAll')}
                 </button>
               )}
             </div>
@@ -188,7 +189,7 @@ export function NotificationCenter() {
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   <Bell className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p>暂无通知</p>
+                  <p>{t('empty')}</p>
                 </div>
               ) : (
                 <div className="divide-y">
@@ -212,7 +213,7 @@ export function NotificationCenter() {
                               <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
                                 <span>{formatTime(notification.timestamp)}</span>
                                 {notification.adminName && (
-                                  <span>by {notification.adminName}</span>
+                                  <span>{t('byAdmin', { name: notification.adminName })}</span>
                                 )}
                               </div>
                             </div>

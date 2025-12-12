@@ -8,29 +8,31 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
-import { Ban, Mail, Upload, FileText, CheckCircle, AlertTriangle } from 'lucide-react'
+import { Ban, Mail, Upload, CheckCircle } from 'lucide-react'
 import { callAPI } from '@/lib/api'
+import { useTranslation } from '@/components/providers/i18n-provider'
 
 export default function BatchOperationsPage() {
     const { toast } = useToast()
     const [activeTab, setActiveTab] = useState('ban')
+    const { t } = useTranslation('users')
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold tracking-tight">批量操作</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t('batch.title')}</h1>
             <p className="text-gray-500">
-                通过上传文件或输入ID列表，对大量用户进行批量操作。请谨慎使用。
+                {t('batch.description')}
             </p>
 
             <Tabs defaultValue="ban" className="space-y-4" onValueChange={setActiveTab}>
                 <TabsList>
                     <TabsTrigger value="ban" className="flex items-center gap-2">
                         <Ban className="h-4 w-4" />
-                        批量封禁
+                        {t('batch.tabs.ban')}
                     </TabsTrigger>
                     <TabsTrigger value="mail" className="flex items-center gap-2">
                         <Mail className="h-4 w-4" />
-                        批量邮件/奖励
+                        {t('batch.tabs.mail')}
                     </TabsTrigger>
                 </TabsList>
 
@@ -48,6 +50,8 @@ export default function BatchOperationsPage() {
 
 function BatchBanPanel() {
     const { toast } = useToast()
+    const { t } = useTranslation('users')
+    const { t: tCommon } = useTranslation('common')
     const [userIds, setUserIds] = useState<string[]>([])
     const [rawInput, setRawInput] = useState('')
     const [reason, setReason] = useState('')
@@ -68,7 +72,6 @@ function BatchBanPanel() {
     }
 
     const parseIds = (text: string) => {
-        // 支持逗号、换行、空格分隔
         const ids = text.split(/[\n,\s]+/)
             .map(id => id.trim())
             .filter(id => id.length > 0)
@@ -77,23 +80,23 @@ function BatchBanPanel() {
         const uniqueIds = Array.from(new Set(ids))
         setUserIds(uniqueIds)
         setRawInput(uniqueIds.join('\n'))
-        toast({ title: `已解析 ${uniqueIds.length} 个用户ID` })
+        toast({ title: t('batch.parsed', { count: uniqueIds.length }) })
     }
 
     const handleExecute = async () => {
         if (userIds.length === 0) {
             parseIds(rawInput) // 尝试从文本框解析
             if (userIds.length === 0) {
-                toast({ title: "请输入或上传用户ID", variant: "destructive" })
+                toast({ title: t('batch.ban.noIds'), variant: "destructive" })
                 return
             }
         }
         if (!reason) {
-            toast({ title: "请输入封禁原因", variant: "destructive" })
+            toast({ title: t('batch.ban.enterReason'), variant: "destructive" })
             return
         }
 
-        if (!confirm(`确定要封禁 ${userIds.length} 个用户吗？此操作影响重大！`)) return
+        if (!confirm(t('batch.ban.confirm', { count: userIds.length }))) return
 
         setLoading(true)
         setResult(null)
@@ -107,13 +110,13 @@ function BatchBanPanel() {
 
             if (res.isSucc) {
                 setResult(res.res)
-                toast({ title: "批量操作完成" })
+                toast({ title: t('batch.ban.success') })
             } else {
-                toast({ title: "操作失败", description: res.err?.message, variant: "destructive" })
+                toast({ title: t('batch.ban.failure'), description: res.err?.message || tCommon('unknownError'), variant: "destructive" })
             }
         } catch (error) {
             console.error(error)
-            toast({ title: "操作异常", variant: "destructive" })
+            toast({ title: t('batch.ban.error'), variant: "destructive" })
         } finally {
             setLoading(false)
         }
@@ -123,14 +126,14 @@ function BatchBanPanel() {
         <div className="grid grid-cols-2 gap-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>1. 输入目标用户</CardTitle>
-                    <CardDescription>每行一个ID，或用逗号分隔</CardDescription>
+                    <CardTitle>{t('batch.ban.inputTitle')}</CardTitle>
+                    <CardDescription>{t('batch.ban.inputDescription')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center gap-4">
-                        <Button variant="outline" className="relative" aria-label="上传封禁用户文件">
+                        <Button variant="outline" className="relative" aria-label={t('batch.ban.upload')}>
                             <Upload className="mr-2 h-4 w-4" />
-                            上传TXT/CSV
+                            {t('batch.ban.upload')}
                             <input 
                                 type="file" 
                                 className="absolute inset-0 opacity-0 cursor-pointer"
@@ -139,14 +142,14 @@ function BatchBanPanel() {
                             />
                         </Button>
                         <span className="text-sm text-gray-500">
-                            已选中: <span className="font-bold text-blue-600">{userIds.length}</span> 人
+                            {t('batch.selected', { count: userIds.length })}
                         </span>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="batch-ban-users">封禁用户列表</Label>
+                        <Label htmlFor="batch-ban-users">{t('batch.ban.listLabel')}</Label>
                         <Textarea 
                             id="batch-ban-users"
-                            placeholder="user_123456&#10;user_789012" 
+                            placeholder={`${t('batch.ban.placeholder')}\nuser_789012`} 
                             className="h-[300px] font-mono"
                             value={rawInput}
                             onChange={e => setRawInput(e.target.value)}
@@ -158,27 +161,27 @@ function BatchBanPanel() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>2. 设置封禁参数</CardTitle>
+                    <CardTitle>{t('batch.ban.paramsTitle')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="batch-ban-reason">封禁原因 (必填)</Label>
+                        <Label htmlFor="batch-ban-reason">{t('batch.ban.reasonLabel')}</Label>
                         <Textarea 
                             id="batch-ban-reason"
-                            placeholder="例如：涉及工作室刷号行为" 
+                            placeholder={t('batch.ban.reasonPlaceholder')} 
                             value={reason}
                             onChange={e => setReason(e.target.value)}
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="batch-ban-duration">封禁时长 (小时)</Label>
+                        <Label htmlFor="batch-ban-duration">{t('batch.ban.durationLabel')}</Label>
                         <Input 
                             id="batch-ban-duration"
                             type="number" 
                             value={duration}
                             onChange={e => setDuration(e.target.value)}
                         />
-                        <p className="text-xs text-gray-500">输入 -1 表示永久封禁</p>
+                        <p className="text-xs text-gray-500">{t('batch.ban.durationHint')}</p>
                     </div>
 
                     <div className="pt-4">
@@ -188,7 +191,7 @@ function BatchBanPanel() {
                             onClick={handleExecute}
                             disabled={loading || userIds.length === 0}
                         >
-                            {loading ? "执行中..." : `执行批量封禁 (${userIds.length}人)`}
+                            {loading ? t('batch.ban.executing') : t('batch.ban.execute', { count: userIds.length })}
                         </Button>
                     </div>
 
@@ -196,11 +199,11 @@ function BatchBanPanel() {
                         <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
                             <h4 className="font-medium mb-2 flex items-center gap-2">
                                 <CheckCircle className="h-4 w-4 text-green-600" />
-                                执行结果
+                                {t('batch.ban.resultTitle')}
                             </h4>
                             <div className="text-sm space-y-1">
-                                <p>成功: <span className="text-green-600 font-bold">{result.successCount}</span></p>
-                                <p>失败: <span className="text-red-600 font-bold">{result.failCount}</span></p>
+                                <p>{t('batch.ban.successCount', { count: result.successCount })}</p>
+                                <p>{t('batch.ban.failCount', { count: result.failCount })}</p>
                                 {result.errors && result.errors.length > 0 && (
                                     <div className="mt-2 text-xs text-red-500 max-h-[100px] overflow-y-auto">
                                         {result.errors.map((e: any, i: number) => (
@@ -219,6 +222,8 @@ function BatchBanPanel() {
 
 function BatchMailPanel() {
     const { toast } = useToast()
+    const { t } = useTranslation('users')
+    const { t: tCommon } = useTranslation('common')
     const [userIds, setUserIds] = useState<string[]>([])
     const [rawInput, setRawInput] = useState('')
     const [title, setTitle] = useState('')
@@ -251,15 +256,15 @@ function BatchMailPanel() {
 
     const handleExecute = async () => {
         if (userIds.length === 0) {
-            toast({ title: "请输入目标用户", variant: "destructive" })
+            toast({ title: t('batch.mail.missingUsers'), variant: "destructive" })
             return
         }
         if (!title || !content) {
-            toast({ title: "请输入标题和内容", variant: "destructive" })
+            toast({ title: t('batch.mail.missingContent'), variant: "destructive" })
             return
         }
 
-        if (!confirm(`确定要给 ${userIds.length} 个用户发送邮件吗？`)) return
+        if (!confirm(t('batch.mail.confirm', { count: userIds.length }))) return
 
         setLoading(true)
         setResult(null)
@@ -278,13 +283,13 @@ function BatchMailPanel() {
 
             if (res.isSucc) {
                 setResult(res.res)
-                toast({ title: "批量发送完成" })
+                toast({ title: t('batch.mail.success') })
             } else {
-                toast({ title: "操作失败", description: res.err?.message, variant: "destructive" })
+                toast({ title: t('batch.mail.failure'), description: res.err?.message || tCommon('unknownError'), variant: "destructive" })
             }
         } catch (error) {
             console.error(error)
-            toast({ title: "操作异常", variant: "destructive" })
+            toast({ title: t('batch.mail.error'), variant: "destructive" })
         } finally {
             setLoading(false)
         }
@@ -294,14 +299,14 @@ function BatchMailPanel() {
         <div className="grid grid-cols-2 gap-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>1. 输入目标用户</CardTitle>
-                    <CardDescription>每行一个ID，或用逗号分隔</CardDescription>
+                    <CardTitle>{t('batch.mail.inputTitle')}</CardTitle>
+                    <CardDescription>{t('batch.mail.inputDescription')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center gap-4">
                         <Button variant="outline" className="relative">
                             <Upload className="mr-2 h-4 w-4" />
-                            上传TXT/CSV
+                            {t('batch.mail.upload')}
                             <input 
                                 type="file" 
                                 className="absolute inset-0 opacity-0 cursor-pointer"
@@ -310,11 +315,11 @@ function BatchMailPanel() {
                             />
                         </Button>
                         <span className="text-sm text-gray-500">
-                            已选中: <span className="font-bold text-blue-600">{userIds.length}</span> 人
+                            {t('batch.selected', { count: userIds.length })}
                         </span>
                     </div>
                     <Textarea 
-                        placeholder="user_123456&#10;user_789012" 
+                        placeholder={`${t('batch.ban.placeholder')}\nuser_789012`} 
                         className="h-[300px] font-mono"
                         value={rawInput}
                         onChange={e => {
@@ -327,11 +332,11 @@ function BatchMailPanel() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>2. 设置邮件内容</CardTitle>
+                    <CardTitle>{t('batch.mail.contentTitle')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="batch-mail-title">邮件标题</Label>
+                        <Label htmlFor="batch-mail-title">{t('batch.mail.titleLabel')}</Label>
                         <Input
                             id="batch-mail-title"
                             value={title}
@@ -339,7 +344,7 @@ function BatchMailPanel() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="batch-mail-content">邮件内容</Label>
+                        <Label htmlFor="batch-mail-content">{t('batch.mail.contentLabel')}</Label>
                         <Textarea 
                             id="batch-mail-content"
                             value={content} 
@@ -350,7 +355,7 @@ function BatchMailPanel() {
                     
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="batch-mail-gold">附带金币 (可选)</Label>
+                            <Label htmlFor="batch-mail-gold">{t('batch.mail.goldLabel')}</Label>
                             <Input 
                                 id="batch-mail-gold"
                                 type="number" 
@@ -359,7 +364,7 @@ function BatchMailPanel() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="batch-mail-tickets">附带彩票 (可选)</Label>
+                            <Label htmlFor="batch-mail-tickets">{t('batch.mail.ticketLabel')}</Label>
                             <Input 
                                 id="batch-mail-tickets"
                                 type="number" 
@@ -375,7 +380,7 @@ function BatchMailPanel() {
                             onClick={handleExecute}
                             disabled={loading || userIds.length === 0}
                         >
-                            {loading ? "发送中..." : `批量发送 (${userIds.length}人)`}
+                            {loading ? t('batch.mail.sending') : t('batch.mail.execute', { count: userIds.length })}
                         </Button>
                     </div>
 
@@ -383,11 +388,11 @@ function BatchMailPanel() {
                         <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
                             <h4 className="font-medium mb-2 flex items-center gap-2">
                                 <CheckCircle className="h-4 w-4 text-green-600" />
-                                发送结果
+                                {t('batch.mail.resultTitle')}
                             </h4>
                             <div className="text-sm">
-                                <p>成功发送: <span className="text-green-600 font-bold">{result.successCount}</span></p>
-                                <p>失败: <span className="text-red-600 font-bold">{result.failCount}</span></p>
+                                <p>{t('batch.mail.successCount', { count: result.successCount })}</p>
+                                <p>{t('batch.mail.failCount', { count: result.failCount })}</p>
                             </div>
                         </div>
                     )}

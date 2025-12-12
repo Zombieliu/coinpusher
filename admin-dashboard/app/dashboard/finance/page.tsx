@@ -15,9 +15,11 @@ import { DollarSign, ShoppingCart, CreditCard, RefreshCw, Search, Calendar as Ca
 import { format } from 'date-fns'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { useTranslation } from '@/components/providers/i18n-provider'
 
 export default function FinancePage() {
     const { toast } = useToast()
+    const { t } = useTranslation('finance')
     const [activeTab, setActiveTab] = useState('orders')
     const [resetDialogOpen, setResetDialogOpen] = useState(false)
     const [resetSecret, setResetSecret] = useState('')
@@ -27,11 +29,11 @@ export default function FinancePage() {
 
     const handleDemoReset = async () => {
         if (!resetSecret) {
-            toast({ title: '请输入安全口令', variant: 'destructive' })
+            toast({ title: t('alerts.emptySecret'), variant: 'destructive' })
             return
         }
         if (!resetTarget) {
-            toast({ title: '请选择目标环境', variant: 'destructive' })
+            toast({ title: t('alerts.emptyTarget'), variant: 'destructive' })
             return
         }
         setResettingDemo(true)
@@ -45,18 +47,18 @@ export default function FinancePage() {
             })
             const result = await response.json().catch(() => ({}))
             if (!response.ok || !result?.success) {
-                throw new Error(result?.error || '演示数据刷新失败')
+                throw new Error(result?.error || t('alerts.refreshFailed'))
             }
             toast({
-                title: '演示数据已刷新',
-                description: '订单与退款样本即将重置，请稍候刷新页面'
+                title: t('alerts.demoRefreshed'),
+                description: t('alerts.demoHint')
             })
             setResetDialogOpen(false)
             setResetSecret('')
         } catch (error: any) {
             toast({
-                title: '刷新失败',
-                description: error?.message || '请检查服务器日志',
+                title: t('alerts.refreshFailed'),
+                description: error?.message || t('alerts.refreshFailed'),
                 variant: 'destructive'
             })
         } finally {
@@ -67,11 +69,11 @@ export default function FinancePage() {
     return (
         <div className="space-y-6 finance-page">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <h1 className="text-3xl font-bold tracking-tight">财务管理</h1>
+                <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
                 <div className="flex flex-wrap gap-3">
                     <Button variant="outline" onClick={() => setResetDialogOpen(true)}>
                         <RefreshCw className="h-4 w-4 mr-2" />
-                        刷新演示数据
+                        {t('refreshDemo')}
                     </Button>
                 </div>
             </div>
@@ -81,15 +83,15 @@ export default function FinancePage() {
                 <TabsList>
                     <TabsTrigger value="orders" className="flex items-center gap-2">
                         <ShoppingCart className="h-4 w-4" />
-                        订单管理
+                        {t('tabs.orders')}
                     </TabsTrigger>
                     <TabsTrigger value="stats" className="flex items-center gap-2">
                         <BarChartIcon className="h-4 w-4" />
-                        财务统计
+                        {t('tabs.stats')}
                     </TabsTrigger>
                     <TabsTrigger value="refunds" className="flex items-center gap-2">
                         <RefreshCw className="h-4 w-4" />
-                        退款处理
+                        {t('tabs.refunds')}
                     </TabsTrigger>
                 </TabsList>
 
@@ -109,47 +111,47 @@ export default function FinancePage() {
             <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>刷新演示数据</DialogTitle>
+                        <DialogTitle>{t('dialog.title')}</DialogTitle>
                         <DialogDescription>
-                            该操作会重新注入种子订单、退款、活动等样本数据，请确保当前环境允许执行。
+                            {t('dialog.description')}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="space-y-2">
-                            <Label htmlFor="demo-reset-target">目标环境</Label>
+                            <Label htmlFor="demo-reset-target">{t('dialog.target')}</Label>
                             <Select value={resetTarget} onValueChange={setResetTarget} disabled={resettingDemo}>
                                 <SelectTrigger id="demo-reset-target">
-                                    <SelectValue placeholder="选择环境" />
+                                    <SelectValue placeholder={t('dialog.targetPlaceholder')} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="staging">Staging / 测试</SelectItem>
-                                    <SelectItem value="production">Production / 生产</SelectItem>
+                                    <SelectItem value="staging">{t('dialog.targetStaging')}</SelectItem>
+                                    <SelectItem value="production">{t('dialog.targetProduction')}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="demo-reset-secret">安全口令</Label>
+                            <Label htmlFor="demo-reset-secret">{t('dialog.secret')}</Label>
                             <Input
                                 id="demo-reset-secret"
                                 type="password"
-                                placeholder="输入部署时约定的 DEMO_RESET_SECRET"
+                                placeholder={t('dialog.secretPlaceholder')}
                                 value={resetSecret}
                                 onChange={(e) => setResetSecret(e.target.value)}
                                 disabled={resettingDemo}
                             />
                         </div>
-                        <p className="text-sm text-gray-500">
-                            · 操作耗时约 5-10 秒，期间请勿重复点击。
+                        <div className="text-sm text-gray-500">
+                            {t('dialog.tips.0')}
                             <br />
-                            · 如果刷新失败，请检查服务器日志或确认口令是否正确。
-                        </p>
+                            {t('dialog.tips.1')}
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setResetDialogOpen(false)} disabled={resettingDemo}>
-                            取消
+                            {t('dialog.cancel')}
                         </Button>
                         <Button onClick={handleDemoReset} disabled={resettingDemo || !resetSecret}>
-                            {resettingDemo ? '刷新中...' : '确认刷新'}
+                            {resettingDemo ? t('dialog.loading') : t('dialog.confirm')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -223,7 +225,7 @@ function useFinanceGuardStatus() {
                     }
                     setStatus({ counts, loading: false })
                 } else if (mounted) {
-                    setStatus({ counts: { deliver: 0, resend: 0, status: 0, refund: 0 }, loading: false, error: result.err?.message || '获取审核数据失败' })
+                    setStatus({ counts: { deliver: 0, resend: 0, status: 0, refund: 0 }, loading: false, error: result.err?.message || 'fetch_error' })
                 }
             } catch (error: any) {
                 if (mounted) {
@@ -241,24 +243,25 @@ function useFinanceGuardStatus() {
 }
 
 function FinanceGuardBanner({ status }: { status: ReturnType<typeof useFinanceGuardStatus> }) {
+    const { t } = useTranslation('finance')
     const usage = status.counts
     const items = [
-        { key: 'deliver', label: '标记发货', description: '当日最多执行 20 次' },
-        { key: 'resend', label: '重发奖励', description: '当日最多执行 20 次' },
-        { key: 'status', label: '更新订单状态', description: '当日最多执行 50 次' },
-        { key: 'refund', label: '退款审批', description: '当日最多执行 15 次' }
+        { key: 'deliver', count: 20 },
+        { key: 'resend', count: 20 },
+        { key: 'status', count: 50 },
+        { key: 'refund', count: 15 }
     ]
 
     return (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <p className="font-semibold text-amber-900">高风险操作提示</p>
+                    <p className="font-semibold text-amber-900">{t('guard.title')}</p>
                     <p className="text-amber-800 mt-1 text-xs">
-                        单笔金额 ≥ {HIGH_VALUE_THRESHOLD} 将被拦截并需由超级管理员执行。剩余配额如下（统计最近24小时成功操作）：
+                        {t('guard.description', { threshold: HIGH_VALUE_THRESHOLD })}
                     </p>
                 </div>
-                <p className="text-xs text-amber-700">配额与后端安全策略同步刷新</p>
+                <p className="text-xs text-amber-700">{t('guard.syncNote')}</p>
             </div>
             <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-4">
                 {items.map(item => {
@@ -268,23 +271,25 @@ function FinanceGuardBanner({ status }: { status: ReturnType<typeof useFinanceGu
                     return (
                         <div key={item.key} className="rounded border border-amber-200 bg-white p-3">
                             <div className="flex items-center justify-between text-xs">
-                                <span className="font-medium text-amber-900">{item.label}</span>
+                                <span className="font-medium text-amber-900">{t(`guard.limits.${item.key}` as const)}</span>
                                 <span className="text-amber-700">{used}/{limit}</span>
                             </div>
-                            <div className="mt-1 text-[11px] text-amber-600">{item.description}</div>
+                            <div className="mt-1 text-[11px] text-amber-600">{t('guard.limitDesc', { count: item.count })}</div>
                             <div className="mt-2 h-1.5 w-full rounded-full bg-amber-100">
                                 <div
                                     className="h-1.5 rounded-full bg-amber-500 transition-all"
                                     style={{ width: `${Math.min((used / limit) * 100, 100)}%` }}
                                 />
                             </div>
-                            <div className="mt-1 text-[11px] text-amber-700">剩余额度：{remaining}</div>
+                            <div className="mt-1 text-[11px] text-amber-700">{t('guard.remaining', { count: remaining })}</div>
                         </div>
                     )
                 })}
             </div>
             {status.error && (
-                <p className="mt-2 text-xs text-red-600">无法同步额度：{status.error}</p>
+                <p className="mt-2 text-xs text-red-600">
+                    {status.error === 'fetch_error' ? t('guard.fetchError') : status.error}
+                </p>
             )}
         </div>
     )
@@ -313,6 +318,8 @@ function BarChartIcon(props: any) {
 
 function OrdersPanel() {
     const { toast } = useToast()
+    const { t } = useTranslation('finance')
+    const { t: tCommon } = useTranslation('common')
     const router = useRouter()
     const searchParams = useSearchParams()
     const pathname = usePathname()
@@ -341,6 +348,14 @@ function OrdersPanel() {
         open: false,
         status: 'pending'
     })
+    const statusLabels = {
+        pending: t('orders.statusOptions.pending'),
+        paid: t('orders.statusOptions.paid'),
+        delivered: t('orders.statusOptions.delivered'),
+        failed: t('orders.statusOptions.failed'),
+        refunded: t('orders.statusOptions.refunded'),
+        cancelled: t('orders.statusOptions.cancelled'),
+    }
 
     useEffect(() => {
         const queryOrderId = searchParams.get('orderId') || ''
@@ -414,43 +429,43 @@ function OrdersPanel() {
         try {
             const res = await updateOrderStatus(statusDialog.order.orderId, statusDialog.status)
             if (res.isSucc && res.res?.success) {
-                toast({ title: "订单状态已更新" })
+                toast({ title: t('orders.toast.updateSuccess') })
                 setStatusDialog({ open: false, status: 'pending' })
                 loadOrders()
             } else {
-                toast({ title: "更新失败", description: res.err?.message, variant: "destructive" })
+                toast({ title: t('orders.toast.updateFailed'), description: res.err?.message, variant: "destructive" })
             }
         } catch (error: any) {
-            toast({ title: "更新失败", description: error.message, variant: "destructive" })
+            toast({ title: t('orders.toast.updateFailed'), description: error.message, variant: "destructive" })
         }
     }
 
     const handleManualDeliver = async (orderId: string) => {
-        if (!confirm('确认标记该订单已发货并发放奖励？')) return
+        if (!confirm(t('orders.confirmDeliver'))) return
         try {
             const res = await deliverOrder(orderId)
             if (res.isSucc && res.res?.success) {
-                toast({ title: "订单已发货" })
+                toast({ title: t('orders.toast.deliverSuccess') })
                 loadOrders()
             } else {
-                toast({ title: "操作失败", description: res.err?.message, variant: "destructive" })
+                toast({ title: t('orders.toast.deliverFailed'), description: res.err?.message, variant: "destructive" })
             }
         } catch (error: any) {
-            toast({ title: "操作失败", description: error.message, variant: "destructive" })
+            toast({ title: t('orders.toast.deliverFailed'), description: error.message, variant: "destructive" })
         }
     }
 
     const handleResendReward = async (orderId: string) => {
-        if (!confirm('确认重发该订单的奖励吗？')) return
+        if (!confirm(t('orders.confirmResend'))) return
         try {
             const res = await resendOrderReward(orderId)
             if (res.isSucc && res.res?.success) {
-                toast({ title: "奖励已重新发放" })
+                toast({ title: t('orders.toast.resendSuccess') })
             } else {
-                toast({ title: "操作失败", description: res.err?.message, variant: "destructive" })
+                toast({ title: t('orders.toast.resendFailed'), description: res.err?.message, variant: "destructive" })
             }
         } catch (error: any) {
-            toast({ title: "操作失败", description: error.message, variant: "destructive" })
+            toast({ title: t('orders.toast.resendFailed'), description: error.message, variant: "destructive" })
         }
     }
 
@@ -464,11 +479,18 @@ function OrdersPanel() {
                 limit: 200
             })
             if (!res.isSucc || !res.res?.orders?.length) {
-                toast({ title: '暂无可导出的订单', variant: 'destructive' })
+                toast({ title: t('orders.toast.exportEmpty'), variant: 'destructive' })
                 return
             }
             const csv = [
-                ['订单号', '用户ID', '商品', '金额', '状态', '创建时间'].join(',')
+                [
+                    t('orders.tableHeaders.orderId'),
+                    t('orders.tableHeaders.user'),
+                    t('orders.tableHeaders.product'),
+                    t('orders.tableHeaders.amount'),
+                    t('orders.tableHeaders.status'),
+                    t('orders.tableHeaders.time'),
+                ].join(',')
             ]
             res.res.orders.forEach((order: any) => {
                 csv.push([
@@ -476,8 +498,8 @@ function OrdersPanel() {
                     order.userId,
                     order.productName,
                     `${order.currency} ${order.amount}`,
-                    getStatusText(order.status),
-                    new Date(order.createdAt).toLocaleString('zh-CN')
+                    statusLabels[order.status] || order.status,
+                    new Date(order.createdAt).toLocaleString()
                 ].join(','))
             })
             const blob = new Blob(['\ufeff' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' })
@@ -487,9 +509,9 @@ function OrdersPanel() {
             link.download = `orders-${Date.now()}.csv`
             link.click()
             URL.revokeObjectURL(url)
-            toast({ title: '订单导出成功', description: `共导出 ${res.res.orders.length} 条记录` })
+            toast({ title: t('orders.toast.exportSuccess'), description: t('orders.toast.exportSuccessDesc', { count: res.res.orders.length }) })
         } catch (error: any) {
-            toast({ title: '导出失败', description: error.message, variant: 'destructive' })
+            toast({ title: t('orders.toast.exportFailed'), description: error.message, variant: 'destructive' })
         } finally {
             setExporting(false)
         }
@@ -498,16 +520,16 @@ function OrdersPanel() {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>订单列表</CardTitle>
+                <CardTitle>{t('orders.title')}</CardTitle>
                 <div className="flex flex-wrap gap-4 pt-4">
                     <Input 
-                        placeholder="订单号" 
+                        placeholder={t('orders.placeholders.orderId')}
                         value={filters.orderId}
                         onChange={e => setFilters({...filters, orderId: e.target.value})}
                         className="w-[200px]"
                     />
                     <Input 
-                        placeholder="用户ID" 
+                        placeholder={t('orders.placeholders.userId')}
                         value={filters.userId}
                         onChange={e => setFilters({...filters, userId: e.target.value})}
                         className="w-[200px]"
@@ -516,42 +538,40 @@ function OrdersPanel() {
                         value={filters.status} 
                         onValueChange={v => setFilters({...filters, status: v})}
                     >
-                        <SelectTrigger className="w-[150px]" aria-label="订单状态筛选">
-                            <SelectValue placeholder="状态" />
+                        <SelectTrigger className="w-[150px]" aria-label={t('orders.statusFilterLabel')}>
+                            <SelectValue placeholder={t('orders.statusPlaceholder')} />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">全部状态</SelectItem>
-                            <SelectItem value="pending">待支付</SelectItem>
-                            <SelectItem value="paid">已支付</SelectItem>
-                            <SelectItem value="delivered">已发货</SelectItem>
-                            <SelectItem value="failed">失败</SelectItem>
-                            <SelectItem value="refunded">已退款</SelectItem>
+                            <SelectItem value="all">{t('orders.statusOptions.all')}</SelectItem>
+                            {ORDER_STATUS_KEYS.map(key => (
+                                <SelectItem key={key} value={key}>{statusLabels[key]}</SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                     <Button onClick={handleSearch}>
                         <Search className="mr-2 h-4 w-4" />
-                        搜索
+                        {t('orders.search')}
                     </Button>
                     <Button variant="outline" onClick={handleExportOrders} disabled={exporting}>
-                        {exporting ? '导出中...' : '导出CSV'}
+                        {exporting ? t('orders.exporting') : t('orders.export')}
                     </Button>
                 </div>
             </CardHeader>
             <CardContent>
                 <div className="rounded-md border">
                     <div className="hidden md:grid grid-cols-[1.4fr,1fr,1fr,1fr,0.8fr,1.2fr] gap-2 border-b bg-gray-50 px-4 py-2 text-xs font-medium text-gray-600">
-                        <span>订单号</span>
-                        <span>用户</span>
-                        <span>商品</span>
-                        <span className="text-right">金额</span>
-                        <span className="text-center">状态</span>
-                        <span className="text-right">时间 / 操作</span>
+                        <span>{t('orders.tableHeaders.orderId')}</span>
+                        <span>{t('orders.tableHeaders.user')}</span>
+                        <span>{t('orders.tableHeaders.product')}</span>
+                        <span className="text-right">{t('orders.tableHeaders.amount')}</span>
+                        <span className="text-center">{t('orders.tableHeaders.status')}</span>
+                        <span className="text-right">{t('orders.tableHeaders.time')}</span>
                     </div>
                     <div ref={ordersParentRef} className="max-h-[520px] overflow-auto">
                         {loading ? (
-                            <div className="p-8 text-center text-gray-500">加载中...</div>
+                            <div className="p-8 text-center text-gray-500">{t('orders.loading')}</div>
                         ) : orders.length === 0 ? (
-                            <div className="p-8 text-center text-gray-500">暂无订单</div>
+                            <div className="p-8 text-center text-gray-500">{t('orders.empty')}</div>
                         ) : (
                             <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
                                 {rowVirtualizer.getVirtualItems().map(virtualRow => {
@@ -577,7 +597,7 @@ function OrdersPanel() {
                                             </div>
                                             <div className="text-center">
                                                 <Badge variant={getStatusVariant(order.status)}>
-                                                    {getStatusText(order.status)}
+                                                    {statusLabels[order.status] || order.status}
                                                 </Badge>
                                             </div>
                                             <div className="text-right text-gray-500">
@@ -588,7 +608,7 @@ function OrdersPanel() {
                                                         size="sm"
                                                         onClick={() => openStatusDialog(order)}
                                                     >
-                                                        更新状态
+                                                        {t('orders.actions.updateStatus')}
                                                     </Button>
                                                     {order.status === 'paid' && (
                                                         <Button
@@ -596,7 +616,7 @@ function OrdersPanel() {
                                                             size="sm"
                                                             onClick={() => handleManualDeliver(order.orderId)}
                                                         >
-                                                            标记发货
+                                                            {t('orders.actions.deliver')}
                                                         </Button>
                                                     )}
                                                     {order.status === 'delivered' && (
@@ -605,7 +625,7 @@ function OrdersPanel() {
                                                             size="sm"
                                                             onClick={() => handleResendReward(order.orderId)}
                                                         >
-                                                            重发奖励
+                                                            {t('orders.actions.resend')}
                                                         </Button>
                                                     )}
                                                 </div>
@@ -629,9 +649,9 @@ function OrdersPanel() {
                             syncQuery(filters, nextPage)
                         }}
                     >
-                        上一页
+                        {t('table.prev')}
                     </Button>
-                    <span className="text-sm py-2">第 {page} 页</span>
+                    <span className="text-sm py-2">{t('orders.pagination', { page })}</span>
                     <Button 
                         variant="outline" 
                         size="sm" 
@@ -642,36 +662,36 @@ function OrdersPanel() {
                             syncQuery(filters, nextPage)
                         }}
                     >
-                        下一页
+                        {tCommon('nextPage')}
                     </Button>
                 </div>
             </CardContent>
             <Dialog open={statusDialog.open} onOpenChange={(open) => setStatusDialog(prev => ({ ...prev, open }))}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>更新订单状态</DialogTitle>
+                        <DialogTitle>{t('orders.dialog.title')}</DialogTitle>
                         <DialogDescription>
-                            订单号：{statusDialog.order?.orderId}
+                            {t('orders.dialog.description', { orderId: statusDialog.order?.orderId })}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="order-status-select">订单状态</Label>
+                            <Label htmlFor="order-status-select">{t('orders.dialog.statusLabel')}</Label>
                             <Select value={statusDialog.status} onValueChange={(value) => setStatusDialog(prev => ({ ...prev, status: value }))}>
                                 <SelectTrigger id="order-status-select">
-                                    <SelectValue placeholder="选择订单状态" />
+                                    <SelectValue placeholder={t('orders.dialog.statusPlaceholder')} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {ORDER_STATUS_OPTIONS.map(option => (
-                                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                    {ORDER_STATUS_KEYS.map(key => (
+                                        <SelectItem key={key} value={key}>{statusLabels[key]}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setStatusDialog({ open: false, status: 'pending' })}>取消</Button>
-                        <Button onClick={handleUpdateStatus}>保存</Button>
+                        <Button variant="outline" onClick={() => setStatusDialog({ open: false, status: 'pending' })}>{t('orders.dialog.cancel')}</Button>
+                        <Button onClick={handleUpdateStatus}>{t('orders.dialog.save')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -680,6 +700,7 @@ function OrdersPanel() {
 }
 
 function FinancialStatsPanel() {
+    const { t } = useTranslation('finance')
     const [stats, setStats] = useState<any>(null)
     const [loading, setLoading] = useState(false)
     const [dateRange, setDateRange] = useState('7') // 7 days
@@ -704,19 +725,19 @@ function FinancialStatsPanel() {
         loadStats()
     }, [dateRange])
 
-    if (!stats && loading) return <div>加载中...</div>
+    if (!stats && loading) return <div>{t('stats.loading')}</div>
 
     return (
         <div className="space-y-6">
             <div className="flex justify-end">
                 <Select value={dateRange} onValueChange={setDateRange}>
                     <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="选择时间范围" />
+                        <SelectValue placeholder={t('stats.rangePlaceholder')} />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="7">最近7天</SelectItem>
-                        <SelectItem value="30">最近30天</SelectItem>
-                        <SelectItem value="90">最近3个月</SelectItem>
+                        <SelectItem value="7">{t('stats.ranges.7')}</SelectItem>
+                        <SelectItem value="30">{t('stats.ranges.30')}</SelectItem>
+                        <SelectItem value="90">{t('stats.ranges.90')}</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
@@ -724,7 +745,7 @@ function FinancialStatsPanel() {
             <div className="grid gap-4 md:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">总营收</CardTitle>
+                        <CardTitle className="text-sm font-medium">{t('stats.cards.totalRevenue')}</CardTitle>
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -733,7 +754,7 @@ function FinancialStatsPanel() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">总订单数</CardTitle>
+                        <CardTitle className="text-sm font-medium">{t('stats.cards.totalOrders')}</CardTitle>
                         <ShoppingCart className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -742,7 +763,7 @@ function FinancialStatsPanel() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">客单价</CardTitle>
+                        <CardTitle className="text-sm font-medium">{t('stats.cards.avgOrderValue')}</CardTitle>
                         <CreditCard className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -754,7 +775,7 @@ function FinancialStatsPanel() {
             <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                     <CardHeader>
-                        <CardTitle>每日营收趋势</CardTitle>
+                        <CardTitle>{t('stats.revenueTrend')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-2">
@@ -762,7 +783,7 @@ function FinancialStatsPanel() {
                                 <div key={item.date} className="flex items-center justify-between text-sm">
                                     <span>{item.date}</span>
                                     <div className="flex items-center gap-4">
-                                        <span className="text-gray-500">{item.orders} 单</span>
+                                        <span className="text-gray-500">{t('stats.ordersLabel', { count: item.orders })}</span>
                                         <span className="font-medium w-20 text-right">${item.revenue.toFixed(2)}</span>
                                     </div>
                                 </div>
@@ -773,7 +794,7 @@ function FinancialStatsPanel() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>大R用户 (Top 10)</CardTitle>
+                        <CardTitle>{t('stats.topSpenders')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-2">
@@ -798,6 +819,8 @@ function FinancialStatsPanel() {
 
 function RefundsPanel() {
     const { toast } = useToast()
+    const { t } = useTranslation('finance')
+    const { t: tCommon } = useTranslation('common')
     const router = useRouter()
     const searchParams = useSearchParams()
     const pathname = usePathname()
@@ -843,18 +866,18 @@ function RefundsPanel() {
     }
 
     const handleProcess = async (refundId: string, approved: boolean) => {
-        if (!confirm(approved ? '确定批准退款吗？此操作不可撤销。' : '确定拒绝退款吗？')) return
+        if (!confirm(approved ? t('refunds.confirmApprove') : t('refunds.confirmReject'))) return
 
         try {
             const res = await processRefund({ refundId, approved })
             if (res.isSucc) {
-                toast({ title: approved ? "退款已批准" : "退款已拒绝" })
+                toast({ title: approved ? t('refunds.toast.approveSuccess') : t('refunds.toast.rejectSuccess') })
                 loadRefunds()
             } else {
-                toast({ title: "操作失败", description: res.err?.message, variant: "destructive" })
+                toast({ title: t('refunds.toast.actionFailed'), description: res.err?.message, variant: "destructive" })
             }
         } catch (error) {
-            toast({ title: "操作失败", variant: "destructive" })
+            toast({ title: t('refunds.toast.actionError'), variant: "destructive" })
         }
     }
 
@@ -863,11 +886,18 @@ function RefundsPanel() {
         try {
             const res = await fetchRefunds({ page: 1, limit: 200 })
             if (!res.isSucc || !res.res?.refunds?.length) {
-                toast({ title: '暂无退款记录可导出', variant: 'destructive' })
+                toast({ title: t('refunds.toast.exportEmpty'), variant: 'destructive' })
                 return
             }
             const rows = [
-                ['退款ID', '订单号', '用户ID', '金额', '状态', '申请时间'].join(',')
+                [
+                    t('refunds.tableHeaders.refundId'),
+                    t('refunds.tableHeaders.order'),
+                    t('refunds.tableHeaders.user'),
+                    t('refunds.tableHeaders.amount'),
+                    t('orders.tableHeaders.status'),
+                    t('refunds.tableHeaders.time'),
+                ].join(',')
             ]
             res.res.refunds.forEach((refund: any) => {
                 rows.push([
@@ -876,7 +906,7 @@ function RefundsPanel() {
                     refund.userId,
                     refund.amount,
                     refund.status,
-                    new Date(refund.createdAt).toLocaleString('zh-CN')
+                    new Date(refund.createdAt).toLocaleString()
                 ].join(','))
             })
             const blob = new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
@@ -886,9 +916,9 @@ function RefundsPanel() {
             link.download = `refunds-${Date.now()}.csv`
             link.click()
             URL.revokeObjectURL(url)
-            toast({ title: '退款记录已导出', description: `共 ${res.res.refunds.length} 条` })
+            toast({ title: t('refunds.toast.exportSuccess'), description: t('refunds.toast.exportSuccessDesc', { count: res.res.refunds.length }) })
         } catch (error: any) {
-            toast({ title: '导出失败', description: error.message, variant: 'destructive' })
+            toast({ title: t('refunds.toast.exportFailed'), description: error.message, variant: 'destructive' })
         } finally {
             setExporting(false)
         }
@@ -897,26 +927,26 @@ function RefundsPanel() {
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>待处理退款申请</CardTitle>
+                <CardTitle>{t('refunds.title')}</CardTitle>
                 <Button variant="outline" size="sm" onClick={handleExportRefunds} disabled={exporting}>
-                    {exporting ? '导出中...' : '导出CSV'}
+                    {exporting ? t('refunds.exporting') : t('refunds.export')}
                 </Button>
             </CardHeader>
             <CardContent>
                  <div className="rounded-md border">
                     <div className="hidden md:grid grid-cols-[1.4fr,1fr,1fr,0.8fr,1.2fr,1fr] gap-2 border-b bg-gray-50 px-4 py-2 text-xs font-medium text-gray-600">
-                        <span>申请ID</span>
-                        <span>用户</span>
-                        <span>关联订单</span>
-                        <span className="text-right">金额</span>
-                        <span>理由</span>
-                        <span className="text-right">申请时间 / 操作</span>
+                        <span>{t('refunds.tableHeaders.refundId')}</span>
+                        <span>{t('refunds.tableHeaders.user')}</span>
+                        <span>{t('refunds.tableHeaders.order')}</span>
+                        <span className="text-right">{t('refunds.tableHeaders.amount')}</span>
+                        <span>{t('refunds.tableHeaders.reason')}</span>
+                        <span className="text-right">{t('refunds.tableHeaders.time')}</span>
                     </div>
                     <div ref={refundsParentRef} className="max-h-[500px] overflow-auto">
                         {loading ? (
-                            <div className="p-8 text-center text-gray-500">加载中...</div>
+                            <div className="p-8 text-center text-gray-500">{t('refunds.loading')}</div>
                         ) : refunds.length === 0 ? (
-                            <div className="p-8 text-center text-gray-500">无待处理退款</div>
+                            <div className="p-8 text-center text-gray-500">{t('refunds.empty')}</div>
                         ) : (
                             <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
                                 {rowVirtualizer.getVirtualItems().map(virtualRow => {
@@ -942,20 +972,20 @@ function RefundsPanel() {
                                             <div className="text-right text-gray-500">
                                                 <div>{format(refund.createdAt, 'MM-dd HH:mm')}</div>
                                                 <div className="mt-2 flex flex-wrap justify-end gap-2">
-                                                    <Button 
-                                                        size="sm" 
-                                                        className="bg-green-600 hover:bg-green-700"
-                                                        onClick={() => handleProcess(refund.refundId, true)}
-                                                    >
-                                                        批准
-                                                    </Button>
-                                                    <Button 
-                                                        size="sm" 
-                                                        variant="destructive"
-                                                        onClick={() => handleProcess(refund.refundId, false)}
-                                                    >
-                                                        拒绝
-                                                    </Button>
+                                                   <Button 
+                                                       size="sm" 
+                                                       className="bg-green-600 hover:bg-green-700"
+                                                       onClick={() => handleProcess(refund.refundId, true)}
+                                                   >
+                                                        {t('refunds.approve')}
+                                                   </Button>
+                                                   <Button 
+                                                       size="sm" 
+                                                       variant="destructive"
+                                                       onClick={() => handleProcess(refund.refundId, false)}
+                                                   >
+                                                        {t('refunds.reject')}
+                                                   </Button>
                                                 </div>
                                             </div>
                                         </div>
@@ -978,9 +1008,9 @@ function RefundsPanel() {
                             syncRefundPage(nextPage)
                         }}
                     >
-                        上一页
+                        {tCommon('prevPage')}
                     </Button>
-                    <span className="text-sm py-2">第 {page} 页</span>
+                    <span className="text-sm py-2">{t('refunds.pagination', { page })}</span>
                     <Button 
                         variant="outline" 
                         size="sm" 
@@ -991,7 +1021,7 @@ function RefundsPanel() {
                             syncRefundPage(nextPage)
                         }}
                     >
-                        下一页
+                        {tCommon('nextPage')}
                     </Button>
                 </div>
             </CardContent>
@@ -999,14 +1029,7 @@ function RefundsPanel() {
     )
 }
 
-const ORDER_STATUS_OPTIONS = [
-    { value: 'pending', label: '待支付' },
-    { value: 'paid', label: '已支付' },
-    { value: 'delivered', label: '已发货' },
-    { value: 'failed', label: '失败' },
-    { value: 'cancelled', label: '已取消' },
-    { value: 'refunded', label: '已退款' }
-]
+const ORDER_STATUS_KEYS = ['pending', 'paid', 'delivered', 'failed', 'refunded', 'cancelled'] as const
 
 function getStatusVariant(status: string) {
     switch (status) {
@@ -1017,16 +1040,4 @@ function getStatusVariant(status: string) {
         case 'refunded': return 'outline'
         default: return 'outline'
     }
-}
-
-function getStatusText(status: string) {
-    const map: any = {
-        paid: '已支付',
-        delivered: '已发货',
-        pending: '待支付',
-        failed: '失败',
-        refunded: '已退款',
-        cancelled: '已取消'
-    }
-    return map[status] || status
 }

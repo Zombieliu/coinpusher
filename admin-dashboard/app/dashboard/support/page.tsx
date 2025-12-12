@@ -8,11 +8,12 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { fetchTickets, replyTicket } from '@/lib/api'
-import { MessageSquare, CheckCircle, Clock } from 'lucide-react'
 import { format } from 'date-fns'
+import { useTranslation } from '@/components/providers/i18n-provider'
 
 export default function SupportPage() {
     const { toast } = useToast()
+    const { t } = useTranslation('support')
     const [tickets, setTickets] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     const [replyOpen, setReplyOpen] = useState(false)
@@ -46,26 +47,26 @@ export default function SupportPage() {
                 closeTicket: true // 默认回复即关闭，实际可加选项
             })
             if (res.isSucc) {
-                toast({ title: "回复成功" })
+                toast({ title: t('toast.success') })
                 setReplyOpen(false)
                 setReplyContent('')
                 loadData()
             }
         } catch (e) {
-            toast({ title: "操作失败", variant: "destructive" })
+            toast({ title: t('error'), variant: "destructive" })
         }
     }
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold tracking-tight">客服工单</h1>
-                <Button variant="outline" onClick={loadData}>刷新</Button>
+                <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
+                <Button variant="outline" onClick={loadData}>{t('refresh')}</Button>
             </div>
 
             <div className="grid gap-4">
                 {tickets.length === 0 ? (
-                    <Card><CardContent className="p-8 text-center text-gray-500">暂无工单</CardContent></Card>
+                    <Card><CardContent className="p-8 text-center text-gray-500">{t('empty')}</CardContent></Card>
                 ) : (
                     tickets.map((ticket) => (
                         <Card key={ticket.ticketId} className="hover:bg-gray-50 cursor-pointer" onClick={() => {
@@ -77,11 +78,11 @@ export default function SupportPage() {
                                     <div className="space-y-1">
                                         <div className="flex items-center gap-2">
                                             <Badge variant={ticket.status === 'open' ? 'destructive' : 'secondary'}>
-                                                {ticket.status === 'open' ? '待处理' : '已关闭'}
+                                                {ticket.status === 'open' ? t('badge.open') : t('badge.closed')}
                                             </Badge>
                                             <h3 className="font-semibold text-lg">{ticket.subject}</h3>
                                         </div>
-                                        <p className="text-sm text-gray-500">用户: {ticket.userId}</p>
+                                        <p className="text-sm text-gray-500">{t('userLabel', { id: ticket.userId })}</p>
                                         <p className="text-sm mt-2">{ticket.messages[0]?.content}</p>
                                     </div>
                                     <div className="text-right text-xs text-gray-400">
@@ -97,7 +98,7 @@ export default function SupportPage() {
             <Dialog open={replyOpen} onOpenChange={setReplyOpen}>
                 <DialogContent className="max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>回复工单</DialogTitle>
+                        <DialogTitle>{t('dialogTitle')}</DialogTitle>
                     </DialogHeader>
                     {selectedTicket && (
                         <div className="space-y-4">
@@ -112,14 +113,14 @@ export default function SupportPage() {
                                 ))}
                             </div>
                             <Textarea 
-                                placeholder="输入回复内容..." 
+                                placeholder={t('placeholder')} 
                                 value={replyContent}
                                 onChange={e => setReplyContent(e.target.value)}
                             />
                         </div>
                     )}
                     <DialogFooter>
-                        <Button onClick={handleReply}>回复并关闭</Button>
+                        <Button onClick={handleReply}>{t('reply')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

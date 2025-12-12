@@ -17,7 +17,7 @@ import {
   updateInviteRewardConfig
 } from '@/lib/api'
 import { Download, History, RefreshCw } from 'lucide-react'
-import { format } from 'date-fns'
+import { useTranslation } from '@/components/providers/i18n-provider'
 
 const DEFAULT_CONFIG = {
   registerReward: 5,
@@ -30,6 +30,8 @@ const DEFAULT_CONFIG = {
 
 export default function InvitePage() {
   const { toast } = useToast()
+  const { t, locale } = useTranslation('invite')
+  const { t: tCommon } = useTranslation('common')
   const [leaderboard, setLeaderboard] = useState<any[]>([])
   const [summary, setSummary] = useState({
     totalInvites: 0,
@@ -73,10 +75,10 @@ export default function InvitePage() {
         setTotal(res.res.total || 0)
         setConfigVersion(res.res.configVersion || configVersion)
       } else {
-        toast({ title: '加载失败', description: res.err?.message, variant: 'destructive' })
+        toast({ title: t('alerts.loadFailed'), description: res.err?.message, variant: 'destructive' })
       }
     } catch (error: any) {
-      toast({ title: '网络错误', description: error.message, variant: 'destructive' })
+      toast({ title: t('alerts.network'), description: error.message, variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -137,12 +139,15 @@ export default function InvitePage() {
         a.download = res.res.fileName
         a.click()
         URL.revokeObjectURL(url)
-        toast({ title: '导出成功', description: `共 ${res.res.total} 条数据` })
+        toast({
+          title: t('alerts.exportSuccess'),
+          description: t('alerts.exportSuccessDesc', { count: res.res.total }),
+        })
       } else {
-        toast({ title: '导出失败', description: res.err?.message, variant: 'destructive' })
+        toast({ title: t('alerts.exportFailed'), description: res.err?.message, variant: 'destructive' })
       }
     } catch (error: any) {
-      toast({ title: '导出失败', description: error.message, variant: 'destructive' })
+      toast({ title: t('alerts.exportFailed'), description: error.message, variant: 'destructive' })
     } finally {
       setExporting(false)
     }
@@ -153,43 +158,46 @@ export default function InvitePage() {
     try {
       const res = await updateInviteRewardConfig(config, configComment || undefined)
       if (res.isSucc && res.res?.success) {
-        toast({ title: '配置已保存', description: `版本 v${res.res.version}` })
+        toast({
+          title: t('alerts.configSaved'),
+          description: t('alerts.configSavedDesc', { version: res.res.version }),
+        })
         setConfigVersion(res.res.version)
         setConfigComment('')
         loadConfig()
       } else {
-        toast({ title: '保存失败', description: res.err?.message, variant: 'destructive' })
+        toast({ title: t('alerts.saveFailed'), description: res.err?.message, variant: 'destructive' })
       }
     } catch (error: any) {
-      toast({ title: '保存失败', description: error.message, variant: 'destructive' })
+      toast({ title: t('alerts.saveFailed'), description: error.message, variant: 'destructive' })
     } finally {
       setConfigSaving(false)
     }
   }
 
   const formatNumber = (value: number) =>
-    new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(value || 0)
+    new Intl.NumberFormat(locale === 'zh' ? 'zh-CN' : 'en-US', { maximumFractionDigits: 0 }).format(value || 0)
 
-  const formatDate = (timestamp: number) => {
-    if (!timestamp) return 'N/A'
-    return format(timestamp, 'yyyy-MM-dd HH:mm')
+  const formatDateValue = (timestamp: number) => {
+    if (!timestamp) return tCommon('none')
+    return new Date(timestamp).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US')
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">邀请系统</h1>
-          <p className="text-sm text-gray-500">查看邀请排行榜并调整奖励配置</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
+          <p className="text-sm text-gray-500">{t('subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={loadLeaderboard}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            刷新数据
+            {t('buttons.refresh')}
           </Button>
           <Button onClick={handleExport} disabled={exporting}>
             <Download className="mr-2 h-4 w-4" />
-            导出 CSV
+            {t('buttons.export')}
           </Button>
         </div>
       </div>
@@ -197,7 +205,7 @@ export default function InvitePage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm text-gray-500">累计邀请</CardTitle>
+            <CardTitle className="text-sm text-gray-500">{t('stats.totalInvites')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-semibold">{formatNumber(summary.totalInvites)}</p>
@@ -205,7 +213,7 @@ export default function InvitePage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm text-gray-500">累计奖励发放</CardTitle>
+            <CardTitle className="text-sm text-gray-500">{t('stats.totalRewards')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-semibold">{formatNumber(summary.totalRewards)}</p>
@@ -213,7 +221,7 @@ export default function InvitePage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm text-gray-500">活跃邀请人</CardTitle>
+            <CardTitle className="text-sm text-gray-500">{t('stats.totalInviters')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-semibold">{formatNumber(summary.totalInviters)}</p>
@@ -221,7 +229,7 @@ export default function InvitePage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm text-gray-500">今日新增邀请</CardTitle>
+            <CardTitle className="text-sm text-gray-500">{t('stats.todaysNew')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-semibold">{formatNumber(summary.todaysNewInvites)}</p>
@@ -231,12 +239,12 @@ export default function InvitePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>邀请排行榜</CardTitle>
+          <CardTitle>{t('title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-4">
             <Input
-              placeholder="搜索用户ID / 邀请码"
+              placeholder={t('table.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-xs"
@@ -247,15 +255,15 @@ export default function InvitePage() {
                 loadLeaderboard()
               }}
             >
-              搜索
+              {t('table.search')}
             </Button>
             <Select value={sortBy} onValueChange={(v: 'invites' | 'rewards') => setSortBy(v)}>
               <SelectTrigger className="w-40">
-                <SelectValue placeholder="排序方式" />
+                <SelectValue placeholder={t('table.sortPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="invites">按邀请人数</SelectItem>
-                <SelectItem value="rewards">按累计奖励</SelectItem>
+                <SelectItem value="invites">{t('table.sortOptions.invites')}</SelectItem>
+                <SelectItem value="rewards">{t('table.sortOptions.rewards')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -264,25 +272,25 @@ export default function InvitePage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-3 text-left">排名</th>
-                  <th className="p-3 text-left">用户ID</th>
-                  <th className="p-3 text-left">邀请码</th>
-                  <th className="p-3 text-left">邀请人数</th>
-                  <th className="p-3 text-left">有效邀请</th>
-                  <th className="p-3 text-left">累计奖励</th>
+                  <th className="p-3 text-left">{t('table.headers.rank')}</th>
+                  <th className="p-3 text-left">{t('table.headers.userId')}</th>
+                  <th className="p-3 text-left">{t('table.headers.code')}</th>
+                  <th className="p-3 text-left">{t('table.headers.invites')}</th>
+                  <th className="p-3 text-left">{t('table.headers.validInvites')}</th>
+                  <th className="p-3 text-left">{t('table.headers.rewards')}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
                     <td colSpan={6} className="p-8 text-center text-gray-500">
-                      加载中...
+                      {t('table.loading')}
                     </td>
                   </tr>
                 ) : leaderboard.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="p-8 text-center text-gray-500">
-                      暂无数据
+                      {t('table.empty')}
                     </td>
                   </tr>
                 ) : (
@@ -303,7 +311,7 @@ export default function InvitePage() {
 
           <div className="flex items-center justify-between text-sm text-gray-500">
             <div>
-              第 {page} / {lastPage} 页，共 {total} 条
+              {t('table.pagination', { page, pages: lastPage, total })}
             </div>
             <div className="flex gap-2">
               <Button
@@ -312,7 +320,7 @@ export default function InvitePage() {
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
               >
-                上一页
+                {tCommon('prevPage')}
               </Button>
               <Button
                 variant="outline"
@@ -320,7 +328,7 @@ export default function InvitePage() {
                 onClick={() => setPage((p) => p + 1)}
                 disabled={page >= lastPage}
               >
-                下一页
+                {tCommon('nextPage')}
               </Button>
             </div>
           </div>
@@ -330,31 +338,34 @@ export default function InvitePage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>奖励配置</CardTitle>
+            <CardTitle>{t('configSection.title')}</CardTitle>
             <p className="text-sm text-gray-500">
-              当前版本 v{configVersion} · 更新人 {configUpdatedBy} ·{' '}
-              {configUpdatedAt ? formatDate(configUpdatedAt) : '未记录'}
+              {t('configSection.meta', {
+                version: configVersion,
+                user: configUpdatedBy,
+                time: configUpdatedAt ? formatDateValue(configUpdatedAt) : tCommon('none'),
+              })}
             </p>
           </div>
           <Button variant="outline" onClick={loadHistory} disabled={historyLoading}>
             <History className="mr-2 h-4 w-4" />
-            查看历史
+            {t('buttons.loadHistory')}
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <Label>注册奖励（被邀请人）</Label>
-              <Input
-                type="number"
-                value={config.registerReward}
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <Label>{t('configSection.registerInvitee')}</Label>
+                <Input
+                  type="number"
+                  value={config.registerReward}
                 onChange={(e) =>
                   setConfig({ ...config, registerReward: parseInt(e.target.value || '0', 10) })
                 }
               />
-            </div>
-            <div>
-              <Label>注册奖励（邀请人）</Label>
+              </div>
+              <div>
+                <Label>{t('configSection.registerInviter')}</Label>
               <Input
                 type="number"
                 value={config.registerRewardInviter}
@@ -365,9 +376,9 @@ export default function InvitePage() {
                   })
                 }
               />
-            </div>
-            <div>
-              <Label>首充返利比例 (%)</Label>
+              </div>
+              <div>
+                <Label>{t('configSection.firstChargeRate')}</Label>
               <Input
                 type="number"
                 value={config.firstChargeRate}
@@ -383,9 +394,9 @@ export default function InvitePage() {
 
           <Tabs defaultValue="level10">
             <TabsList>
-              <TabsTrigger value="level10">等级10奖励</TabsTrigger>
-              <TabsTrigger value="level20">等级20奖励</TabsTrigger>
-              <TabsTrigger value="level30">等级30奖励</TabsTrigger>
+              <TabsTrigger value="level10">{t('configSection.tabs.level10')}</TabsTrigger>
+              <TabsTrigger value="level20">{t('configSection.tabs.level20')}</TabsTrigger>
+              <TabsTrigger value="level30">{t('configSection.tabs.level30')}</TabsTrigger>
             </TabsList>
             <TabsContent value="level10">
               <Input
@@ -417,9 +428,9 @@ export default function InvitePage() {
           </Tabs>
 
           <div className="space-y-2">
-            <Label>操作备注（可选）</Label>
+            <Label>{t('configSection.commentLabel')}</Label>
             <Input
-              placeholder="记录本次调整的原因"
+              placeholder={t('configSection.commentPlaceholder')}
               value={configComment}
               onChange={(e) => setConfigComment(e.target.value)}
             />
@@ -427,7 +438,7 @@ export default function InvitePage() {
 
           <div className="text-right">
             <Button onClick={handleConfigSave} disabled={configSaving}>
-              保存配置
+              {configSaving ? t('buttons.saving') : t('buttons.saveConfig')}
             </Button>
           </div>
         </CardContent>
@@ -436,32 +447,32 @@ export default function InvitePage() {
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>奖励配置历史</DialogTitle>
+            <DialogTitle>{t('rewardHistory.title')}</DialogTitle>
           </DialogHeader>
           <div className="max-h-[400px] overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-3 text-left">版本</th>
-                  <th className="p-3 text-left">更新时间</th>
-                  <th className="p-3 text-left">更新人</th>
-                  <th className="p-3 text-left">备注</th>
+                  <th className="p-3 text-left">{t('rewardHistory.columns.version')}</th>
+                  <th className="p-3 text-left">{t('rewardHistory.columns.updatedAt')}</th>
+                  <th className="p-3 text-left">{t('rewardHistory.columns.updatedBy')}</th>
+                  <th className="p-3 text-left">{t('rewardHistory.columns.comment')}</th>
                 </tr>
               </thead>
               <tbody>
                 {history.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="p-4 text-center text-gray-500">
-                      暂无历史记录
+                      {t('rewardHistory.empty')}
                     </td>
                   </tr>
                 ) : (
                   history.map((item) => (
                     <tr key={item.historyId} className="border-b">
                       <td className="p-3 font-semibold">v{item.version}</td>
-                      <td className="p-3">{formatDate(item.updatedAt)}</td>
-                      <td className="p-3">{item.updatedBy?.username || 'unknown'}</td>
-                      <td className="p-3 text-gray-500">{item.comment || '-'}</td>
+                    <td className="p-3">{formatDateValue(item.updatedAt)}</td>
+                      <td className="p-3">{item.updatedBy?.username || tCommon('none')}</td>
+                      <td className="p-3 text-gray-500">{item.comment || tCommon('none')}</td>
                     </tr>
                   ))
                 )}

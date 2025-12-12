@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -13,9 +13,11 @@ import { useToast } from "@/components/ui/use-toast"
 import { fetchAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/lib/api'
 import { Plus, Megaphone, Calendar, Trash2, Edit, Eye, EyeOff } from 'lucide-react'
 import { format } from 'date-fns'
+import { useTranslation } from '@/components/providers/i18n-provider'
 
 export default function AnnouncementsPage() {
     const { toast } = useToast()
+    const { t } = useTranslation('announcements')
     const [announcements, setAnnouncements] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     
@@ -79,7 +81,7 @@ export default function AnnouncementsPage() {
 
     const handleSubmit = async () => {
         if (!formData.title || !formData.content) {
-            toast({ title: "请填写标题和内容", variant: "destructive" })
+            toast({ title: t('alerts.fillRequired'), variant: "destructive" })
             return
         }
 
@@ -94,11 +96,11 @@ export default function AnnouncementsPage() {
                     endTime: end
                 })
                 if (res.isSucc) {
-                    toast({ title: "更新成功" })
+                    toast({ title: t('alerts.updateSuccess') })
                     setDialogOpen(false)
                     loadData()
                 } else {
-                    toast({ title: "操作失败", description: res.err?.message, variant: "destructive" })
+                    toast({ title: t('alerts.actionFailed'), description: res.err?.message, variant: "destructive" })
                 }
             } else {
                 const res = await createAnnouncement({
@@ -107,28 +109,28 @@ export default function AnnouncementsPage() {
                     endTime: end
                 })
                 if (res.isSucc) {
-                    toast({ title: "创建成功" })
+                    toast({ title: t('alerts.createSuccess') })
                     setDialogOpen(false)
                     loadData()
                 } else {
-                    toast({ title: "操作失败", description: res.err?.message, variant: "destructive" })
+                    toast({ title: t('alerts.actionFailed'), description: res.err?.message, variant: "destructive" })
                 }
             }
         } catch (error) {
-            toast({ title: "操作异常", variant: "destructive" })
+            toast({ title: t('alerts.actionError'), variant: "destructive" })
         }
     }
 
     const handleDelete = async (id: string) => {
-        if (!confirm("确定要删除这条公告吗？")) return
+        if (!confirm(t('alerts.deleteConfirm'))) return
         try {
             const res = await deleteAnnouncement(id)
             if (res.isSucc) {
-                toast({ title: "删除成功" })
+                toast({ title: t('alerts.deleteSuccess') })
                 loadData()
             }
         } catch (error) {
-            toast({ title: "操作异常", variant: "destructive" })
+            toast({ title: t('alerts.actionError'), variant: "destructive" })
         }
     }
 
@@ -138,33 +140,33 @@ export default function AnnouncementsPage() {
                 active: !item.active
             })
             if (res.isSucc) {
-                toast({ title: item.active ? "已下架" : "已上架" })
+                toast({ title: item.active ? t('alerts.toggleOff') : t('alerts.toggleOn') })
                 loadData()
             }
         } catch (error) {
-            toast({ title: "操作异常", variant: "destructive" })
+            toast({ title: t('alerts.actionError'), variant: "destructive" })
         }
     }
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold tracking-tight">公告管理</h1>
+                <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
                 <Button onClick={handleCreate}>
                     <Plus className="mr-2 h-4 w-4" />
-                    发布公告
+                    {t('createButton')}
                 </Button>
             </div>
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                        <DialogTitle>{editingItem ? '编辑公告' : '发布新公告'}</DialogTitle>
+                        <DialogTitle>{editingItem ? t('dialog.edit') : t('dialog.create')}</DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>公告类型</Label>
+                                <Label>{t('dialog.type')}</Label>
                                 <Select 
                                     value={formData.type} 
                                     onValueChange={v => setFormData({...formData, type: v})}
@@ -173,14 +175,14 @@ export default function AnnouncementsPage() {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="notice">强弹窗公告</SelectItem>
-                                        <SelectItem value="scroll">跑马灯公告</SelectItem>
-                                        <SelectItem value="activity">活动公告</SelectItem>
+                                        <SelectItem value="notice">{t('types.notice')}</SelectItem>
+                                        <SelectItem value="scroll">{t('types.scroll')}</SelectItem>
+                                        <SelectItem value="activity">{t('types.activity')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label>优先级 (越大越前)</Label>
+                                <Label>{t('dialog.priority')}</Label>
                                 <Input 
                                     type="number" 
                                     value={formData.priority}
@@ -190,7 +192,7 @@ export default function AnnouncementsPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="announcement-title">标题</Label>
+                            <Label htmlFor="announcement-title">{t('dialog.title')}</Label>
                             <Input 
                                 id="announcement-title"
                                 value={formData.title}
@@ -199,7 +201,7 @@ export default function AnnouncementsPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="announcement-content">内容</Label>
+                            <Label htmlFor="announcement-content">{t('dialog.content')}</Label>
                             <Textarea 
                                 id="announcement-content"
                                 className="h-[150px]"
@@ -210,7 +212,7 @@ export default function AnnouncementsPage() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="announcement-start">开始时间</Label>
+                                <Label htmlFor="announcement-start">{t('dialog.start')}</Label>
                                 <Input 
                                     id="announcement-start"
                                     type="datetime-local" 
@@ -219,7 +221,7 @@ export default function AnnouncementsPage() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="announcement-end">结束时间</Label>
+                                <Label htmlFor="announcement-end">{t('dialog.end')}</Label>
                                 <Input 
                                     id="announcement-end"
                                     type="datetime-local" 
@@ -230,8 +232,8 @@ export default function AnnouncementsPage() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDialogOpen(false)}>取消</Button>
-                        <Button onClick={handleSubmit}>保存</Button>
+                        <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('dialog.cancel')}</Button>
+                        <Button onClick={handleSubmit}>{t('dialog.save')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -243,10 +245,10 @@ export default function AnnouncementsPage() {
                             <div className="flex items-start justify-between">
                                 <div className="space-y-1">
                                     <div className="flex items-center gap-2">
-                                        <Badge variant={getTypeVariant(item.type)}>{getTypeLabel(item.type)}</Badge>
+                                        <Badge variant={getTypeVariant(item.type)}>{t(`types.${item.type}` as const)}</Badge>
                                         <h3 className="font-semibold text-lg">{item.title}</h3>
-                                        {!item.active && <Badge variant="outline">已下架</Badge>}
-                                        {isActive(item) && item.active && <Badge variant="default" className="bg-green-600">生效中</Badge>}
+                                        {!item.active && <Badge variant="outline">{t('status.inactive')}</Badge>}
+                                        {isActive(item) && item.active && <Badge variant="default" className="bg-green-600">{t('status.active')}</Badge>}
                                     </div>
                                     <p className="text-gray-500 text-sm whitespace-pre-wrap line-clamp-2">
                                         {item.content}
@@ -256,14 +258,14 @@ export default function AnnouncementsPage() {
                                             <Calendar className="h-3 w-3" />
                                             {format(item.startTime, 'MM-dd HH:mm')} ~ {format(item.endTime, 'MM-dd HH:mm')}
                                         </span>
-                                        <span>优先级: {item.priority}</span>
+                                        <span>{t('cards.priority')}: {item.priority}</span>
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
                                     <Button
                                         size="icon"
                                         variant="ghost"
-                                        aria-label={item.active ? '下架公告' : '上架公告'}
+                                        aria-label={item.active ? t('alerts.toggleOff') : t('alerts.toggleOn')}
                                         onClick={() => toggleActive(item)}
                                     >
                                         {item.active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -271,7 +273,7 @@ export default function AnnouncementsPage() {
                                     <Button
                                         size="icon"
                                         variant="ghost"
-                                        aria-label="编辑公告"
+                                        aria-label={t('dialog.edit')}
                                         onClick={() => handleEdit(item)}
                                     >
                                         <Edit className="h-4 w-4" />
@@ -279,7 +281,7 @@ export default function AnnouncementsPage() {
                                     <Button
                                         size="icon"
                                         variant="ghost"
-                                        aria-label="删除公告"
+                                        aria-label={t('alerts.deleteConfirm')}
                                         className="text-red-500 hover:text-red-600"
                                         onClick={() => handleDelete(item.announcementId)}
                                     >
@@ -291,7 +293,7 @@ export default function AnnouncementsPage() {
                     </Card>
                 ))}
                 {announcements.length === 0 && (
-                    <div className="text-center py-10 text-gray-500">暂无公告</div>
+                    <div className="text-center py-10 text-gray-500">{t('empty')}</div>
                 )}
             </div>
         </div>
@@ -304,15 +306,6 @@ function getTypeVariant(type: string) {
         case 'scroll': return 'secondary'
         case 'activity': return 'default'
         default: return 'outline'
-    }
-}
-
-function getTypeLabel(type: string) {
-    switch (type) {
-        case 'notice': return '强弹窗'
-        case 'scroll': return '跑马灯'
-        case 'activity': return '活动'
-        default: return type
     }
 }
 
