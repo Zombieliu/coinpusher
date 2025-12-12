@@ -576,6 +576,7 @@ export class PaymentSystem {
 
             if (order.status !== OrderStatus.Paid && order.status !== OrderStatus.Delivered) {
                 return { success: false, error: '该订单状态不可退款' };
+            }
             if (options?.adminId && options.adminRole) {
                 await FinanceSecurityGuard.ensureRefundActionAllowed({
                     adminId: options.adminId,

@@ -1,9 +1,9 @@
 import { MongoDBService } from "../gate/db/MongoDBService";
 import { NotificationSystem } from "../gate/bll/NotificationSystem";
 import { OrderStatus, PaymentOrder } from "../gate/bll/PaymentSystem";
-import tls from "node:tls";
-import net from "node:net";
-import { Buffer } from "node:buffer";
+import tls from "tls";
+import net from "net";
+import { Buffer } from "buffer";
 
 type SmtpSocket = tls.TLSSocket | net.Socket;
 
