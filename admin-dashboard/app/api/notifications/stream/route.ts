@@ -27,7 +27,8 @@ async function fetchNotifications(token: string, since?: number) {
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const token = cookies().get('admin_token')?.value
+  const cookieStore = await cookies()
+  const token = cookieStore.get('admin_token')?.value
   if (!token) {
     return new Response('Unauthorized', { status: 401 })
   }

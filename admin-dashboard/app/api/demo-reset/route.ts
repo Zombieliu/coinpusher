@@ -37,10 +37,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (!tsNodeReady) {
-      await import('ts-node/register')
-      tsNodeReady = true
-    }
     const projectRoot = process.cwd()
     const repoRoot = path.resolve(projectRoot, '..')
     const envDir = path.join(repoRoot, 'env')
