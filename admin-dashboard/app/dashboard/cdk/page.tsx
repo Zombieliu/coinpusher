@@ -372,7 +372,7 @@ export default function CdkPage() {
                 <DialogContent className="max-w-3xl">
                     <DialogHeader>
                         <DialogTitle>
-                            {t('dialog.historyTitle', { name: historyTarget?.name || historyTarget?.batchId?.slice(0, 8) })}
+                            {t('dialog.historyTitle', { name: historyTarget?.name ?? historyTarget?.batchId?.slice(0, 8) ?? '' })}
                         </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-6 max-h-[500px] overflow-y-auto">

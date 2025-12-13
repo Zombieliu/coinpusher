@@ -1,0 +1,30 @@
+# node / pnpm artifacts
+node_modules/
+.pnpm-store/
+.turbo/
+.next/
+
+# git / vcs
+.git/
+.gitignore
+
+# editor / os
+.DS_Store
+.idea/
+.vscode/
+
+# build & logs
+dist/
+build/
+out/
+coverage/
+playwright-report/
+test-results/
+*.log
+
+# app-specific
+admin-dashboard/.next/
+admin-dashboard/.turbo/
+admin-dashboard/out/
+admin-dashboard/playwright-report/
+admin-dashboard/test-results/

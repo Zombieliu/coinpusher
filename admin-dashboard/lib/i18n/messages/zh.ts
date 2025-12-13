@@ -918,7 +918,6 @@ const zh = {
       },
       statusFilterLabel: '订单状态筛选',
       statusPlaceholder: '状态',
-      statusFilterLabel: '订单状态筛选',
       statusOptions: {
         all: '全部状态',
         pending: '待支付',
@@ -1067,7 +1066,7 @@ const zh = {
       confirm: '创建',
     },
   },
-} as const
+}
 
 export type Messages = typeof zh
 

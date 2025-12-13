@@ -493,12 +493,13 @@ function OrdersPanel() {
                 ].join(',')
             ]
             res.res.orders.forEach((order: any) => {
+                const statusLabel = statusLabels[order.status as keyof typeof statusLabels] || order.status
                 csv.push([
                     order.orderId,
                     order.userId,
                     order.productName,
                     `${order.currency} ${order.amount}`,
-                    statusLabels[order.status] || order.status,
+                    statusLabel,
                     new Date(order.createdAt).toLocaleString()
                 ].join(','))
             })
@@ -577,6 +578,7 @@ function OrdersPanel() {
                                 {rowVirtualizer.getVirtualItems().map(virtualRow => {
                                     const order = orders[virtualRow.index]
                                     if (!order) return null
+                                    const statusLabel = statusLabels[order.status as keyof typeof statusLabels] || order.status
                                     return (
                                         <div
                                             key={order.orderId}
@@ -598,7 +600,7 @@ function OrdersPanel() {
                                             </div>
                                             <div className="text-center">
                                                 <Badge variant={getStatusVariant(order.status)}>
-                                                    {statusLabels[order.status] || order.status}
+                                                    {statusLabel}
                                                 </Badge>
                                             </div>
                                             <div className="text-right text-gray-500">

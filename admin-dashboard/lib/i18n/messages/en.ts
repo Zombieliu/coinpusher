@@ -723,6 +723,9 @@ const en: Messages = {
     loading: 'Loading config...',
     historyClose: '✕',
     lastUpdatedByFallback: 'system',
+    detail: {
+      savedAt: 'Saved at',
+    },
   },
   invite: {
     title: 'Invite Program',
@@ -769,6 +772,9 @@ const en: Messages = {
       loading: 'Loading...',
       empty: 'No data',
       pagination: 'Page {page} / {pages}, {total} rows',
+    },
+    leaderboard: {
+      totalLabel: 'Total invites',
     },
     configSection: {
       title: 'Reward settings',
@@ -913,7 +919,6 @@ const en: Messages = {
         userId: 'User ID',
       },
       statusPlaceholder: 'Status',
-      statusFilterLabel: 'Order status filter',
       statusFilterLabel: 'Order status filter',
       statusOptions: {
         all: 'All statuses',

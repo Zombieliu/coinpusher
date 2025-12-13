@@ -148,6 +148,9 @@ export default function DashboardPage() {
         {cards.map((card, index) => {
           const Icon = card.icon
           const changeText = card.changeKey ? t(card.changeKey) : ''
+          const subtitleVals = Object.fromEntries(
+            Object.entries(card.subtitleValues ?? {}).filter(([, v]) => v !== undefined)
+          ) as Record<string, string | number>
           return (
             <div key={card.key + index} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6">
               <div className="flex items-center justify-between mb-4">
@@ -163,7 +166,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-gray-600 mb-1">{t(`cards.${card.key}.title`)}</p>
                 <p className="text-2xl font-bold mb-1">{card.value}</p>
                 <p className="text-xs text-gray-500">
-                  {t(`cards.${card.key}.subtitle`, card.subtitleValues ?? {})}
+                  {t(`cards.${card.key}.subtitle`, subtitleVals)}
                 </p>
               </div>
             </div>
