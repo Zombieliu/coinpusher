@@ -85,24 +85,27 @@ export default function MaintenancePage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
-                            <Label>{t('settings.noticeLabel')}</Label>
+                            <Label htmlFor="maintenance-notice">{t('settings.noticeLabel')}</Label>
                             <Textarea 
+                                id="maintenance-notice"
                                 value={config.reason}
                                 onChange={e => setConfig({ ...config, reason: e.target.value })}
                                 placeholder={t('settings.noticePlaceholder')}
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>{t('settings.ipLabel')}</Label>
+                            <Label htmlFor="maintenance-ip">{t('settings.ipLabel')}</Label>
                             <Input 
+                                id="maintenance-ip"
                                 value={config.whitelistIps.join(', ')}
                                 onChange={e => setConfig({ ...config, whitelistIps: e.target.value.split(',').map(s => s.trim()) })}
                                 placeholder={t('settings.ipPlaceholder')}
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>{t('settings.userLabel')}</Label>
+                            <Label htmlFor="maintenance-user">{t('settings.userLabel')}</Label>
                             <Input 
+                                id="maintenance-user"
                                 value={config.whitelistUsers.join(', ')}
                                 onChange={e => setConfig({ ...config, whitelistUsers: e.target.value.split(',').map(s => s.trim()) })}
                                 placeholder={t('settings.userPlaceholder')}

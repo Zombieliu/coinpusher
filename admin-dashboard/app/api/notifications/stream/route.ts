@@ -34,11 +34,22 @@ export async function GET() {
   }
 
   let stopped = false
-  let cleanup: () => void = () => { stopped = true }
+  let cleanup: () => void = () => {
+    stopped = true
+  }
 
   const stream = new ReadableStream({
     start(controller) {
-      controller.enqueue(encoder.encode(': connected\n\n'))
+      const push = (data: string) => {
+        if (stopped) return
+        try {
+          controller.enqueue(encoder.encode(data))
+        } catch {
+          stopped = true
+        }
+      }
+
+      push(': connected\n\n')
 
       let since = Date.now() - 5 * 60 * 1000
 
@@ -51,15 +62,11 @@ export async function GET() {
               .sort((a: any, b: any) => (a.timestamp || 0) - (b.timestamp || 0))
               .forEach((notification: any) => {
                 since = Math.max(since, notification.timestamp || Date.now())
-                controller.enqueue(
-                  encoder.encode(`data: ${JSON.stringify(notification)}\n\n`)
-                )
+                push(`data: ${JSON.stringify(notification)}\n\n`)
               })
           } catch (error) {
-            controller.enqueue(
-              encoder.encode(
-                `event: error\ndata: ${JSON.stringify({ message: 'fetch_failed' })}\n\n`
-              )
+            push(
+              `event: error\ndata: ${JSON.stringify({ message: 'fetch_failed' })}\n\n`
             )
           }
           await new Promise(resolve => setTimeout(resolve, 5000))
@@ -69,13 +76,18 @@ export async function GET() {
       poll()
 
       const heartbeat = setInterval(() => {
-        controller.enqueue(encoder.encode(': heartbeat\n\n'))
+        push(': heartbeat\n\n')
       }, 25000)
 
       cleanup = () => {
         if (stopped) return
         stopped = true
         clearInterval(heartbeat)
+        try {
+          controller.close()
+        } catch {
+          // stream already closed
+        }
       }
     },
     cancel() {

@@ -41,7 +41,7 @@ test('语言开关可以切换管理后台文案', async ({ page }) => {
   await languageSelect.selectOption('en')
 
   await expect(page.getByRole('main').getByRole('heading', { name: 'System Maintenance' })).toBeVisible()
-  await expect(page.getByPlaceholder('Whitelist IPs (comma separated)')).toBeVisible()
+  await expect(page.getByLabel('Whitelist IPs (comma separated)')).toBeVisible()
 
   await page.getByRole('button', { name: 'Save settings' }).click()
 

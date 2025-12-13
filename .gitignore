@@ -27,3 +27,19 @@ node_modules/
 /library/
 /local/
 /build/
+
+#//////////////////////////
+# Next.js / Playwright
+#//////////////////////////
+.next/
+.turbo/
+out/
+playwright-report/
+test-results/
+
+# Admin dashboard outputs
+admin-dashboard/.next/
+admin-dashboard/.turbo/
+admin-dashboard/out/
+admin-dashboard/playwright-report/
+admin-dashboard/test-results/
