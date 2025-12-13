@@ -95,10 +95,10 @@ test('公告支援上下架与删除操作', async ({ page }) => {
   await page.goto('/dashboard/announcements');
   await expect(page.getByText('周年庆活动')).toBeVisible();
 
-  await page.getByRole('button', { name: '下架公告' }).first().click();
+  await page.getByTestId('announcement-toggle').first().click();
   await expect(page.getByText('已下架').first()).toBeVisible();
 
   page.once('dialog', dialog => dialog.accept());
-  await page.getByRole('button', { name: '删除公告' }).first().click();
+  await page.getByTestId('announcement-delete').first().click();
   await expect(page.getByText('周年庆活动')).not.toBeVisible();
 });

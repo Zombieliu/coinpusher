@@ -41,9 +41,10 @@ test('退款处理页能列出申请并执行审批', async ({ page }) => {
     });
 
     await page.goto('/dashboard/finance');
+    const refundTab = page.getByRole('tab', { name: /退款处理/ });
+    await expect(refundTab).toBeVisible();
+    await refundTab.click();
     await expect.poll(() => refundsLoaded, { timeout: 15000 }).toBeGreaterThan(0);
-    await expect(page.getByRole('tab', { name: /退款处理/ })).toBeVisible();
-    await page.getByRole('tab', { name: /退款处理/ }).click();
 
     await expect(page.getByText('refund_demo_1')).toBeVisible();
 
@@ -60,7 +61,7 @@ test('退款处理页能列出申请并执行审批', async ({ page }) => {
   await page.getByRole('tab', { name: /退款处理/ }).click();
   await expect(page.getByText('待处理退款申请')).toBeVisible({ timeout: 30_000 });
 
-  const refundRow = page.locator('tbody tr', { hasText: PENDING_REFUND_ID });
+  const refundRow = page.locator('[data-testid=\"refund-row\"]', { hasText: PENDING_REFUND_ID });
   await expect(refundRow).toBeVisible({ timeout: 20_000 });
 
   let processPayload: any;

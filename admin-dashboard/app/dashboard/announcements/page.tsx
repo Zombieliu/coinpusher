@@ -245,11 +245,11 @@ export default function AnnouncementsPage() {
                             <div className="flex items-start justify-between">
                                 <div className="space-y-1">
                                     <div className="flex items-center gap-2">
-                                        <Badge variant={getTypeVariant(item.type)}>{t(`types.${item.type}` as const)}</Badge>
-                                        <h3 className="font-semibold text-lg">{item.title}</h3>
-                                        {!item.active && <Badge variant="outline">{t('status.inactive')}</Badge>}
-                                        {isActive(item) && item.active && <Badge variant="default" className="bg-green-600">{t('status.active')}</Badge>}
-                                    </div>
+                                    <Badge variant={getTypeVariant(item.type)}>{t(`types.${item.type}` as const)}</Badge>
+                                    <h3 className="font-semibold text-lg">{item.title}</h3>
+                                    {!item.active && <Badge variant="outline">{t('status.inactive')}</Badge>}
+                                    {isActive(item) && item.active && <Badge variant="default" className="bg-green-600">{t('status.active')}</Badge>}
+                                </div>
                                     <p className="text-gray-500 text-sm whitespace-pre-wrap line-clamp-2">
                                         {item.content}
                                     </p>
@@ -265,6 +265,7 @@ export default function AnnouncementsPage() {
                                     <Button
                                         size="icon"
                                         variant="ghost"
+                                        data-testid="announcement-toggle"
                                         aria-label={item.active ? t('alerts.toggleOff') : t('alerts.toggleOn')}
                                         onClick={() => toggleActive(item)}
                                     >
@@ -281,6 +282,7 @@ export default function AnnouncementsPage() {
                                     <Button
                                         size="icon"
                                         variant="ghost"
+                                        data-testid="announcement-delete"
                                         aria-label={t('alerts.deleteConfirm')}
                                         className="text-red-500 hover:text-red-600"
                                         onClick={() => handleDelete(item.announcementId)}

@@ -581,6 +581,7 @@ function OrdersPanel() {
                                         <div
                                             key={order.orderId}
                                             className="grid grid-cols-1 gap-3 border-b px-4 py-3 text-sm md:grid-cols-[1.4fr,1fr,1fr,1fr,0.8fr,1.2fr]"
+                                            data-testid="order-row"
                                             style={{
                                                 position: 'absolute',
                                                 top: 0,
@@ -956,6 +957,7 @@ function RefundsPanel() {
                                         <div
                                             key={refund.refundId}
                                             className="grid grid-cols-1 gap-3 border-b px-4 py-3 text-sm md:grid-cols-[1.4fr,1fr,1fr,0.8fr,1.2fr,1fr]"
+                                            data-testid="refund-row"
                                             style={{
                                                 position: 'absolute',
                                                 top: 0,
