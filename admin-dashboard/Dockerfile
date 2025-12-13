@@ -9,7 +9,15 @@ WORKDIR /app
 FROM base AS builder
 WORKDIR /app
 COPY . .
-RUN pnpm install --frozen-lockfile --prod=false
+
+# 支持缺少锁文件的情形：优先使用锁文件，缺失则退回 --no-frozen-lockfile
+ARG PNPM_INSTALL_FLAGS="--prod=false"
+RUN if [ -f pnpm-lock.yaml ]; then \
+      pnpm install --frozen-lockfile $PNPM_INSTALL_FLAGS; \
+    else \
+      echo "pnpm-lock.yaml not found, falling back to --no-frozen-lockfile"; \
+      pnpm install --no-frozen-lockfile $PNPM_INSTALL_FLAGS; \
+    fi
 WORKDIR /app/admin-dashboard
 RUN pnpm run build
 
