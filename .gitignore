@@ -43,3 +43,4 @@ admin-dashboard/.turbo/
 admin-dashboard/out/
 admin-dashboard/playwright-report/
 admin-dashboard/test-results/
+admin-dashboard/pnpm-lock.yaml
