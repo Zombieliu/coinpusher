@@ -5,13 +5,11 @@ FROM node:20-alpine AS base
 RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 WORKDIR /app
 
-# 构建阶段：直接在 workspace 根安装并构建 admin-dashboard
+# 构建阶段：直接复制全部工作区后安装并构建 admin-dashboard
 FROM base AS builder
 WORKDIR /app
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY admin-dashboard/package.json admin-dashboard/package.json
-RUN pnpm install --frozen-lockfile --prod=false
 COPY . .
+RUN pnpm install --frozen-lockfile --prod=false
 WORKDIR /app/admin-dashboard
 RUN pnpm run build
 
