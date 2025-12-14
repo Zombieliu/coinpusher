@@ -15,7 +15,7 @@ export async function POST(
 
   // CSRF 双提交校验（部分接口可白名单）
   if (!isCsrfOptional(targetPath)) {
-    const csrfCookie = cookies().get('csrf_token')?.value
+    const csrfCookie = req.cookies.get('csrf_token')?.value
     const csrfHeader = req.headers.get('x-csrf-token')
     if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
       return new Response(JSON.stringify({ isSucc: false, err: { message: 'CSRF invalid' } }), {
@@ -25,7 +25,7 @@ export async function POST(
     }
   }
 
-  const token = (await cookies()).get('admin_token')?.value || ''
+  const token = req.cookies.get('admin_token')?.value || ''
   const payload = {
     ...body,
     __ssoToken: token
