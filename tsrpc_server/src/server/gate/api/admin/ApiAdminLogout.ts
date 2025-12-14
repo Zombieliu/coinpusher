@@ -1,5 +1,6 @@
 import { ApiCall } from "tsrpc";
 import { AdminUserSystem } from "../../bll/AdminUserSystem";
+import { AdminAuthMiddleware } from "../../middleware/AdminAuthMiddleware";
 
 export interface ReqAdminLogout {
     __ssoToken?: string;
@@ -20,6 +21,15 @@ export async function ApiAdminLogout(
             call.succ({
                 success: false,
                 message: 'Token is required'
+            });
+            return;
+        }
+
+        const verified = await AdminAuthMiddleware.verifyToken(token);
+        if (!verified.valid) {
+            call.succ({
+                success: false,
+                message: verified.message || 'Invalid or expired token'
             });
             return;
         }

@@ -6,6 +6,19 @@
 import { ApiCall } from "tsrpc";
 import { AuditLogSystem, AuditCategory } from "../bll/AuditLogSystem";
 
+const SENSITIVE_KEYS = new Set([
+    '__ssoToken',
+    'password',
+    'oldPassword',
+    'newPassword',
+    'passwordHash',
+    'twoFactorCode',
+    'backupCodes',
+    'secret',
+    'token',
+    '__headers'
+]);
+
 // 需要记录审计日志的API配置
 const AUDIT_CONFIG: Record<string, {
     category: AuditCategory;
@@ -237,23 +250,26 @@ export class AuditLogMiddleware {
      * 清理请求数据（移除敏感信息）
      */
     private static sanitizeRequest(req: any): any {
-        const sanitized = { ...req };
-        delete sanitized.__ssoToken;
-        delete sanitized.password;
-        delete sanitized.__headers;
-        return sanitized;
+        return this.deepSanitize(req);
     }
 
     /**
      * 清理响应数据（移除敏感信息）
      */
     private static sanitizeResponse(res: any): any {
-        if (!res) {
-            return {};
+        return this.deepSanitize(res);
+    }
+
+    private static deepSanitize(value: any): any {
+        if (value === null || value === undefined) return value;
+        if (Array.isArray(value)) return value.map(v => this.deepSanitize(v));
+        if (typeof value !== 'object') return value;
+
+        const out: any = {};
+        for (const [k, v] of Object.entries(value)) {
+            if (SENSITIVE_KEYS.has(k)) continue;
+            out[k] = this.deepSanitize(v);
         }
-        const sanitized = { ...res };
-        delete sanitized.token;
-        delete sanitized.passwordHash;
-        return sanitized;
+        return out;
     }
 }
