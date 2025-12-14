@@ -247,6 +247,9 @@ export class AdminUserSystem {
             };
         }
 
+        // 单点登录：清理该管理员已有会话
+        await this.sessionsCollection.deleteMany({ adminId: admin.adminId });
+
         // 生成会话token
         const token = this.generateToken();
         const session: AdminSession = {

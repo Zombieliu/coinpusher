@@ -9,7 +9,7 @@
 ### 1. Super Admin (超级管理员)
 - **权限**: 所有权限
 - **职责**: 系统配置、管理员管理、所有业务操作
-- **默认账号**: admin / admin123
+- **默认账号**: 首次启动由后台随机生成强密码并打印日志，请立即修改
 
 ### 2. Operator (运营人员)
 - **权限**:
@@ -70,41 +70,11 @@
 
 ## API使用示例
 
-### 管理员登录
-
-```typescript
-POST /admin/AdminLogin
-{
-  "username": "admin",
-  "password": "admin123"
-}
-
-Response:
-{
-  "isSucc": true,
-  "res": {
-    "success": true,
-    "token": "abc123...",
-    "admin": {
-      "adminId": "admin_123",
-      "username": "admin",
-      "role": "super_admin",
-      "email": "admin@example.com"
-    }
-  }
-}
-```
-
-### 使用Token调用API
-
-所有管理员API都需要在请求中包含`__ssoToken`字段:
-
-```typescript
-POST /admin/GetStatistics
-{
-  "__ssoToken": "abc123..."
-}
-```
+### 登录与会话
+- 前端通过 `/api/login` 代理登录，后端返回 httpOnly `admin_token` + 非 httpOnly `csrf_token` + `admin_user`。
+- 所有管理 API 走同域代理 `/api/tsrpc/*`，自动附带 cookie；`__ssoToken` 由代理注入，不再由前端传入。
+- CSRF 采用“双提交”策略：请求头 `x-csrf-token` 必须与 cookie `csrf_token` 相同（少数 GET/导出接口白名单除外）。
+- 会话绑定 IP/UA；同一管理员新登录会踢掉旧会话（仅保留最新）。
 
 ### 后端权限验证
 
