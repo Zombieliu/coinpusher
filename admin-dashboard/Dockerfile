@@ -14,6 +14,10 @@ COPY . .
 ARG APP_PATH=admin-dashboard
 RUN if [ ! -d "/app/$APP_PATH" ]; then ln -s /app "/app/$APP_PATH"; fi
 
+# 在构建期注入网关地址，保证前端打包时内联正确的 API 基础地址
+ARG NEXT_PUBLIC_API_URL=""
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 # 支持缺少锁文件的情形：优先使用锁文件，缺失则退回 --no-frozen-lockfile
 ARG PNPM_INSTALL_FLAGS="--prod=false"
 RUN cd "/app/$APP_PATH" && \
