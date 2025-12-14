@@ -40,7 +40,10 @@ export async function mockApi(
   endpoint: string,
   responder: ApiResponder | ApiResponse
 ) {
-  await page.route(`**/${endpoint}`, async route => {
+  const pattern = endpoint.startsWith('api/')
+    ? `**/${endpoint}`
+    : `**/api/tsrpc/${endpoint}`;
+  await page.route(pattern, async route => {
     const payload = safelyParse(route);
     const body =
       typeof responder === 'function'
@@ -61,6 +64,8 @@ export async function setAdminSession(page: Page, username = 'admin_tester') {
     window.localStorage.setItem('admin_user', JSON.stringify(args.admin));
     // 确保服务端路由（如 SSE）也能拿到 token
     document.cookie = `admin_token=${args.token}; path=/; max-age=86400; SameSite=Lax`;
+    document.cookie = `csrf_token=csrf_mock; path=/; max-age=86400; SameSite=Lax`;
+    document.cookie = `admin_user=${encodeURIComponent(JSON.stringify(args.admin))}; path=/; max-age=86400; SameSite=Lax`;
   }, {
     token: 'mock-token',
     admin: {

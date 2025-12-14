@@ -60,33 +60,28 @@ export default function DashboardLayout({
   const { t: tCommon } = useTranslation('common')
 
   useEffect(() => {
-    // 检查登录状态
-    const token = localStorage.getItem('admin_token')
-    const userStr = localStorage.getItem('admin_user')
-
-    if (!token) {
+    // 检查登录状态（使用 cookie，而非 localStorage）
+    const userMatch = document.cookie.match(/(?:^|; )admin_user=([^;]+)/)
+    if (!userMatch) {
       router.push('/login')
       return
     }
-    document.cookie = `admin_token=${token}; path=/; max-age=86400; SameSite=Lax`
-
-    if (userStr && userStr !== 'undefined') {
-      try {
-        setAdminUser(JSON.parse(userStr))
-      } catch (error) {
-        console.error('Failed to parse admin user:', error)
-        localStorage.removeItem('admin_user')
-      }
+    try {
+      const parsed = JSON.parse(decodeURIComponent(userMatch[1]))
+      setAdminUser(parsed)
+    } catch (error) {
+      console.error('Failed to parse admin user:', error)
+      router.push('/login')
+      return
     }
-
     setLoading(false)
   }, [router])
 
   function handleLogout() {
     if (confirm(tLayout('logoutConfirm'))) {
-      localStorage.removeItem('admin_token')
-      localStorage.removeItem('admin_user')
       document.cookie = 'admin_token=; path=/; max-age=0; SameSite=Lax'
+      document.cookie = 'csrf_token=; path=/; max-age=0; SameSite=Lax'
+      document.cookie = 'admin_user=; path=/; max-age=0; SameSite=Lax'
       router.push('/login')
     }
   }

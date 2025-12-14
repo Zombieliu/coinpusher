@@ -2,12 +2,8 @@
  * API客户端 - 对接TSRPC后端
  */
 
-// 直接访问后端API
-// 默认提供本地开发(浏览器走 32000, Node 走 gate-server:3000)并支持通过 NEXT_PUBLIC_API_URL 覆盖
-const DEFAULT_BROWSER_BASE = '';
-const DEFAULT_SERVER_BASE = '';
-const normalizedEnvBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
-const API_BASE = normalizedEnvBase || DEFAULT_BROWSER_BASE;
+// 所有请求经由本域名的代理路由 /api/tsrpc，避免跨域并复用 httpOnly Cookie
+const API_BASE = '/api/tsrpc';
 
 export interface ApiResponse<T = any> {
   isSucc: boolean
@@ -38,18 +34,14 @@ export async function callAPI<T = any>(
   data: any = {}
 ): Promise<ApiResponse<T>> {
   try {
-    // 将token添加到请求体中作为__ssoToken
-    const requestData = {
-      ...data,
-      __ssoToken: getAdminToken(),
-    }
-
     const response = await fetch(`${API_BASE}/${method}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-csrf-token': getCookie('csrf_token') || ''
       },
-      body: JSON.stringify(requestData),
+      credentials: 'include',
+      body: JSON.stringify(data),
     })
 
     if (!response.ok) {
@@ -63,8 +55,9 @@ export async function callAPI<T = any>(
     // 统一处理Token过期
     if (!res.isSucc && res.err?.message === 'Invalid or expired token') {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('admin_token')
-        localStorage.removeItem('admin_user')
+        document.cookie = 'admin_token=; path=/; max-age=0; SameSite=Lax'
+        document.cookie = 'csrf_token=; path=/; max-age=0; SameSite=Lax'
+        document.cookie = 'admin_user=; path=/; max-age=0; SameSite=Lax'
         window.location.href = '/login'
       }
     }
@@ -87,11 +80,10 @@ export async function callAPI<T = any>(
   }
 }
 
-function getAdminToken(): string {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('admin_token') || ''
-  }
-  return ''
+function getCookie(name: string): string | undefined {
+  if (typeof document === 'undefined') return undefined
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'))
+  return match ? decodeURIComponent(match[1]) : undefined
 }
 
 // ==================== 管理员API ====================

@@ -29,14 +29,6 @@ export default function LoginPage() {
       const result = await res.json()
 
       if (result.isSucc && result.res?.success) {
-        // 继续保留 localStorage 以兼容前端逻辑；cookie 在 API 路由已写入 httpOnly
-        if (result.res.token) {
-          localStorage.setItem('admin_token', result.res.token)
-          document.cookie = `admin_token=${result.res.token}; path=/; max-age=86400; SameSite=Lax`
-        }
-        if (result.res.admin) {
-          localStorage.setItem('admin_user', JSON.stringify(result.res.admin))
-        }
         router.push('/dashboard')
       } else {
         setError(result.res?.message || result.err?.message || t('errorTitle'))

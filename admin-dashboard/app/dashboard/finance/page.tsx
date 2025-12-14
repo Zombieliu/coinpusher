@@ -192,14 +192,15 @@ function useFinanceGuardStatus() {
 
     useEffect(() => {
         let mounted = true
-        const stored = (typeof window !== 'undefined' && window.localStorage.getItem('admin_user')) || ''
-        if (!stored) {
+        const stored = (typeof document !== 'undefined' && document.cookie.match(/(?:^|; )admin_user=([^;]+)/)) || ''
+        if (!stored || typeof stored === 'string') {
             setStatus(prev => ({ ...prev, loading: false }))
             return
         }
         let parsed: any
         try {
-            parsed = JSON.parse(stored)
+            const raw = Array.isArray(stored) ? stored[1] : stored
+            parsed = JSON.parse(decodeURIComponent(raw))
         } catch {
             setStatus(prev => ({ ...prev, loading: false }))
             return
