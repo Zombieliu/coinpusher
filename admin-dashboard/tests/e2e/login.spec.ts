@@ -3,7 +3,8 @@ import { mockApi, expectDashboardLoaded, ApiResponse } from './utils';
 
 test.describe('后台登录流程', () => {
   test('输入账号密码后能够成功跳转至仪表盘', async ({ page }) => {
-    await mockApi(page, 'admin/AdminLogin', body => {
+    // 兼容最新登录流：通过 /api/login 走代理
+    await mockApi(page, 'api/login', body => {
       if (!body?.username || !body?.password) {
         return { isSucc: false, err: { message: 'missing credentials' } };
       }

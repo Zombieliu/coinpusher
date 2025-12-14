@@ -59,6 +59,8 @@ export async function setAdminSession(page: Page, username = 'admin_tester') {
   await page.addInitScript(args => {
     window.localStorage.setItem('admin_token', args.token);
     window.localStorage.setItem('admin_user', JSON.stringify(args.admin));
+    // 确保服务端路由（如 SSE）也能拿到 token
+    document.cookie = `admin_token=${args.token}; path=/; max-age=86400; SameSite=Lax`;
   }, {
     token: 'mock-token',
     admin: {

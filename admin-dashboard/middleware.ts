@@ -6,16 +6,16 @@ import { NextRequest, NextResponse } from 'next/server'
  */
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl
-  if (!pathname.startsWith('/admin/')) {
+  const isE2E = process.env.E2E_MOCK === '1' || process.env.NODE_ENV === 'test'
+
+  // 本地 e2e 或未配置网关时直接放行，交由 Playwright mock
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || process.env.API_BASE_URL
+  if (!apiBase || isE2E) {
     return NextResponse.next()
   }
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || process.env.API_BASE_URL
-  if (!apiBase) {
-    return NextResponse.json(
-      { error: 'API base URL is not configured' },
-      { status: 500 }
-    )
+  if (!pathname.startsWith('/admin/')) {
+    return NextResponse.next()
   }
 
   const target = new URL(pathname + search, apiBase)
