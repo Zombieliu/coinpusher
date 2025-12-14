@@ -1,7 +1,6 @@
 import { cookies } from 'next/headers'
 
-const FALLBACK_BASE = 'https://gate-production-41a5.up.railway.app'
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || FALLBACK_BASE).replace(/\/$/, '')
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
 const encoder = new TextEncoder()
 
 async function fetchNotifications(token: string, since?: number) {
