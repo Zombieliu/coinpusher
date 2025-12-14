@@ -59,6 +59,7 @@
     "format:check": "prettier --check \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "doc:generate": "./scripts/generate-api-docs.sh",
-    "quality": "./scripts/format-code.sh check"
+    "quality": "./scripts/format-code.sh check",
+    "reset-admin-password": "ts-node ./scripts/reset-admin-password.ts"
   }
 }
