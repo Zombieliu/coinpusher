@@ -1,5 +1,6 @@
 import { MongoDBService } from "../db/MongoDBService";
 import * as crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import { validatePassword } from "../../utils/PasswordValidator";
 import { TwoFactorAuth, TwoFactorData, TwoFactorSetup } from "../../utils/TwoFactorAuth";
 
@@ -130,10 +131,11 @@ export class AdminUserSystem {
 
         if (!existingAdmin) {
             // 创建默认超级管理员
+            const strongPassword = crypto.randomBytes(16).toString('base64url');
             const defaultAdmin: AdminUser = {
                 adminId: 'admin_' + Date.now(),
                 username: 'admin',
-                passwordHash: this.hashPassword('admin123'),
+                passwordHash: await this.hashPassword(strongPassword),
                 role: AdminRole.SuperAdmin,
                 email: 'admin@example.com',
                 status: 'active',
@@ -141,7 +143,7 @@ export class AdminUserSystem {
             };
 
             await this.adminsCollection.insertOne(defaultAdmin);
-            console.log('[AdminUserSystem] Default super admin created: admin/admin123');
+            console.log(`[AdminUserSystem] Default super admin created: admin/${strongPassword}`);
         }
 
         // 创建索引
@@ -157,7 +159,8 @@ export class AdminUserSystem {
     static async login(
         username: string,
         password: string,
-        ip?: string
+        ip?: string,
+        twoFactorCode?: string
     ): Promise<{ success: boolean; token?: string; message?: string; admin?: AdminUser }> {
         const admin = await this.adminsCollection.findOne({ username });
 
@@ -181,9 +184,9 @@ export class AdminUserSystem {
             };
         }
 
-        // 验证密码
-        const passwordHash = this.hashPassword(password);
-        if (passwordHash !== admin.passwordHash) {
+        // 验证密码（兼容旧哈希，成功时自动升级）
+        const passwordOk = await this.verifyPassword(password, admin.passwordHash);
+        if (!passwordOk) {
             // 🔒 记录失败尝试
             const failedAttempts = (admin.failedLoginAttempts || 0) + 1;
             const updateData: any = {
@@ -213,6 +216,25 @@ export class AdminUserSystem {
                 success: false,
                 message: `用户名或密码错误 (剩余尝试次数: ${MAX_FAILED_ATTEMPTS - failedAttempts})`
             };
+        }
+
+        // 🔒 旧哈希升级为 bcrypt
+        if (this.isLegacyHash(admin.passwordHash)) {
+            await this.adminsCollection.updateOne(
+                { adminId: admin.adminId },
+                { $set: { passwordHash: await this.hashPassword(password) } }
+            );
+        }
+
+        // 🔒 二次验证
+        if (admin.twoFactor?.enabled) {
+            if (!twoFactorCode) {
+                return { success: false, message: '需要二次验证，请输入验证码' };
+            }
+            const verified = await TwoFactorAuth.verifyToken(admin.twoFactor.secret, twoFactorCode);
+            if (!verified) {
+                return { success: false, message: '二次验证失败，请重试' };
+            }
         }
 
         // 🔒 检查是否需要修改密码
@@ -307,7 +329,7 @@ export class AdminUserSystem {
         const newAdmin: AdminUser = {
             adminId: 'admin_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
             username,
-            passwordHash: this.hashPassword(password),
+            passwordHash: await this.hashPassword(password),
             role,
             email,
             status: 'active',
@@ -360,14 +382,14 @@ export class AdminUserSystem {
             return { success: false, message: '管理员不存在' };
         }
 
-        const oldPasswordHash = this.hashPassword(oldPassword);
-        if (oldPasswordHash !== admin.passwordHash) {
+        const oldPasswordOk = await this.verifyPassword(oldPassword, admin.passwordHash);
+        if (!oldPasswordOk) {
             return { success: false, message: '原密码错误' };
         }
 
         await this.adminsCollection.updateOne(
             { adminId },
-            { $set: { passwordHash: this.hashPassword(newPassword) } }
+            { $set: { passwordHash: await this.hashPassword(newPassword) } }
         );
 
         // 删除所有会话，强制重新登录
@@ -389,13 +411,26 @@ export class AdminUserSystem {
     }
 
     /**
-     * 密码哈希
+     * 密码哈希（bcrypt，12轮）
      */
-    private static hashPassword(password: string): string {
-        return crypto
-            .createHash('sha256')
-            .update(password + 'coinpusher_admin_salt')
-            .digest('hex');
+    private static async hashPassword(password: string): Promise<string> {
+        const saltRounds = 12;
+        return bcrypt.hash(password, saltRounds);
+    }
+
+    private static isLegacyHash(hash: string | undefined): boolean {
+        return Boolean(hash && /^[a-f0-9]{64}$/i.test(hash));
+    }
+
+    private static async verifyPassword(password: string, storedHash: string): Promise<boolean> {
+        if (!storedHash) return false;
+        // bcrypt hash
+        if (storedHash.startsWith('$2')) {
+            return bcrypt.compare(password, storedHash);
+        }
+        // legacy sha256
+        const legacy = crypto.createHash('sha256').update(password + 'coinpusher_admin_salt').digest('hex');
+        return legacy === storedHash;
     }
 
     /**
@@ -517,8 +552,8 @@ export class AdminUserSystem {
         }
 
         // 验证密码
-        const passwordHash = this.hashPassword(password);
-        if (passwordHash !== admin.passwordHash) {
+        const passwordOk = await this.verifyPassword(password, admin.passwordHash);
+        if (!passwordOk) {
             return { success: false, message: '密码错误' };
         }
 
@@ -613,8 +648,8 @@ export class AdminUserSystem {
         }
 
         // 验证密码
-        const passwordHash = this.hashPassword(password);
-        if (passwordHash !== admin.passwordHash) {
+        const passwordOk = await this.verifyPassword(password, admin.passwordHash);
+        if (!passwordOk) {
             return { success: false, message: '密码错误' };
         }
 

@@ -33,7 +33,7 @@ export async function ApiAdminLogin(call: ApiCall<ReqAdminLogin, ResAdminLogin>)
     const { username, password, twoFactorCode } = call.req;
 
     // 1. 验证账号密码
-    const loginResult = await AdminUserSystem.login(username, password, call.req.__ssoToken);
+    const loginResult = await AdminUserSystem.login(username, password, call.req.__ssoToken, call.req.twoFactorCode);
 
     if (!loginResult.success) {
         call.succ({
