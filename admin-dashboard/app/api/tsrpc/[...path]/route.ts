@@ -1,15 +1,16 @@
 import { cookies, headers } from 'next/headers'
-
+import { NextRequest } from 'next/server'
 import { isCsrfOptional } from '@/lib/csrf'
 
 const FALLBACK_BASE = 'https://gate-production-41a5.up.railway.app'
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || FALLBACK_BASE).replace(/\/$/, '')
 
 export async function POST(
-  req: Request,
-  { params }: { params: { path: string[] } }
+  req: NextRequest,
+  context: { params: Promise<{ path: string[] }> }
 ) {
-  const targetPath = params.path.join('/')
+  const { path } = await context.params
+  const targetPath = path.join('/')
   const body = await req.json()
 
   // CSRF 双提交校验（部分接口可白名单）
