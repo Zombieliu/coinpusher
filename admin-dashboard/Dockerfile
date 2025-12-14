@@ -10,11 +10,9 @@ FROM base AS builder
 WORKDIR /app
 COPY . .
 
-# 如果在子目录直接构建，请传 APP_PATH=.
+# APP_PATH 默认 admin-dashboard；若构建上下文就是 admin-dashboard（目录不存在），创建到 /app 的符号链接以复用同一路径
 ARG APP_PATH=admin-dashboard
-RUN if [ "$APP_PATH" != "." ] && [ ! -d "/app/$APP_PATH" ]; then \
-      echo "APP_PATH=/app/$APP_PATH not found. If building from admin-dashboard dir, pass --build-arg APP_PATH=."; exit 1; \
-    fi
+RUN if [ ! -d "/app/$APP_PATH" ]; then ln -s /app "/app/$APP_PATH"; fi
 
 # 支持缺少锁文件的情形：优先使用锁文件，缺失则退回 --no-frozen-lockfile
 ARG PNPM_INSTALL_FLAGS="--prod=false"
@@ -24,9 +22,10 @@ RUN cd "/app/$APP_PATH" && \
     else \
       echo "pnpm-lock.yaml not found, falling back to --no-frozen-lockfile"; \
       pnpm install --no-frozen-lockfile $PNPM_INSTALL_FLAGS; \
-    fi
+    fi && \
+    pnpm run build && \
+    cp -R .next /app/.next-export
 WORKDIR /app/$APP_PATH
-RUN pnpm run build
 
 # 生产运行阶段
 FROM base AS runner
@@ -38,8 +37,8 @@ RUN addgroup --system --gid 1001 nodejs \
  && adduser --system --uid 1001 nextjs
 
 # 复制构建产物
-COPY --from=builder --chown=nextjs:nodejs /app/$APP_PATH/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/$APP_PATH/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next-export/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next-export/static ./.next/static
 
 USER nextjs
 
