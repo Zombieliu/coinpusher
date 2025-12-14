@@ -6,7 +6,8 @@ const API_BASE = (process.env.NEXT_PUBLIC_API_URL || FALLBACK_BASE).replace(/\/$
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const res = await fetch(`${API_BASE}/admin/Login`, {
+
+  const res = await fetch(`${API_BASE}/admin/AdminLogin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
@@ -17,6 +18,12 @@ export async function POST(req: NextRequest) {
   }
 
   const data = await res.json()
+
+  // 兼容后端字段 adminUser -> admin，便于前端存储
+  if (data?.res?.adminUser && !data.res.admin) {
+    data.res.admin = data.res.adminUser
+  }
+
   // 正常返回时把 token 写入 httpOnly cookie，前端仍可保留 localStorage 以兼容现有逻辑
   if (data?.isSucc && data.res?.token) {
     const cookieStore = await cookies()
