@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       maxAge: 7 * 24 * 60 * 60
     })
     if (data.res.admin) {
-      cookieStore.set('admin_user', encodeURIComponent(JSON.stringify(data.res.admin)), {
+      cookieStore.set('admin_user', JSON.stringify(data.res.admin), {
         httpOnly: false,
         sameSite: 'lax',
         secure: true,
