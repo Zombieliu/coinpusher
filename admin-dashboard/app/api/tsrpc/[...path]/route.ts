@@ -1,4 +1,4 @@
-import { cookies, headers } from 'next/headers'
+import { cookies } from 'next/headers'
 import { NextRequest } from 'next/server'
 import { isCsrfOptional } from '@/lib/csrf'
 
@@ -15,8 +15,8 @@ export async function POST(
 
   // CSRF 双提交校验（部分接口可白名单）
   if (!isCsrfOptional(targetPath)) {
-    const csrfCookie = (await cookies()).get('csrf_token')?.value
-    const csrfHeader = headers().get('x-csrf-token')
+    const csrfCookie = cookies().get('csrf_token')?.value
+    const csrfHeader = req.headers.get('x-csrf-token')
     if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
       return new Response(JSON.stringify({ isSucc: false, err: { message: 'CSRF invalid' } }), {
         status: 403,
