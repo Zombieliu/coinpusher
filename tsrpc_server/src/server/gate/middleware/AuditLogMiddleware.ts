@@ -5,6 +5,7 @@
 
 import { ApiCall } from "tsrpc";
 import { AuditLogSystem, AuditCategory } from "../bll/AuditLogSystem";
+import { getClientIp, getUserAgent } from "../utils/RequestMeta";
 
 const SENSITIVE_KEYS = new Set([
     '__ssoToken',
@@ -200,8 +201,8 @@ export class AuditLogMiddleware {
 
         try {
             // 获取客户端IP
-            const ipAddress = this.getClientIp(call);
-            const userAgent = call.req.__headers?.['user-agent'];
+            const ipAddress = getClientIp(call);
+            const userAgent = getUserAgent(call);
 
             const response: any = (call as any).res || {};
             // 判断操作结果
@@ -233,17 +234,6 @@ export class AuditLogMiddleware {
         } catch (error) {
             console.error('[AuditLogMiddleware] 记录审计日志失败:', error);
         }
-    }
-
-    /**
-     * 获取客户端IP地址
-     */
-    private static getClientIp(call: ApiCall<any, any>): string {
-        const headers = call.req.__headers || {};
-        return headers['x-forwarded-for']?.split(',')[0]?.trim()
-            || headers['x-real-ip']
-            || call.conn.ip
-            || 'unknown';
     }
 
     /**

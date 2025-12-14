@@ -2,6 +2,7 @@ import { ApiCall } from "tsrpc";
 import { ReqAdminLogin, ResAdminLogin } from "../../../../tsrpc/protocols/gate/admin/PtlAdminLogin";
 import { AdminUserSystem } from "../../bll/AdminUserSystem";
 import { ApiTimer, recordApiError } from "../../../utils/MetricsCollector";
+import { getClientIp, getUserAgent } from "../../utils/RequestMeta";
 
 const ENDPOINT = 'admin/AdminLogin';
 
@@ -40,14 +41,15 @@ export async function ApiAdminLogin(
             return;
         }
 
-        // 获取客户端IP
-        const ip = call.conn.ip;
+        // 获取客户端IP 和 UA
+        const ip = getClientIp(call);
+        const userAgent = getUserAgent(call);
         if (!checkRateLimit(ip)) {
             call.succ({ success: false, error: '尝试过于频繁，请稍后再试' });
             return;
         }
 
-        const result = await AdminUserSystem.login(username, password, ip, twoFactorCode);
+        const result = await AdminUserSystem.login(username, password, ip, twoFactorCode, userAgent);
 
         if (result.success) {
             call.succ({

@@ -1,6 +1,7 @@
 import { ApiCall } from "tsrpc";
 import { AdminUserSystem, AdminPermission, AdminRole } from "../bll/AdminUserSystem";
 import { AuditLogMiddleware } from "./AuditLogMiddleware";
+import { getClientIp, getUserAgent } from "../utils/RequestMeta";
 
 /**
  * 管理员认证中间件
@@ -10,7 +11,7 @@ export class AdminAuthMiddleware {
     /**
      * 验证管理员token
      */
-    static async verifyToken(token?: string): Promise<{
+    static async verifyToken(token?: string, ip?: string, ua?: string): Promise<{
         valid: boolean;
         adminId?: string;
         username?: string;
@@ -21,7 +22,7 @@ export class AdminAuthMiddleware {
             return { valid: false, message: 'Token is required' };
         }
 
-        const session = await AdminUserSystem.validateToken(token);
+        const session = await AdminUserSystem.validateToken(token, ip, ua);
 
         if (!session) {
             return { valid: false, message: 'Invalid or expired token' };
@@ -56,8 +57,10 @@ export class AdminAuthMiddleware {
         role?: AdminRole;
     }> {
         const token = call.req.__ssoToken;
+        const ip = getClientIp(call);
+        const ua = getUserAgent(call);
 
-        const verification = await this.verifyToken(token);
+        const verification = await this.verifyToken(token, ip, ua);
 
         if (!verification.valid) {
             call.error(verification.message || 'Unauthorized');
@@ -109,8 +112,10 @@ export class AdminAuthMiddleware {
         username?: string;
     }> {
         const token = call.req.__ssoToken;
+        const ip = getClientIp(call);
+        const ua = getUserAgent(call);
 
-        const verification = await this.verifyToken(token);
+        const verification = await this.verifyToken(token, ip, ua);
 
         if (!verification.valid) {
             call.error(verification.message || 'Unauthorized');

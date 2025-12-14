@@ -108,6 +108,7 @@ export interface AdminSession {
     createdAt: number;
     expiresAt: number;
     ip?: string;
+    userAgent?: string;
     // 🔒 2FA验证状态
     twoFactorVerified?: boolean;       // 是否已完成2FA验证
 }
@@ -160,7 +161,8 @@ export class AdminUserSystem {
         username: string,
         password: string,
         ip?: string,
-        twoFactorCode?: string
+        twoFactorCode?: string,
+        userAgent?: string
     ): Promise<{ success: boolean; token?: string; message?: string; admin?: AdminUser }> {
         const admin = await this.adminsCollection.findOne({ username });
 
@@ -254,7 +256,8 @@ export class AdminUserSystem {
             token,
             createdAt: Date.now(),
             expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24小时
-            ip
+            ip,
+            userAgent
         };
 
         await this.sessionsCollection.insertOne(session);
@@ -285,13 +288,31 @@ export class AdminUserSystem {
     /**
      * 验证token并获取会话信息
      */
-    static async validateToken(token: string): Promise<AdminSession | null> {
+    static async validateToken(token: string, ip?: string, userAgent?: string): Promise<AdminSession | null> {
         if (!token) return null;
 
         const session = await this.sessionsCollection.findOne({
             token,
             expiresAt: { $gt: Date.now() }
         });
+
+        if (!session) return null;
+
+        // 绑定 IP/UA
+        if ((session.ip && ip && session.ip !== ip) || (session.userAgent && userAgent && session.userAgent !== userAgent)) {
+            return null;
+        }
+
+        // 滑动过期：剩余少于6小时自动续 24h
+        const now = Date.now();
+        if (session.expiresAt - now < 6 * 60 * 60 * 1000) {
+            const newExpire = now + 24 * 60 * 60 * 1000;
+            await this.sessionsCollection.updateOne(
+                { token },
+                { $set: { expiresAt: newExpire } }
+            );
+            session.expiresAt = newExpire;
+        }
 
         return session;
     }
