@@ -3,8 +3,13 @@
 
 global:
   resolve_timeout: 5m
-  # Slack webhook URL (需要配置)
-  slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+  smtp_smarthost: 'smtp.larksuite.com:587'
+  smtp_from: 'alerts@obelisk.build'
+  smtp_auth_username: 'alerts@obelisk.build'
+  smtp_auth_password: '1sUIPN3Vh3CZxG4d'
+  smtp_hello: 'obelisk.build'
+  # 若需强制使用 TLS，可取消下一行注释
+  # smtp_require_tls: true
 
 # 告警路由规则
 route:
@@ -51,12 +56,12 @@ receivers:
 
     # Email 通知 (需要配置 SMTP)
     email_configs:
-      - to: 'ops-team@example.com'
-        from: 'alertmanager@example.com'
-        smarthost: 'smtp.gmail.com:587'
-        auth_username: 'alertmanager@example.com'
-        auth_identity: 'alertmanager@example.com'
-        auth_password: 'your-password'
+      - to: 'henry@obelisk.build'
+        from: 'alerts@obelisk.build'
+        smarthost: 'smtp.larksuite.com:587'
+        auth_username: 'alerts@obelisk.build'
+        auth_identity: 'alerts@obelisk.build'
+        auth_password: '1sUIPN3Vh3CZxG4d'
         headers:
           Subject: '🚨 严重告警 - Coin Pusher Game'
 
