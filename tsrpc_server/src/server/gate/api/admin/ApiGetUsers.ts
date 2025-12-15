@@ -28,6 +28,9 @@ export async function ApiGetUsers(
         const skip = (page - 1) * limit;
         const search = call.req.search || '';
         const status = call.req.status || 'all';
+        const channel = call.req.channel;
+        const platform = call.req.platform;
+        const web3Bound = call.req.web3Bound;
 
         // 构建查询条件
         const query: any = {};
@@ -41,6 +44,21 @@ export async function ApiGetUsers(
 
         if (status !== 'all') {
             query.status = status;
+        }
+
+        if (channel) {
+            query.channel = channel;
+        }
+
+        if (platform) {
+            query.platform = platform;
+        }
+
+        if (web3Bound === true) {
+            query.web3Accounts = { $exists: true, $ne: [] };
+        } else if (web3Bound === false) {
+            query.$or = query.$or || [];
+            query.$or.push({ web3Accounts: { $exists: false } }, { web3Accounts: { $size: 0 } });
         }
 
         // 查询用户（使用字段投影，只查询需要的字段）
@@ -59,6 +77,11 @@ export async function ApiGetUsers(
                     status: 1,
                     createdAt: 1,
                     email: 1,
+                    channel: 1,
+                    campaign: 1,
+                    platform: 1,
+                    clientVersion: 1,
+                    web3Accounts: 1,
                     // 排除敏感字段
                     _id: 0
                 })
@@ -121,6 +144,11 @@ export async function ApiGetUsers(
             createdAt: user.createdAt || Date.now(),
             email: user.email,
             vipLevel: vipDataMap.get(user.userId)?.vipLevel || 0,
+            channel: (user as any).channel,
+            campaign: (user as any).campaign,
+            platform: (user as any).platform,
+            clientVersion: (user as any).clientVersion,
+            web3Bound: Array.isArray((user as any).web3Accounts) && (user as any).web3Accounts.length > 0,
         }));
 
         call.succ({

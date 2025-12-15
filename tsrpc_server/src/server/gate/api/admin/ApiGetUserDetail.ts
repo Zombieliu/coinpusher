@@ -54,7 +54,13 @@ export async function ApiGetUserDetail(call: ApiCall<ReqGetUserDetail, ResGetUse
                 createdAt: (user as any).createdAt || 0,
                 lastLoginTime: user.lastLoginTime,
                 lastLoginIp: (user as any).lastLoginIp,
-                
+                channel: (user as any).channel,
+                campaign: (user as any).campaign,
+                platform: (user as any).platform,
+                clientVersion: (user as any).clientVersion,
+                country: (user as any).country,
+                web3Accounts: (user as any).web3Accounts,
+
                 totalRecharge: paymentStats.totalRevenue,
                 totalGames: user.totalDrops || 0, // 使用投币次数作为局数近似值
                 

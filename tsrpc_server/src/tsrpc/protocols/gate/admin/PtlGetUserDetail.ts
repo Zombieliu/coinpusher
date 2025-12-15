@@ -27,6 +27,18 @@ export interface ResGetUserDetail {
         lastLoginTime: number;
         lastLoginIp?: string;
         deviceModel?: string;
+        channel?: string;
+        campaign?: string;
+        platform?: 'ios' | 'android' | 'pc';
+        clientVersion?: string;
+        country?: string;
+        web3Accounts?: Array<{
+            address: string;
+            chainId: number;
+            network?: string;
+            walletType?: string;
+            boundAt: number;
+        }>;
         
         // 统计
         totalRecharge: number; // 总充值

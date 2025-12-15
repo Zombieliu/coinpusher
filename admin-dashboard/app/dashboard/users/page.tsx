@@ -16,6 +16,11 @@ interface User {
   lastLoginTime: number
   totalRecharge: number
   status: 'normal' | 'banned'
+  channel?: string
+  campaign?: string
+  platform?: 'ios' | 'android' | 'pc'
+  clientVersion?: string
+  web3Bound?: boolean
 }
 
 export default function UsersPage() {
@@ -23,6 +28,9 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+   const [channel, setChannel] = useState('')
+   const [platform, setPlatform] = useState('')
+   const [web3Bound, setWeb3Bound] = useState('')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const { t } = useTranslation('users')
@@ -30,11 +38,18 @@ export default function UsersPage() {
 
   useEffect(() => {
     loadUsers()
-  }, [page])
+  }, [page, channel, platform, web3Bound])
 
   async function loadUsers() {
     setLoading(true)
-    const result = await fetchUsers({ page, limit: 20, search })
+    const result = await fetchUsers({
+      page,
+      limit: 20,
+      search,
+      channel: channel || undefined,
+      platform: (platform as any) || undefined,
+      web3Bound: web3Bound === '' ? undefined : web3Bound === 'true'
+    })
     if (result.isSucc && result.res) {
       setUsers(result.res.users || [])
       setTotal(result.res.total || 0)
@@ -132,10 +147,38 @@ export default function UsersPage() {
           >
             {t('search')}
           </button>
-          <button className="px-6 py-2 border rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            {t('filter')}
-          </button>
+          <div className="flex items-center gap-3">
+            <Filter className="h-5 w-5 text-gray-400" />
+            <select
+              value={channel}
+              onChange={(e) => { setChannel(e.target.value); setPage(1); }}
+              className="px-3 py-2 border rounded-lg"
+            >
+              <option value="">{t('filters.channelAll')}</option>
+              <option value="organic">organic</option>
+              <option value="facebook">facebook</option>
+              <option value="taptap">taptap</option>
+            </select>
+            <select
+              value={platform}
+              onChange={(e) => { setPlatform(e.target.value); setPage(1); }}
+              className="px-3 py-2 border rounded-lg"
+            >
+              <option value="">{t('filters.platformAll')}</option>
+              <option value="ios">iOS</option>
+              <option value="android">Android</option>
+              <option value="pc">PC</option>
+            </select>
+            <select
+              value={web3Bound}
+              onChange={(e) => { setWeb3Bound(e.target.value); setPage(1); }}
+              className="px-3 py-2 border rounded-lg"
+            >
+              <option value="">{t('filters.web3All')}</option>
+              <option value="true">{t('filters.web3Yes')}</option>
+              <option value="false">{t('filters.web3No')}</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -149,6 +192,10 @@ export default function UsersPage() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.level')}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.gold')}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.recharge')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.channel')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.platform')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.clientVersion')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.web3')}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.lastLogin')}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.status')}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.actions')}</th>
@@ -162,6 +209,14 @@ export default function UsersPage() {
                 <td className="px-6 py-4 text-sm text-gray-900">Lv.{user.level}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">{formatNumber(user.gold)}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">¥{user.totalRecharge}</td>
+                <td className="px-6 py-4 text-sm text-gray-900">{user.channel || '—'}</td>
+                <td className="px-6 py-4 text-sm text-gray-900">{user.platform || '—'}</td>
+                <td className="px-6 py-4 text-sm text-gray-900">{user.clientVersion || '—'}</td>
+                <td className="px-6 py-4 text-sm text-gray-900">
+                  {user.web3Bound ? (
+                    <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">Web3</span>
+                  ) : '—'}
+                </td>
                 <td className="px-6 py-4 text-sm text-gray-500">{formatDate(user.lastLoginTime)}</td>
                 <td className="px-6 py-4">
                   <span
