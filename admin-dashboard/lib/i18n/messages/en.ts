@@ -1034,6 +1034,20 @@ const en: Messages = {
   admins: {
     title: 'Admin Management',
     createButton: 'Create Admin',
+    sessionsTitle: 'Active Sessions',
+    sessionsHint: 'View and revoke administrator sessions. You cannot kick your own current session.',
+    sessionsRefresh: 'Refresh',
+    sessionsKick: 'Kick',
+    sessionsKickAll: 'Kick all of this admin',
+    sessionsTable: {
+      admin: 'Admin',
+      role: 'Role',
+      ip: 'IP',
+      userAgent: 'User Agent',
+      createdAt: 'Created',
+      expiresAt: 'Expires',
+      current: 'Current',
+    },
     table: {
       username: 'Username',
       role: 'Role',

@@ -1032,6 +1032,20 @@ const zh = {
   admins: {
     title: '管理员管理',
     createButton: '创建管理员',
+    sessionsTitle: '活跃会话',
+    sessionsHint: '查看并踢出管理员会话（当前会话不可自踢）。',
+    sessionsRefresh: '刷新',
+    sessionsKick: '踢出',
+    sessionsKickAll: '踢出该管理员全部会话',
+    sessionsTable: {
+      admin: '管理员',
+      role: '角色',
+      ip: 'IP',
+      userAgent: 'User-Agent',
+      createdAt: '创建时间',
+      expiresAt: '过期时间',
+      current: '当前',
+    },
     table: {
       username: '用户名',
       role: '角色',

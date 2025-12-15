@@ -89,6 +89,7 @@ import { ReqGetUserAchievements, ResGetUserAchievements } from './gate/PtlGetUse
 import { ReqGetUserRank, ResGetUserRank } from './gate/PtlGetUserRank';
 import { ReqGetUserTasks, ResGetUserTasks } from './gate/PtlGetUserTasks';
 import { ReqGetVIPInfo, ResGetVIPInfo } from './gate/PtlGetVIPInfo';
+import { ReqKickAdminSession, ResKickAdminSession } from './gate/admin/PtlKickAdminSession';
 import { ReqGuildDonate, ResGuildDonate } from './gate/PtlGuildDonate';
 import { ReqHandleFriendRequest, ResHandleFriendRequest } from './gate/PtlHandleFriendRequest';
 import { ReqLogin, ResLogin } from './gate/PtlLogin';
@@ -102,6 +103,7 @@ import { ReqShare, ResShare } from './gate/PtlShare';
 import { ReqSignIn, ResSignIn } from './gate/PtlSignIn';
 import { ReqUseItem, ResUseItem } from './gate/PtlUseItem';
 import { ReqValidateIntegrity, ResValidateIntegrity } from './gate/PtlValidateIntegrity';
+import { ReqListAdminSessions, ResListAdminSessions } from './gate/admin/PtlListAdminSessions';
 
 export interface ServiceType {
     api: {
@@ -180,6 +182,14 @@ export interface ServiceType {
         "admin/GetAuditStatistics": {
             req: ReqGetAuditStatistics,
             res: ResGetAuditStatistics
+        },
+        "admin/ListAdminSessions": {
+            req: ReqListAdminSessions,
+            res: ResListAdminSessions
+        },
+        "admin/KickAdminSession": {
+            req: ReqKickAdminSession,
+            res: ResKickAdminSession
         },
         "admin/GetCdkHistory": {
             req: ReqGetCdkHistory,
@@ -619,6 +629,16 @@ export const serviceProto: ServiceProto<ServiceType> = {
         {
             "id": 73,
             "name": "admin/GetAuditStatistics",
+            "type": "api"
+        },
+        {
+            "id": 104,
+            "name": "admin/ListAdminSessions",
+            "type": "api"
+        },
+        {
+            "id": 105,
+            "name": "admin/KickAdminSession",
             "type": "api"
         },
         {
@@ -13413,6 +13433,65 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     },
                     "optional": true
                 }
+            ]
+        },
+        "admin/PtlListAdminSessions/ReqListAdminSessions": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "__ssoToken",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/PtlListAdminSessions/ResListAdminSessions": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "sessions",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "admin/PtlListAdminSessions/AdminSessionInfo"
+                        }
+                    }
+                }
+            ]
+        },
+        "admin/PtlListAdminSessions/AdminSessionInfo": {
+            "type": "Interface",
+            "properties": [
+                { "id": 0, "name": "token", "type": { "type": "String" } },
+                { "id": 1, "name": "adminId", "type": { "type": "String" } },
+                { "id": 2, "name": "username", "type": { "type": "String" } },
+                { "id": 3, "name": "role", "type": { "type": "String" } },
+                { "id": 4, "name": "createdAt", "type": { "type": "Number" } },
+                { "id": 5, "name": "expiresAt", "type": { "type": "Number" } },
+                { "id": 6, "name": "ip", "type": { "type": "String" }, "optional": true },
+                { "id": 7, "name": "userAgent", "type": { "type": "String" }, "optional": true },
+                { "id": 8, "name": "current", "type": { "type": "Boolean" }, "optional": true }
+            ]
+        },
+        "admin/PtlKickAdminSession/ReqKickAdminSession": {
+            "type": "Interface",
+            "properties": [
+                { "id": 0, "name": "__ssoToken", "type": { "type": "String" }, "optional": true },
+                { "id": 1, "name": "token", "type": { "type": "String" } },
+                { "id": 2, "name": "kickAllOfAdmin", "type": { "type": "Boolean" }, "optional": true }
+            ]
+        },
+        "admin/PtlKickAdminSession/ResKickAdminSession": {
+            "type": "Interface",
+            "properties": [
+                { "id": 0, "name": "success", "type": { "type": "Boolean" } },
+                { "id": 1, "name": "kicked", "type": { "type": "Number" }, "optional": true },
+                { "id": 2, "name": "message", "type": { "type": "String" }, "optional": true }
             ]
         }
     }

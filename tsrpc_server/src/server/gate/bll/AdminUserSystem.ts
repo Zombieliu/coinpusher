@@ -336,6 +336,14 @@ export class AdminUserSystem {
     }
 
     /**
+     * 踢出指定管理员的所有会话
+     */
+    static async kickAllSessions(adminId: string): Promise<number> {
+        const res = await this.sessionsCollection.deleteMany({ adminId });
+        return res.deletedCount || 0;
+    }
+
+    /**
      * 创建管理员用户（仅超级管理员可用）
      */
     static async createAdmin(

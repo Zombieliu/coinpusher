@@ -290,6 +290,14 @@ export async function updateAdminStatus(adminId: string, status: 'active' | 'dis
   return callAPI('admin/UpdateAdminStatus', { adminId, status })
 }
 
+export async function fetchAdminSessions() {
+  return callAPI('admin/ListAdminSessions', {})
+}
+
+export async function kickAdminSession(token: string, kickAllOfAdmin = false) {
+  return callAPI('admin/KickAdminSession', { token, kickAllOfAdmin })
+}
+
 // ==================== 审计日志API ====================
 
 /**

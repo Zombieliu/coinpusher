@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { fetchAdmins, createAdmin, updateAdminStatus } from '@/lib/api'
 import { formatDate } from '@/lib/utils'
-import { UserPlus, Shield, ShieldCheck, ShieldOff, Users } from 'lucide-react'
+import { UserPlus, Shield, ShieldCheck, ShieldOff, Users, RefreshCcw, Trash2 } from 'lucide-react'
 import { useTranslation } from '@/components/providers/i18n-provider'
+import { fetchAdminSessions, kickAdminSession } from '@/lib/api'
 
 interface Admin {
   adminId: string
@@ -23,9 +24,23 @@ const roleColors: Record<string, string> = {
   analyst: 'bg-purple-100 text-purple-800',
 }
 
+interface AdminSession {
+  token: string
+  adminId: string
+  username: string
+  role: string
+  ip?: string
+  userAgent?: string
+  createdAt: number
+  expiresAt: number
+  current?: boolean
+}
+
 export default function AdminsPage() {
   const [admins, setAdmins] = useState<Admin[]>([])
   const [loading, setLoading] = useState(true)
+  const [sessions, setSessions] = useState<AdminSession[]>([])
+  const [loadingSessions, setLoadingSessions] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [createForm, setCreateForm] = useState({
     username: '',
@@ -38,6 +53,7 @@ export default function AdminsPage() {
 
   useEffect(() => {
     loadAdmins()
+    loadSessions()
   }, [])
 
   async function loadAdmins() {
@@ -94,6 +110,24 @@ export default function AdminsPage() {
     }
   }
 
+  async function loadSessions() {
+    setLoadingSessions(true)
+    const res = await fetchAdminSessions()
+    if (res.isSucc && res.res?.sessions) {
+      setSessions(res.res.sessions)
+    }
+    setLoadingSessions(false)
+  }
+
+  async function handleKick(token: string, all = false) {
+    const res = await kickAdminSession(token, all)
+    if (res.isSucc && res.res?.success) {
+      loadSessions()
+    } else {
+      alert(res.err?.message || tCommon('unknownError'))
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -118,6 +152,106 @@ export default function AdminsPage() {
             <UserPlus className="w-5 h-5" />
             {t('createButton')}
           </button>
+        </div>
+      </div>
+
+      {/* sessions */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold">{t('sessionsTitle')}</h2>
+            <p className="text-sm text-gray-500">{t('sessionsHint')}</p>
+          </div>
+          <button
+            onClick={loadSessions}
+            className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50"
+          >
+            <RefreshCcw className="w-4 h-4" />
+            {t('sessionsRefresh')}
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {t('sessionsTable.admin')}
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {t('sessionsTable.role')}
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {t('sessionsTable.ip')}
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {t('sessionsTable.userAgent')}
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {t('sessionsTable.createdAt')}
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {t('sessionsTable.expiresAt')}
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {t('sessionsTable.current')}
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {t('table.actions')}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {loadingSessions ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-4 text-center text-sm text-gray-500">
+                    {tCommon('loading')}
+                  </td>
+                </tr>
+              ) : sessions.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-4 text-center text-sm text-gray-500">
+                    {t('table.empty')}
+                  </td>
+                </tr>
+              ) : (
+                sessions.map((s) => (
+                  <tr key={s.token} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-900">{s.username}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">{t(`roles.${s.role}` as const)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{s.ip || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">{s.userAgent || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{formatDate(s.createdAt)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{formatDate(s.expiresAt)}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {s.current ? (
+                        <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">●</span>
+                      ) : ''}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <div className="flex gap-2">
+                        <button
+                          disabled={s.current}
+                          onClick={() => handleKick(s.token, false)}
+                          className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                          title={t('sessionsKick')}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          disabled={s.current}
+                          onClick={() => handleKick(s.token, true)}
+                          className="text-orange-600 hover:text-orange-800 disabled:opacity-50"
+                          title={t('sessionsKickAll')}
+                        >
+                          {t('sessionsKickAll')}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
