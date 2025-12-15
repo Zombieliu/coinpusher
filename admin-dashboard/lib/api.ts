@@ -96,6 +96,9 @@ export async function fetchUsers(params: {
   limit?: number
   search?: string
   status?: string
+  channel?: string
+  platform?: 'ios' | 'android' | 'pc'
+  web3Bound?: boolean
 }) {
   return callAPI('admin/GetUsers', params)
 }

@@ -467,6 +467,7 @@ const en: Messages = {
       unban: 'Unban',
       grant: 'Grant Reward',
       mail: 'Send Mail',
+      export: 'Export CSV',
       paginationPrev: 'Previous',
       paginationNext: 'Next',
     },

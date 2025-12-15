@@ -465,6 +465,7 @@ const zh = {
       unban: '解封',
       grant: '发放奖励',
       mail: '发送邮件',
+      export: '导出 CSV',
       paginationPrev: '上一页',
       paginationNext: '下一页',
     },

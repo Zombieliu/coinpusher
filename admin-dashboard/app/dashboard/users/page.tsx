@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { fetchUsers, banUser, unbanUser, grantReward, sendMail } from '@/lib/api'
 import { formatDate, formatNumber } from '@/lib/utils'
-import { Search, Filter, Ban, Gift, Mail, Layers } from 'lucide-react'
+import { Search, Filter, Ban, Gift, Mail, Layers, Download } from 'lucide-react'
 import { useTranslation } from '@/components/providers/i18n-provider'
 
 interface User {
@@ -30,7 +30,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState('')
    const [channel, setChannel] = useState('')
    const [platform, setPlatform] = useState('')
-   const [web3Bound, setWeb3Bound] = useState('')
+  const [web3Bound, setWeb3Bound] = useState('')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const { t } = useTranslation('users')
@@ -106,6 +106,37 @@ export default function UsersPage() {
     }
   }
 
+  async function handleExport() {
+    try {
+      const res = await fetch('/api/export/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          search,
+          status: 'all',
+          channel: channel || undefined,
+          platform: platform || undefined,
+          web3Bound: web3Bound === '' ? undefined : web3Bound === 'true'
+        })
+      })
+      if (!res.ok) {
+        alert(tCommon('unknownError'))
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'users-export.csv'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      alert(tCommon('networkError'))
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -116,16 +147,25 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">{t('title')}</h1>
-        <button
-            onClick={() => router.push('/dashboard/users/batch')}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition"
-        >
-            <Layers size={18} />
-            {t('batchAction')}
-        </button>
-      </div>
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
+        <div className="flex items-center gap-3">
+          <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2 bg-white border text-gray-800 rounded-lg hover:bg-gray-50 transition"
+          >
+              <Download size={18} />
+              {t('actions.export')}
+          </button>
+          <button
+              onClick={() => router.push('/dashboard/users/batch')}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition"
+          >
+              <Layers size={18} />
+              {t('batchAction')}
+          </button>
+        </div>
+        </div>
 
       {/* 搜索和筛选 */}
       <div className="bg-white rounded-lg shadow p-6">
