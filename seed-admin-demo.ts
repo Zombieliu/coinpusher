@@ -69,7 +69,14 @@ async function seedUsers(db: any) {
             level: 25,
             gold: 52000,
             createdAt: now - 7 * 24 * 3600 * 1000,
-            lastLoginTime: now - 10 * 60 * 1000
+            lastLoginTime: now - 10 * 60 * 1000,
+            channel: 'facebook',
+            campaign: 'fb_spring',
+            platform: 'ios',
+            clientVersion: '1.4.3',
+            web3Accounts: [
+                { address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', chainId: 1, network: 'mainnet', walletType: 'metamask', boundAt: now - 6 * 24 * 3600 * 1000 }
+            ]
         },
         {
             userId: 'demo_user_2',
@@ -77,7 +84,12 @@ async function seedUsers(db: any) {
             level: 18,
             gold: 12000,
             createdAt: now - 2 * 24 * 3600 * 1000,
-            lastLoginTime: now - 30 * 60 * 1000
+            lastLoginTime: now - 30 * 60 * 1000,
+            channel: 'taptap',
+            campaign: 'tap_march',
+            platform: 'android',
+            clientVersion: '1.4.2',
+            web3Accounts: []
         },
         {
             userId: 'demo_user_3',
@@ -85,7 +97,11 @@ async function seedUsers(db: any) {
             level: 9,
             gold: 8000,
             createdAt: now - 12 * 3600 * 1000,
-            lastLoginTime: now - 5 * 60 * 1000
+            lastLoginTime: now - 5 * 60 * 1000,
+            channel: 'organic',
+            campaign: 'organic',
+            platform: 'pc',
+            clientVersion: '1.4.1'
         }
     ];
 

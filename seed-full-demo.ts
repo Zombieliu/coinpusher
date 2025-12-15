@@ -80,7 +80,14 @@ async function seedUsers(db: any) {
             gold: 52000,
             level: 26,
             createdAt: now - 10 * 24 * 3600 * 1000,
-            lastLoginTime: now - 5 * 60 * 1000
+            lastLoginTime: now - 5 * 60 * 1000,
+            channel: 'facebook',
+            campaign: 'fb_spring',
+            platform: 'ios',
+            clientVersion: '1.4.3',
+            web3Accounts: [
+                { address: '0x1111111111111111111111111111111111111111', chainId: 1, network: 'mainnet', walletType: 'metamask', boundAt: now - 7 * 24 * 3600 * 1000 }
+            ]
         },
         {
             userId: 'demo_user_2',
@@ -88,7 +95,12 @@ async function seedUsers(db: any) {
             gold: 13500,
             level: 18,
             createdAt: now - 5 * 24 * 3600 * 1000,
-            lastLoginTime: now - 60 * 60 * 1000
+            lastLoginTime: now - 60 * 60 * 1000,
+            channel: 'taptap',
+            campaign: 'tap_march',
+            platform: 'android',
+            clientVersion: '1.4.2',
+            web3Accounts: []
         },
         {
             userId: 'demo_user_3',
@@ -96,7 +108,14 @@ async function seedUsers(db: any) {
             gold: 9800,
             level: 14,
             createdAt: now - 2 * 24 * 3600 * 1000,
-            lastLoginTime: now - 15 * 60 * 1000
+            lastLoginTime: now - 15 * 60 * 1000,
+            channel: 'organic',
+            campaign: 'organic',
+            platform: 'pc',
+            clientVersion: '1.4.3',
+            web3Accounts: [
+                { address: '0x2222222222222222222222222222222222222222', chainId: 137, network: 'mainnet', walletType: 'walletconnect', boundAt: now - 1 * 24 * 3600 * 1000 }
+            ]
         },
         {
             userId: 'demo_user_4',
@@ -104,7 +123,11 @@ async function seedUsers(db: any) {
             gold: 3000,
             level: 6,
             createdAt: now - 6 * 3600 * 1000,
-            lastLoginTime: now - 2 * 60 * 1000
+            lastLoginTime: now - 2 * 60 * 1000,
+            channel: 'facebook',
+            campaign: 'fb_retention',
+            platform: 'android',
+            clientVersion: '1.4.1'
         }
     ];
 
