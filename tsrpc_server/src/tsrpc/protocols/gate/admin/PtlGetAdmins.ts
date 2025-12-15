@@ -8,6 +8,7 @@ export interface ResGetAdmins {
         adminId: string;
         username: string;
         role: string;
+        permissions?: string[];
         email?: string;
         status: string;
         createdAt: number;

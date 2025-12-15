@@ -1,6 +1,6 @@
 import { ApiCall } from "tsrpc";
 import { ReqGetAdmins, ResGetAdmins } from "../../../../tsrpc/protocols/gate/admin/PtlGetAdmins";
-import { AdminUserSystem, AdminPermission } from "../../bll/AdminUserSystem";
+import { AdminUserSystem, AdminPermission, RolePermissions } from "../../bll/AdminUserSystem";
 import { AdminAuthMiddleware } from "../../middleware/AdminAuthMiddleware";
 
 export async function ApiGetAdmins(call: ApiCall<ReqGetAdmins, ResGetAdmins>) {
@@ -19,6 +19,7 @@ export async function ApiGetAdmins(call: ApiCall<ReqGetAdmins, ResGetAdmins>) {
             adminId: admin.adminId,
             username: admin.username,
             role: admin.role,
+            permissions: admin.permissions || RolePermissions[admin.role] || [],
             email: admin.email,
             status: admin.status,
             createdAt: admin.createdAt,

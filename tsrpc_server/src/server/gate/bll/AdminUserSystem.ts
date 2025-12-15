@@ -45,7 +45,7 @@ export enum AdminPermission {
 }
 
 // 角色权限映射
-const RolePermissions: Record<AdminRole, AdminPermission[]> = {
+export const RolePermissions: Record<AdminRole, AdminPermission[]> = {
     [AdminRole.SuperAdmin]: Object.values(AdminPermission), // 所有权限
 
     [AdminRole.Operator]: [

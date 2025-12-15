@@ -90,6 +90,7 @@ import { ReqGetUserRank, ResGetUserRank } from './gate/PtlGetUserRank';
 import { ReqGetUserTasks, ResGetUserTasks } from './gate/PtlGetUserTasks';
 import { ReqGetVIPInfo, ResGetVIPInfo } from './gate/PtlGetVIPInfo';
 import { ReqKickAdminSession, ResKickAdminSession } from './gate/admin/PtlKickAdminSession';
+import { ReqListAdminRoles, ResListAdminRoles } from './gate/admin/PtlListAdminRoles';
 import { ReqGuildDonate, ResGuildDonate } from './gate/PtlGuildDonate';
 import { ReqHandleFriendRequest, ResHandleFriendRequest } from './gate/PtlHandleFriendRequest';
 import { ReqLogin, ResLogin } from './gate/PtlLogin';
@@ -190,6 +191,10 @@ export interface ServiceType {
         "admin/KickAdminSession": {
             req: ReqKickAdminSession,
             res: ResKickAdminSession
+        },
+        "admin/ListAdminRoles": {
+            req: ReqListAdminRoles,
+            res: ResListAdminRoles
         },
         "admin/GetCdkHistory": {
             req: ReqGetCdkHistory,
@@ -639,6 +644,11 @@ export const serviceProto: ServiceProto<ServiceType> = {
         {
             "id": 105,
             "name": "admin/KickAdminSession",
+            "type": "api"
+        },
+        {
+            "id": 106,
+            "name": "admin/ListAdminRoles",
             "type": "api"
         },
         {
@@ -13492,6 +13502,32 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 { "id": 0, "name": "success", "type": { "type": "Boolean" } },
                 { "id": 1, "name": "kicked", "type": { "type": "Number" }, "optional": true },
                 { "id": 2, "name": "message", "type": { "type": "String" }, "optional": true }
+            ]
+        },
+        "admin/PtlListAdminRoles/ReqListAdminRoles": {
+            "type": "Interface",
+            "properties": [
+                { "id": 0, "name": "__ssoToken", "type": { "type": "String" }, "optional": true }
+            ]
+        },
+        "admin/PtlListAdminRoles/ResListAdminRoles": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "roles",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Interface",
+                            "properties": [
+                                { "id": 0, "name": "role", "type": { "type": "String" } },
+                                { "id": 1, "name": "permissions", "type": { "type": "Array", "elementType": { "type": "String" } } },
+                                { "id": 2, "name": "description", "type": { "type": "String" }, "optional": true }
+                            ]
+                        }
+                    }
+                }
             ]
         }
     }
