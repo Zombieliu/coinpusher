@@ -503,6 +503,21 @@ const en: Messages = {
         vip: 'VIP Level',
         recharge: 'Total Recharge',
       },
+      channelInfo: {
+        title: 'Attribution & Client',
+        channel: 'Channel',
+        campaign: 'Campaign',
+        platform: 'Platform',
+        clientVersion: 'Client Version',
+        country: 'Country/Region',
+      },
+      web3: {
+        title: 'Web3 Accounts',
+        desc: 'Addresses the user has bound; click to copy or view in explorer.',
+        chain: 'Chain',
+        copy: 'Copy address',
+        empty: 'No web3 address bound',
+      },
       tabs: {
         overview: 'Overview',
         inventory: 'Inventory ({count})',

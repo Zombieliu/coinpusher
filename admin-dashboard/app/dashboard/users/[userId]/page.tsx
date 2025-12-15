@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
     User, Wallet, CreditCard, Calendar, Clock, Shield, 
-    Ban, Mail, Gift, Package, RotateCcw, Activity 
+    Ban, Mail, Gift, Package, RotateCcw, Activity, Globe, Link as LinkIcon, Copy 
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fetchUserDetail, fetchOrders, banUser, unbanUser, grantReward } from '@/lib/api'
@@ -27,6 +27,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useTranslation } from '@/components/providers/i18n-provider'
+import { useCallback } from 'react'
+import { getExplorerUrl } from '@/lib/web3'
 
 export default function UserDetailPage() {
     const params = useParams()
@@ -50,6 +52,9 @@ export default function UserDetailPage() {
     const [rewardGold, setRewardGold] = useState('')
     const [rewardTickets, setRewardTickets] = useState('')
     const [rewardReason, setRewardReason] = useState('')
+    const copy = useCallback((text: string) => {
+        if (navigator?.clipboard) navigator.clipboard.writeText(text)
+    }, [])
 
     const loadData = async () => {
         setLoading(true)
@@ -319,6 +324,52 @@ export default function UserDetailPage() {
                     </Card>
                     
                     {/* 可以添加更多概览信息，如最近登录记录等 */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{t('detail.channelInfo.title')}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid md:grid-cols-3 gap-4 text-sm text-gray-700">
+                            <div><span className="font-semibold">{t('detail.channelInfo.channel')}：</span>{user.channel || '—'}</div>
+                            <div><span className="font-semibold">{t('detail.channelInfo.campaign')}：</span>{user.campaign || '—'}</div>
+                            <div><span className="font-semibold">{t('detail.channelInfo.platform')}：</span>{user.platform || '—'}</div>
+                            <div><span className="font-semibold">{t('detail.channelInfo.clientVersion')}：</span>{user.clientVersion || '—'}</div>
+                            <div><span className="font-semibold">{t('detail.channelInfo.country')}：</span>{user.country || '—'}</div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{t('detail.web3.title')}</CardTitle>
+                            <CardDescription>{t('detail.web3.desc')}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            {user.web3Accounts?.length ? user.web3Accounts.map((w: any, idx: number) => {
+                                const explorer = getExplorerUrl(w.chainId, w.address)
+                                return (
+                                    <div key={idx} className="p-3 border rounded-lg flex items-center justify-between">
+                                        <div className="space-y-1 text-sm">
+                                            <div className="font-mono break-all">{w.address}</div>
+                                            <div className="text-gray-500">
+                                                {t('detail.web3.chain')}: {w.chainId} {w.network ? `(${w.network})` : ''} · {w.walletType || 'wallet'}
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button variant="ghost" size="icon" onClick={() => copy(w.address)} title={t('detail.web3.copy')}>
+                                                <Copy className="w-4 h-4" />
+                                            </Button>
+                                            {explorer && (
+                                                <a href={explorer} target="_blank" rel="noreferrer" className="p-2 text-blue-600 hover:text-blue-800">
+                                                    <LinkIcon className="w-4 h-4" />
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                )
+                            }) : (
+                                <div className="text-sm text-gray-500">{t('detail.web3.empty')}</div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </TabsContent>
 
                 <TabsContent value="inventory">

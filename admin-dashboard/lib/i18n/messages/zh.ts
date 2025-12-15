@@ -501,6 +501,21 @@ const zh = {
         vip: 'VIP等级',
         recharge: '总充值',
       },
+      channelInfo: {
+        title: '渠道与客户端',
+        channel: '渠道',
+        campaign: '活动',
+        platform: '平台',
+        clientVersion: '客户端版本',
+        country: '国家/地区',
+      },
+      web3: {
+        title: 'Web3 绑定',
+        desc: '用户绑定的钱包地址，点击复制或在区块浏览器查看。',
+        chain: '链',
+        copy: '复制地址',
+        empty: '未绑定钱包',
+      },
       tabs: {
         overview: '概览',
         inventory: '背包 ({count})',
