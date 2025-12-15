@@ -29,21 +29,21 @@ import { LanguageSwitcher } from '@/components/language-switcher'
 
 const navigation = [
   { key: 'dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { key: 'users', href: '/dashboard/users', icon: Users },
-  { key: 'support', href: '/dashboard/support', icon: Headphones },
-  { key: 'finance', href: '/dashboard/finance', icon: DollarSign },
-  { key: 'config', href: '/dashboard/config', icon: Settings },
-  { key: 'events', href: '/dashboard/events', icon: Calendar },
-  { key: 'announcements', href: '/dashboard/announcements', icon: Megaphone },
-  { key: 'invite', href: '/dashboard/invite', icon: Activity },
-  { key: 'cdk', href: '/dashboard/cdk', icon: Ticket },
-  { key: 'maintenance', href: '/dashboard/maintenance', icon: Wrench },
-  { key: 'admins', href: '/dashboard/admins', icon: Shield },
-  { key: 'mails', href: '/dashboard/mails', icon: Mail },
-  { key: 'logs', href: '/dashboard/logs', icon: FileText },
-  { key: 'analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { key: 'audit', href: '/dashboard/audit', icon: FileSearch },
-  { key: 'health', href: '/dashboard/health', icon: HeartPulse },
+  { key: 'users', href: '/dashboard/users', icon: Users, perm: 'view_users' },
+  { key: 'support', href: '/dashboard/support', icon: Headphones, perm: 'view_users' },
+  { key: 'finance', href: '/dashboard/finance', icon: DollarSign, perm: 'view_finance' },
+  { key: 'config', href: '/dashboard/config', icon: Settings, perm: 'view_config' },
+  { key: 'events', href: '/dashboard/events', icon: Calendar, perm: 'view_events' },
+  { key: 'announcements', href: '/dashboard/announcements', icon: Megaphone, perm: 'edit_events' },
+  { key: 'invite', href: '/dashboard/invite', icon: Activity, perm: 'view_config' },
+  { key: 'cdk', href: '/dashboard/cdk', icon: Ticket, perm: 'edit_config' },
+  { key: 'maintenance', href: '/dashboard/maintenance', icon: Wrench, perm: 'system_config' },
+  { key: 'admins', href: '/dashboard/admins', icon: Shield, perm: 'manage_admins' },
+  { key: 'mails', href: '/dashboard/mails', icon: Mail, perm: 'send_mail' },
+  { key: 'logs', href: '/dashboard/logs', icon: FileText, perm: 'view_logs' },
+  { key: 'analytics', href: '/dashboard/analytics', icon: BarChart3, perm: 'view_statistics' },
+  { key: 'audit', href: '/dashboard/audit', icon: FileSearch, perm: 'manage_admins' },
+  { key: 'health', href: '/dashboard/health', icon: HeartPulse, perm: 'view_logs' },
 ]
 
 export default function DashboardLayout({
@@ -98,6 +98,13 @@ export default function DashboardLayout({
   }
 
   const activeNav = navigation.find((item) => item.href === pathname)
+  const hasPerm = (perm?: string) => {
+    if (!perm) return true
+    if (adminUser?.role === 'super_admin') return true
+    const perms: string[] = adminUser?.permissions || []
+    return perms.includes(perm)
+  }
+  const filteredNav = navigation.filter(item => hasPerm(item.perm))
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -107,7 +114,7 @@ export default function DashboardLayout({
           <h1 className="text-xl font-bold text-blue-600">{tCommon('appName')}</h1>
         </div>
         <nav className="mt-6 px-3">
-          {navigation.map((item) => {
+          {filteredNav.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href
             return (
