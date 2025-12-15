@@ -3,14 +3,15 @@
 import { useEffect, useState } from 'react'
 import { fetchAdmins, createAdmin, updateAdminStatus } from '@/lib/api'
 import { formatDate } from '@/lib/utils'
-import { UserPlus, Shield, ShieldCheck, ShieldOff, Users, RefreshCcw, Trash2 } from 'lucide-react'
+import { UserPlus, Shield, ShieldCheck, ShieldOff, Users, RefreshCcw, Trash2, SlidersHorizontal } from 'lucide-react'
 import { useTranslation } from '@/components/providers/i18n-provider'
-import { fetchAdminSessions, kickAdminSession } from '@/lib/api'
+import { fetchAdminSessions, kickAdminSession, fetchAdminRoles, updateAdminPermissions } from '@/lib/api'
 
 interface Admin {
   adminId: string
   username: string
   role: string
+  permissions?: string[]
   email?: string
   status: string
   createdAt: number
@@ -41,6 +42,9 @@ export default function AdminsPage() {
   const [loading, setLoading] = useState(true)
   const [sessions, setSessions] = useState<AdminSession[]>([])
   const [loadingSessions, setLoadingSessions] = useState(false)
+  const [roles, setRoles] = useState<{ role: string; permissions: string[] }[]>([])
+  const [permModal, setPermModal] = useState<{ open: boolean; admin?: Admin }>({ open: false })
+  const [selectedPerms, setSelectedPerms] = useState<string[]>([])
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [createForm, setCreateForm] = useState({
     username: '',
@@ -54,6 +58,7 @@ export default function AdminsPage() {
   useEffect(() => {
     loadAdmins()
     loadSessions()
+    loadRoles()
   }, [])
 
   async function loadAdmins() {
@@ -110,6 +115,13 @@ export default function AdminsPage() {
     }
   }
 
+  async function loadRoles() {
+    const res = await fetchAdminRoles()
+    if (res.isSucc && res.res?.roles) {
+      setRoles(res.res.roles)
+    }
+  }
+
   async function loadSessions() {
     setLoadingSessions(true)
     const res = await fetchAdminSessions()
@@ -125,6 +137,22 @@ export default function AdminsPage() {
       loadSessions()
     } else {
       alert(res.err?.message || tCommon('unknownError'))
+    }
+  }
+
+  function openPermModal(admin: Admin) {
+    setPermModal({ open: true, admin })
+    setSelectedPerms(admin.permissions || [])
+  }
+
+  async function handleSavePerms() {
+    if (!permModal.admin) return
+    const res = await updateAdminPermissions(permModal.admin.adminId, selectedPerms)
+    if (res.isSucc && res.res?.success) {
+      setPermModal({ open: false })
+      loadAdmins()
+    } else {
+      alert('保存失败')
     }
   }
 
@@ -339,6 +367,14 @@ export default function AdminsPage() {
                       {t('status.active')}
                     </button>
                   )}
+                  <button
+                    onClick={() => openPermModal(admin)}
+                    className="ml-3 text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
+                    title={t('actions.editPerm')}
+                  >
+                    <SlidersHorizontal className="w-4 h-4" />
+                    {t('actions.editPerm')}
+                  </button>
                 </td>
               </tr>
             ))}
@@ -413,8 +449,89 @@ export default function AdminsPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder={t('modal.emailPlaceholder')}
                 />
+        </div>
+      </div>
+
+      {/* 权限编辑弹窗 */}
+      {permModal.open && permModal.admin && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">{t('permModal.title', { user: permModal.admin.username })}</h3>
+              <button onClick={() => setPermModal({ open: false })} className="text-gray-500 hover:text-gray-700">
+                ✕
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-auto">
+              {roles.map((role) => (
+                <div key={role.role} className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-medium">
+                      {t(`roles.${role.role as any}`, { defaultValue: role.role })}
+                    </div>
+                    <button
+                      onClick={() => setSelectedPerms(role.permissions)}
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      {t('permModal.applyRole')}
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    {role.permissions.map((p) => (
+                      <span key={p} className="inline-block text-xs px-2 py-1 rounded bg-gray-100 mr-2 mb-2">
+                        {p}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4">
+              <div className="flex flex-wrap gap-2">
+                {Array.from(
+                  new Set(roles.flatMap((r) => r.permissions).concat(selectedPerms))
+                ).map((perm) => {
+                  const checked = selectedPerms.includes(perm)
+                  return (
+                    <label
+                      key={perm}
+                      className={`px-3 py-2 border rounded-lg text-sm cursor-pointer ${checked ? 'bg-blue-50 border-blue-300' : 'bg-white'}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="mr-2"
+                        checked={checked}
+                        onChange={() => {
+                          if (checked) {
+                            setSelectedPerms(selectedPerms.filter((p) => p !== perm))
+                          } else {
+                            setSelectedPerms([...selectedPerms, perm])
+                          }
+                        }}
+                      />
+                      {perm}
+                    </label>
+                  )
+                })}
               </div>
             </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setPermModal({ open: false })}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                {t('permModal.cancel')}
+              </button>
+              <button
+                onClick={handleSavePerms}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                {t('permModal.save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
             <div className="flex gap-3 mt-6">
               <button

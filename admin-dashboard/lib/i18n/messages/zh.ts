@@ -1091,6 +1091,15 @@ const zh = {
       cancel: '取消',
       confirm: '创建',
     },
+    actions: {
+      editPerm: '权限设置',
+    },
+    permModal: {
+      title: '编辑 {user} 的权限',
+      applyRole: '应用该角色权限',
+      cancel: '取消',
+      save: '保存',
+    }
   },
 }
 

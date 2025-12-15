@@ -1093,6 +1093,15 @@ const en: Messages = {
       cancel: 'Cancel',
       confirm: 'Create',
     },
+    actions: {
+      editPerm: 'Permissions',
+    },
+    permModal: {
+      title: 'Edit permissions for {user}',
+      applyRole: 'Apply role permissions',
+      cancel: 'Cancel',
+      save: 'Save',
+    }
   },
 }
 

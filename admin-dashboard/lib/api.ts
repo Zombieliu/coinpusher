@@ -298,6 +298,14 @@ export async function kickAdminSession(token: string, kickAllOfAdmin = false) {
   return callAPI('admin/KickAdminSession', { token, kickAllOfAdmin })
 }
 
+export async function fetchAdminRoles() {
+  return callAPI('admin/ListAdminRoles', {})
+}
+
+export async function updateAdminPermissions(adminId: string, permissions: string[]) {
+  return callAPI('admin/UpdateAdminPermissions', { adminId, permissions })
+}
+
 // ==================== 审计日志API ====================
 
 /**
