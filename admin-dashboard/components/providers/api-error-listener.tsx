@@ -34,7 +34,7 @@ export function ApiErrorListener() {
 
     window.addEventListener(EVENT_NAME, handler as EventListener)
     return () => window.removeEventListener(EVENT_NAME, handler as EventListener)
-  }, [toast])
+  }, [t, tCommon, toast])
 
   return null
 }

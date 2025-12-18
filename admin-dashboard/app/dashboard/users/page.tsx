@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { fetchUsers, banUser, unbanUser, grantReward, sendMail } from '@/lib/api'
 import { formatDate, formatNumber } from '@/lib/utils'
@@ -36,11 +36,7 @@ export default function UsersPage() {
   const { t } = useTranslation('users')
   const { t: tCommon } = useTranslation('common')
 
-  useEffect(() => {
-    loadUsers()
-  }, [page, channel, platform, web3Bound])
-
-  async function loadUsers() {
+  const loadUsers = useCallback(async () => {
     setLoading(true)
     const result = await fetchUsers({
       page,
@@ -55,7 +51,14 @@ export default function UsersPage() {
       setTotal(result.res.total || 0)
     }
     setLoading(false)
-  }
+  }, [page, search, channel, platform, web3Bound])
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      loadUsers()
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [loadUsers])
 
   async function handleBan(userId: string) {
     if (!confirm(t('confirmBan'))) return

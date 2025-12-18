@@ -542,6 +542,69 @@ export async function replyTicket(params: {
   return callAPI('admin/ReplyTicket', params)
 }
 
+// ==================== 自动化调度 ====================
+
+export type ScheduledJobStatus = 'pending' | 'running' | 'done' | 'failed'
+export type ScheduledJobType = 'announcement' | 'reward' | 'webhook'
+
+export interface ScheduledJobLogEntry {
+  result: 'success' | 'failed'
+  message?: string
+  executedAt: number
+  duration?: number
+  attempt: number
+  httpStatus?: number
+  url?: string
+  method?: string
+  requestBodyPreview?: string
+  responseBodyPreview?: string
+  details?: any
+}
+
+export interface ScheduledJobSummary {
+  jobId: string
+  type: ScheduledJobType
+  runAt: number
+  status: ScheduledJobStatus
+  note?: string
+  lastError?: string
+  executedAt?: number
+  createdBy?: string
+  createdAt?: number
+  retryCount?: number
+  maxRetries?: number
+  retryDelay?: number
+  logs?: ScheduledJobLogEntry[]
+}
+
+export async function createScheduledJob(params: {
+  type: ScheduledJobType
+  runAt: number
+  payload: any
+  note?: string
+  maxRetries?: number
+  retryDelay?: number
+}) {
+  return callAPI('admin/CreateScheduledJob', params)
+}
+
+export async function listScheduledJobs(status?: ScheduledJobStatus) {
+  return callAPI<{
+    jobs: ScheduledJobSummary[]
+  }>('admin/ListScheduledJobs', status ? { status } : {})
+}
+
+export async function deleteScheduledJob(jobId: string) {
+  return callAPI('admin/DeleteScheduledJob', { jobId })
+}
+
+export async function getScheduledJobLogs(jobId: string, options?: { page?: number; limit?: number }) {
+  return callAPI<{
+    logs: ScheduledJobLogEntry[]
+    total: number
+  }>('admin/GetScheduledJobLogs', { jobId, ...(options || {}) })
+}
+
 // ==================== 高级分析 ====================
 
 export async function fetchAdvancedStats(params: {

@@ -8,6 +8,7 @@
 import { ecs } from "../../../../../extensions/oops-plugin-framework/assets/libs/ecs/ECS";
 import { Initialize } from "../../initialize/Initialize";
 import { CoinPusher } from "../../coinpusher/CoinPusher";
+import { CommonNet } from "../CommonNet";
 
 /** 游戏模块 */
 @ecs.register("SingletonModule")
@@ -18,7 +19,11 @@ export class SingletonModuleComp extends ecs.Comp {
     /** 推金币游戏模块 */
     coinPusher: CoinPusher = null!;
 
+    /** 网络模块 */
+    net: CommonNet = null!;
+
     reset() { }
 }
 
 export var smc: SingletonModuleComp = ecs.getSingleton(SingletonModuleComp);
+smc.net = new CommonNet();

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { fetchAdmins, createAdmin, updateAdminStatus } from '@/lib/api'
 import { formatDate } from '@/lib/utils'
 import { UserPlus, Shield, ShieldCheck, ShieldOff, Users, RefreshCcw, Trash2, SlidersHorizontal } from 'lucide-react'
@@ -55,20 +55,39 @@ export default function AdminsPage() {
   const { t } = useTranslation('admins')
   const { t: tCommon } = useTranslation('common')
 
-  useEffect(() => {
-    loadAdmins()
-    loadSessions()
-    loadRoles()
-  }, [])
-
-  async function loadAdmins() {
+  const loadAdmins = useCallback(async () => {
     setLoading(true)
     const result = await fetchAdmins()
     if (result.isSucc && result.res) {
       setAdmins(result.res.admins || [])
     }
     setLoading(false)
-  }
+  }, [])
+
+  const loadRoles = useCallback(async () => {
+    const res = await fetchAdminRoles()
+    if (res.isSucc && res.res?.roles) {
+      setRoles(res.res.roles)
+    }
+  }, [])
+
+  const loadSessions = useCallback(async () => {
+    setLoadingSessions(true)
+    const res = await fetchAdminSessions()
+    if (res.isSucc && res.res?.sessions) {
+      setSessions(res.res.sessions)
+    }
+    setLoadingSessions(false)
+  }, [])
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      loadAdmins()
+      loadSessions()
+      loadRoles()
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [loadAdmins, loadSessions, loadRoles])
 
   async function handleCreate() {
     if (!createForm.username || !createForm.password) {
@@ -113,22 +132,6 @@ export default function AdminsPage() {
           : t('alerts.enableFailed', { message: result.err?.message || tCommon('unknownError') })
       )
     }
-  }
-
-  async function loadRoles() {
-    const res = await fetchAdminRoles()
-    if (res.isSucc && res.res?.roles) {
-      setRoles(res.res.roles)
-    }
-  }
-
-  async function loadSessions() {
-    setLoadingSessions(true)
-    const res = await fetchAdminSessions()
-    if (res.isSucc && res.res?.sessions) {
-      setSessions(res.res.sessions)
-    }
-    setLoadingSessions(false)
   }
 
   async function handleKick(token: string, all = false) {

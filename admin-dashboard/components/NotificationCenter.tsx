@@ -19,10 +19,16 @@ export function NotificationCenter() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
   const { t, locale } = useTranslation('notifications')
+  const [nowTs, setNowTs] = useState(() => Date.now())
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }
+  }, [])
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowTs(Date.now()), 60000)
+    return () => clearInterval(timer)
   }, [])
 
   useEffect(() => {
@@ -129,8 +135,7 @@ export function NotificationCenter() {
   }
 
   function formatTime(timestamp: number) {
-    const now = Date.now()
-    const diff = now - timestamp
+    const diff = nowTs - timestamp
 
     if (diff < 60000) return t('justNow')
     if (diff < 3600000) return t('minutesAgo', { value: Math.floor(diff / 60000) })

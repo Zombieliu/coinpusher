@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
@@ -372,7 +372,7 @@ function OrdersPanel() {
         setPage(prev => (prev === queryPage ? prev : queryPage))
     }, [searchParams])
 
-    const loadOrders = async () => {
+    const loadOrders = useCallback(async () => {
         setLoading(true)
         try {
             const res = await fetchOrders({
@@ -390,11 +390,11 @@ function OrdersPanel() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [filters, page])
 
     useEffect(() => {
         loadOrders()
-    }, [page, filters]) // Re-fetch when page or filters change
+    }, [loadOrders]) // Re-fetch when page or filters change
 
     // Debounce search input if needed, or use a "Search" button. 
     // Here simplified: simple inputs and reload on change might be too aggressive, 
@@ -709,7 +709,7 @@ function FinancialStatsPanel() {
     const [loading, setLoading] = useState(false)
     const [dateRange, setDateRange] = useState('7') // 7 days
 
-    const loadStats = async () => {
+    const loadStats = useCallback(async () => {
         setLoading(true)
         try {
             const end = Date.now()
@@ -723,11 +723,11 @@ function FinancialStatsPanel() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [dateRange])
 
     useEffect(() => {
         loadStats()
-    }, [dateRange])
+    }, [loadStats])
 
     if (!stats && loading) return <div>{t('stats.loading')}</div>
 
@@ -845,7 +845,7 @@ function RefundsPanel() {
         setPage(prev => (prev === queryPage ? prev : queryPage))
     }, [searchParams])
 
-    const loadRefunds = async () => {
+    const loadRefunds = useCallback(async () => {
         setLoading(true)
         try {
             const res = await fetchRefunds({ page, limit: 100, status: 'pending' })
@@ -857,11 +857,11 @@ function RefundsPanel() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [page])
 
     useEffect(() => {
         loadRefunds()
-    }, [page])
+    }, [loadRefunds])
 
     const syncRefundPage = (nextPage: number) => {
         const params = new URLSearchParams(searchParams.toString())

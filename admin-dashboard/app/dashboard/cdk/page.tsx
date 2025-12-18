@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -47,7 +47,7 @@ export default function CdkPage() {
     const [actionLogs, setActionLogs] = useState<any[]>([])
     const [historyLoading, setHistoryLoading] = useState(false)
 
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         setLoading(true)
         try {
             const res = await fetchCdkList({
@@ -65,7 +65,7 @@ export default function CdkPage() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [page, searchBatch, searchCode])
 
     const loadHistory = async (batchId?: string, code?: string) => {
         setHistoryLoading(true)
@@ -95,7 +95,7 @@ export default function CdkPage() {
 
     useEffect(() => {
         loadData()
-    }, [page])
+    }, [loadData, page])
 
     const handleGenerate = async () => {
         if (!formData.name) {

@@ -5,8 +5,11 @@ import { ReqBatchBanUsers, ResBatchBanUsers } from './gate/admin/PtlBatchBanUser
 import { ReqBatchSendMail, ResBatchSendMail } from './gate/admin/PtlBatchSendMail';
 import { ReqCreateAdmin, ResCreateAdmin } from './gate/admin/PtlCreateAdmin';
 import { ReqCreateAnnouncement, ResCreateAnnouncement } from './gate/admin/PtlCreateAnnouncement';
+import { ReqCreateScheduledJob, ResCreateScheduledJob } from './gate/admin/PtlCreateScheduledJob';
+import { ReqGetScheduledJobLogs, ResGetScheduledJobLogs } from './gate/admin/PtlGetScheduledJobLogs';
 import { ReqCreateEvent, ResCreateEvent } from './gate/admin/PtlCreateEvent';
 import { ReqDeleteAnnouncement, ResDeleteAnnouncement } from './gate/admin/PtlDeleteAnnouncement';
+import { ReqDeleteScheduledJob, ResDeleteScheduledJob } from './gate/admin/PtlDeleteScheduledJob';
 import { ReqDeleteEvent, ResDeleteEvent } from './gate/admin/PtlDeleteEvent';
 import { ReqDeliverOrder, ResDeliverOrder } from './gate/admin/PtlDeliverOrder';
 import { ReqDisableCdk, ResDisableCdk } from './gate/admin/PtlDisableCdk';
@@ -72,6 +75,7 @@ import { ReqDrawLottery, ResDrawLottery } from './gate/PtlDrawLottery';
 import { ReqExchangeCdk, ResExchangeCdk } from './gate/PtlExchangeCdk';
 import { ReqExpandInventory, ResExpandInventory } from './gate/PtlExpandInventory';
 import { ReqGameArea, ResGameArea } from './gate/PtlGameArea';
+import { ReqHealth, ResHealth } from './gate/PtlHealth';
 import { ReqGetBuffs, ResGetBuffs } from './gate/PtlGetBuffs';
 import { ReqGetFriendList, ResGetFriendList } from './gate/PtlGetFriendList';
 import { ReqGetGuildInfo, ResGetGuildInfo } from './gate/PtlGetGuildInfo';
@@ -91,6 +95,7 @@ import { ReqGetUserTasks, ResGetUserTasks } from './gate/PtlGetUserTasks';
 import { ReqGetVIPInfo, ResGetVIPInfo } from './gate/PtlGetVIPInfo';
 import { ReqKickAdminSession, ResKickAdminSession } from './gate/admin/PtlKickAdminSession';
 import { ReqListAdminRoles, ResListAdminRoles } from './gate/admin/PtlListAdminRoles';
+import { ReqListScheduledJobs, ResListScheduledJobs } from './gate/admin/PtlListScheduledJobs';
 import { ReqGuildDonate, ResGuildDonate } from './gate/PtlGuildDonate';
 import { ReqHandleFriendRequest, ResHandleFriendRequest } from './gate/PtlHandleFriendRequest';
 import { ReqLogin, ResLogin } from './gate/PtlLogin';
@@ -132,6 +137,10 @@ export interface ServiceType {
             req: ReqCreateAnnouncement,
             res: ResCreateAnnouncement
         },
+        "admin/CreateScheduledJob": {
+            req: ReqCreateScheduledJob,
+            res: ResCreateScheduledJob
+        },
         "admin/CreateEvent": {
             req: ReqCreateEvent,
             res: ResCreateEvent
@@ -139,6 +148,10 @@ export interface ServiceType {
         "admin/DeleteAnnouncement": {
             req: ReqDeleteAnnouncement,
             res: ResDeleteAnnouncement
+        },
+        "admin/DeleteScheduledJob": {
+            req: ReqDeleteScheduledJob,
+            res: ResDeleteScheduledJob
         },
         "admin/DeleteEvent": {
             req: ReqDeleteEvent,
@@ -259,6 +272,14 @@ export interface ServiceType {
         "admin/GetStatistics": {
             req: ReqGetStatistics,
             res: ResGetStatistics
+        },
+        "admin/ListScheduledJobs": {
+            req: ReqListScheduledJobs,
+            res: ResListScheduledJobs
+        },
+        "admin/GetScheduledJobLogs": {
+            req: ReqGetScheduledJobLogs,
+            res: ResGetScheduledJobLogs
         },
         "admin/GetSystemConfig": {
             req: ReqGetSystemConfig,
@@ -412,6 +433,10 @@ export interface ServiceType {
             req: ReqGameArea,
             res: ResGameArea
         },
+        "Health": {
+            req: ReqHealth,
+            res: ResHealth
+        },
         "GetBuffs": {
             req: ReqGetBuffs,
             res: ResGetBuffs
@@ -539,7 +564,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 30,
+    "version": 34,
     "services": [
         {
             "id": 47,
@@ -649,6 +674,26 @@ export const serviceProto: ServiceProto<ServiceType> = {
         {
             "id": 106,
             "name": "admin/ListAdminRoles",
+            "type": "api"
+        },
+        {
+            "id": 107,
+            "name": "admin/CreateScheduledJob",
+            "type": "api"
+        },
+        {
+            "id": 108,
+            "name": "admin/ListScheduledJobs",
+            "type": "api"
+        },
+        {
+            "id": 110,
+            "name": "admin/GetScheduledJobLogs",
+            "type": "api"
+        },
+        {
+            "id": 109,
+            "name": "admin/DeleteScheduledJob",
             "type": "api"
         },
         {
@@ -927,6 +972,11 @@ export const serviceProto: ServiceProto<ServiceType> = {
         {
             "id": 2,
             "name": "GameArea",
+            "type": "api"
+        },
+        {
+            "id": 111,
+            "name": "Health",
             "type": "api"
         },
         {
@@ -1707,6 +1757,483 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "String"
                     },
                     "optional": true
+                }
+            ]
+        },
+        "admin/PtlCreateScheduledJob/ReqCreateScheduledJob": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "__ssoToken",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "type",
+                    "type": {
+                        "type": "Reference",
+                        "target": "admin/PtlCreateScheduledJob/ScheduledJobType"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "runAt",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "payload",
+                    "type": {
+                        "type": "Any"
+                    }
+                },
+                {
+                    "id": 4,
+                    "name": "note",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 5,
+                    "name": "maxRetries",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 6,
+                    "name": "retryDelay",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/PtlCreateScheduledJob/ScheduledJobType": {
+            "type": "Enum",
+            "members": [
+                {
+                    "id": 0,
+                    "value": "announcement"
+                },
+                {
+                    "id": 1,
+                    "value": "reward"
+                },
+                {
+                    "id": 2,
+                    "value": "webhook"
+                }
+            ]
+        },
+        "admin/PtlCreateScheduledJob/ResCreateScheduledJob": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "success",
+                    "type": {
+                        "type": "Boolean"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "jobId",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 2,
+                    "name": "message",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/PtlDeleteScheduledJob/ReqDeleteScheduledJob": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "__ssoToken",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "jobId",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "admin/PtlDeleteScheduledJob/ResDeleteScheduledJob": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "success",
+                    "type": {
+                        "type": "Boolean"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "message",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/PtlListScheduledJobs/ReqListScheduledJobs": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "__ssoToken",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "status",
+                    "type": {
+                        "type": "Reference",
+                        "target": "admin/PtlListScheduledJobs/JobStatus"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/PtlListScheduledJobs/JobStatus": {
+            "type": "Enum",
+            "members": [
+                {
+                    "id": 0,
+                    "value": "pending"
+                },
+                {
+                    "id": 1,
+                    "value": "running"
+                },
+                {
+                    "id": 2,
+                    "value": "done"
+                },
+                {
+                    "id": 3,
+                    "value": "failed"
+                }
+            ]
+        },
+        "admin/PtlListScheduledJobs/ResListScheduledJobs": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "jobs",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "admin/PtlListScheduledJobs/ScheduledJobSummary"
+                        }
+                    }
+                }
+            ]
+        },
+        "admin/PtlListScheduledJobs/ScheduledJobSummary": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "jobId",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "type",
+                    "type": {
+                        "type": "Reference",
+                        "target": "admin/PtlCreateScheduledJob/ScheduledJobType"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "runAt",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "status",
+                    "type": {
+                        "type": "Reference",
+                        "target": "admin/PtlListScheduledJobs/JobStatus"
+                    }
+                },
+                {
+                    "id": 4,
+                    "name": "createdBy",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 5,
+                    "name": "createdAt",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 6,
+                    "name": "note",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 7,
+                    "name": "lastError",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 8,
+                    "name": "executedAt",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 9,
+                    "name": "retryCount",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 10,
+                    "name": "maxRetries",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 11,
+                    "name": "retryDelay",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 12,
+                    "name": "logs",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "admin/PtlListScheduledJobs/ScheduledJobLog"
+                        }
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/PtlListScheduledJobs/ScheduledJobLog": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "result",
+                    "type": {
+                        "type": "Reference",
+                        "target": "admin/PtlListScheduledJobs/ScheduledJobLogResult"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "message",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 2,
+                    "name": "executedAt",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "duration",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 4,
+                    "name": "attempt",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 5,
+                    "name": "httpStatus",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 6,
+                    "name": "url",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 7,
+                    "name": "method",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 8,
+                    "name": "requestBodyPreview",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 9,
+                    "name": "responseBodyPreview",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 10,
+                    "name": "details",
+                    "type": {
+                        "type": "Any"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/PtlListScheduledJobs/ScheduledJobLogResult": {
+            "type": "Enum",
+            "members": [
+                {
+                    "id": 0,
+                    "value": "success"
+                },
+                {
+                    "id": 1,
+                    "value": "failed"
+                }
+            ]
+        },
+        "admin/PtlGetScheduledJobLogs/ReqGetScheduledJobLogs": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "__ssoToken",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "jobId",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "page",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 3,
+                    "name": "limit",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/PtlGetScheduledJobLogs/ResGetScheduledJobLogs": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "logs",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "admin/PtlListScheduledJobs/ScheduledJobLog"
+                        }
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "total",
+                    "type": {
+                        "type": "Number"
+                    }
                 }
             ]
         },
@@ -9240,6 +9767,29 @@ export const serviceProto: ServiceProto<ServiceType> = {
                             ]
                         }
                     }
+                }
+            ]
+        },
+        "PtlHealth/ReqHealth": {
+            "type": "Interface"
+        },
+        "PtlHealth/ResHealth": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "status",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "message",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
                 }
             ]
         },

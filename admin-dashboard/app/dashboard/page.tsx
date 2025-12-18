@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { fetchStatistics } from '@/lib/api'
 import { formatNumber } from '@/lib/utils'
 import { Users, DollarSign, Activity, TrendingUp, ArrowUp, ArrowDown } from 'lucide-react'
@@ -42,18 +42,7 @@ export default function DashboardPage() {
   const [revenueData, setRevenueData] = useState<Array<{ date: string; revenue: number }>>([])
   const { t } = useTranslation('dashboard')
 
-  useEffect(() => {
-    loadStats()
-    loadChartData()
-
-    const interval = setInterval(() => {
-      loadStats()
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  async function loadStats() {
+  const loadStats = useCallback(async () => {
     setLoading(true)
     const result = await fetchStatistics()
     if (result.isSucc && result.res) {
@@ -73,9 +62,9 @@ export default function DashboardPage() {
       })
     }
     setLoading(false)
-  }
+  }, [])
 
-  function loadChartData() {
+  const loadChartData = useCallback(() => {
     const data = []
     const today = new Date()
     for (let i = 6; i >= 0; i--) {
@@ -87,7 +76,23 @@ export default function DashboardPage() {
       })
     }
     setRevenueData(data)
-  }
+  }, [])
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      loadStats()
+      loadChartData()
+    })
+
+    const interval = setInterval(() => {
+      loadStats()
+    }, 30000)
+
+    return () => {
+      cancelAnimationFrame(raf)
+      clearInterval(interval)
+    }
+  }, [loadChartData, loadStats])
 
   const cards = useMemo(
     () => [
@@ -128,7 +133,7 @@ export default function DashboardPage() {
         trend: 'up' as const,
       },
     ],
-    [stats.avgSessionTime, stats.dau, stats.mau, stats.newUsers, stats.onlinePlayers, stats.todayRevenue, stats.totalRevenue]
+    [stats.avgSessionTime, stats.dau, stats.mau, stats.newUsers, stats.onlinePlayers, stats.todayRevenue, stats.totalRevenue, stats.totalUsers]
   )
 
   if (loading) {

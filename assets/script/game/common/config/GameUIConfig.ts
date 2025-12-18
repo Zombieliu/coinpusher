@@ -52,12 +52,13 @@ export var UIConfigData: { [key: number]: UIConfig } = {
     // 使用现有的 UI Prefab 路径（旧版本路径）
     [UIID.Login]: {
         layer: LayerType.UI,
-        prefab: "gui/prefab/coinpusher/game",  // 暂时使用 game 场景作为入口
+        prefab: "gui/gate/game_login",  // 暂时使用 game 场景作为入口
         bundle: "resources"
     },
     [UIID.Game]: {
         layer: LayerType.UI,
-        prefab: "prefab/ui/game/gamePanel"  // 使用旧版 gamePanel
+        prefab: "gui/prefab/coinpusher/game",  // 使用旧版 gamePanel
+        bundle: "resources"
     },
     [UIID.Setting]: {
         layer: LayerType.Dialog,

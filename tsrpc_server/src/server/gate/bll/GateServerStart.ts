@@ -105,6 +105,11 @@ export class GateServerStartSystem extends ecs.ComblockSystem implements ecs.IEn
         await MonitoringSystem.initialize(MongoDBService.getDb());
         server.logger.log(chalk.green(`[监控系统] 已初始化`));
 
+        // 启动调度任务
+        const { ScheduledJobSystem } = await import('./ScheduledJobSystem');
+        ScheduledJobSystem.start();
+        server.logger.log(chalk.green(`[调度系统] 已启动`));
+
         // 启动匹配服务器
         await server.start();
         server.logger.log(chalk.green(`[网关服务器] 成功启动`));

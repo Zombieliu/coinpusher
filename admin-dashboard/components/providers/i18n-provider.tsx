@@ -39,11 +39,13 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     if (typeof window === 'undefined') return
     const stored = window.localStorage.getItem(STORAGE_KEY) as Locale | null
     if (stored && getSupportedLocales().some((item) => item.value === stored)) {
-      setLocaleState(stored)
-      document.documentElement.lang = stored === 'zh' ? 'zh-CN' : 'en'
-    } else {
-      document.documentElement.lang = defaultLocale === 'zh' ? 'zh-CN' : 'en'
+      const raf = window.requestAnimationFrame(() => {
+        setLocaleState(stored)
+        document.documentElement.lang = stored === 'zh' ? 'zh-CN' : 'en'
+      })
+      return () => window.cancelAnimationFrame(raf)
     }
+    document.documentElement.lang = defaultLocale === 'zh' ? 'zh-CN' : 'en'
   }, [])
 
   const setLocale = useCallback((next: Locale) => {

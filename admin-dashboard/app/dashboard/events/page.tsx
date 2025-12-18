@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Calendar, Plus, Edit, Trash2, Eye } from 'lucide-react'
 import { callAPI } from '@/lib/api'
 import { useTranslation } from '@/components/providers/i18n-provider'
@@ -52,11 +52,7 @@ export default function EventsPage() {
   const { t, locale } = useTranslation('events')
   const { t: tCommon } = useTranslation('common')
 
-  useEffect(() => {
-    loadEvents()
-  }, [page, statusFilter])
-
-  async function loadEvents() {
+  const loadEvents = useCallback(async () => {
     setLoading(true)
     try {
       const result = await callAPI('admin/GetEvents', {
@@ -74,7 +70,11 @@ export default function EventsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [limit, page, statusFilter])
+
+  useEffect(() => {
+    loadEvents()
+  }, [loadEvents])
 
   async function handleCreate() {
     try {

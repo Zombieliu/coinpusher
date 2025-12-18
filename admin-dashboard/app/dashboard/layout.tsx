@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -22,6 +22,7 @@ import {
   Headphones,
   Wrench,
   HeartPulse,
+  AlarmClock,
 } from 'lucide-react'
 import { NotificationCenter } from '@/components/NotificationCenter'
 import { useTranslation } from '@/components/providers/i18n-provider'
@@ -37,6 +38,7 @@ const navigation = [
   { key: 'announcements', href: '/dashboard/announcements', icon: Megaphone, perm: 'edit_events' },
   { key: 'invite', href: '/dashboard/invite', icon: Activity, perm: 'view_config' },
   { key: 'cdk', href: '/dashboard/cdk', icon: Ticket, perm: 'edit_config' },
+  { key: 'scheduler', href: '/dashboard/scheduler', icon: AlarmClock, perm: 'system_config' },
   { key: 'maintenance', href: '/dashboard/maintenance', icon: Wrench, perm: 'system_config' },
   { key: 'admins', href: '/dashboard/admins', icon: Shield, perm: 'manage_admins' },
   { key: 'mails', href: '/dashboard/mails', icon: Mail, perm: 'send_mail' },
@@ -53,29 +55,30 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const [adminUser, setAdminUser] = useState<any>(null)
+  const adminUser = useMemo(() => {
+    if (typeof document === 'undefined') return null
+    const userMatch = document.cookie.match(/(?:^|; )admin_user=([^;]+)/)
+    if (!userMatch) return null
+    try {
+      return JSON.parse(decodeURIComponent(userMatch[1]))
+    } catch (error) {
+      console.error('Failed to parse admin user:', error)
+      return null
+    }
+  }, [])
   const [loading, setLoading] = useState(true)
   const { t: tLayout } = useTranslation('layout')
   const { t: tNav } = useTranslation('nav')
   const { t: tCommon } = useTranslation('common')
 
   useEffect(() => {
-    // 检查登录状态（使用 cookie，而非 localStorage）
-    const userMatch = document.cookie.match(/(?:^|; )admin_user=([^;]+)/)
-    if (!userMatch) {
+    if (!adminUser) {
       router.push('/login')
       return
     }
-    try {
-      const parsed = JSON.parse(decodeURIComponent(userMatch[1]))
-      setAdminUser(parsed)
-    } catch (error) {
-      console.error('Failed to parse admin user:', error)
-      router.push('/login')
-      return
-    }
-    setLoading(false)
-  }, [router])
+    const raf = requestAnimationFrame(() => setLoading(false))
+    return () => cancelAnimationFrame(raf)
+  }, [adminUser, router])
 
   function handleLogout() {
     if (confirm(tLayout('logoutConfirm'))) {

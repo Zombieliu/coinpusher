@@ -39,7 +39,22 @@ export class LoginViewComp extends CCViewVM<Initialize> {
 
     start() {
         this.eb_name.string = NAMES[NAMES.length * Math.random() | 0];
-        this.showGameArea();
+        this.checkServerHealth();
+    }
+
+    private async checkServerHealth() {
+        try {
+            const res = await smc.net.hcGate.callApi('Health', {});
+            if (res.isSucc) {
+                console.log('[LoginViewComp] Health status:', res.res.status);
+                await this.showGameArea();
+            } else {
+                oops.gui.toast(res.err.message);
+            }
+        } catch (err: any) {
+            console.error('[LoginViewComp] Health check failed', err);
+            oops.gui.toast('服务器健康检查失败');
+        }
     }
 
     /** 获取区服信息 */

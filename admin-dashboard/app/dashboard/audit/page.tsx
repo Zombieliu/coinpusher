@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { fetchAuditLogs, fetchAuditStatistics, fetchFinancialStats } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
 import { Search, Filter, RefreshCw, AlertCircle, CheckCircle, Shield } from 'lucide-react'
@@ -136,12 +136,7 @@ export default function AuditPage() {
     }
   }
 
-  useEffect(() => {
-    loadLogs()
-    loadStatistics()
-  }, [page, filters])
-
-  async function loadLogs() {
+  const loadLogs = useCallback(async () => {
     setLoading(true)
     const result = await fetchAuditLogs({
       ...filters,
@@ -157,14 +152,19 @@ export default function AuditPage() {
       setLogs(result.res.logs || [])
       setTotal(result.res.total || 0)
     }
-  }
+  }, [actionFilter, filters, page, pageSize])
 
-  async function loadStatistics() {
+  const loadStatistics = useCallback(async () => {
     const result = await fetchAuditStatistics({})
     if (result.isSucc && result.res?.success) {
       setStatistics(result.res.data)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadLogs()
+    loadStatistics()
+  }, [loadLogs, loadStatistics])
 
   function formatTime(timestamp: number) {
     return new Date(timestamp).toLocaleString('zh-CN')

@@ -120,7 +120,7 @@ function BasicAnalytics() {
     } finally {
       setLoading(false)
     }
-  }, [timeRange])
+  }, [timeRange, t])
 
   useEffect(() => {
     loadData()

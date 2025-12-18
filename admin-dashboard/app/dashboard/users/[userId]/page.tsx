@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -56,7 +56,7 @@ export default function UserDetailPage() {
         if (navigator?.clipboard) navigator.clipboard.writeText(text)
     }, [])
 
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         setLoading(true)
         try {
             const [userRes, ordersRes] = await Promise.all([
@@ -78,11 +78,11 @@ export default function UserDetailPage() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [t, toast, userId])
 
     useEffect(() => {
         if (userId) loadData()
-    }, [userId])
+    }, [loadData, userId])
 
     const handleBan = async () => {
         if (!banReason) {

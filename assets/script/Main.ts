@@ -46,13 +46,13 @@ export class Main extends Root {
 
     protected initEcsSystem() {
         oops.ecs.add(new EcsInitializeSystem());
-        oops.ecs.add(new EcsCoinPusherSystem());  // 推金币游戏系统
+        // oops.ecs.add(new EcsCoinPusherSystem());  // 推金币游戏系统
     }
 
     protected run() {
         smc.initialize = ecs.getEntity<Initialize>(Initialize);
         console.log("[Main] Creating CoinPusher entity...");
-        smc.coinPusher = ecs.getEntity<CoinPusher>(CoinPusher);
+        // smc.coinPusher = ecs.getEntity<CoinPusher>(CoinPusher);
 
         // 加载游戏场景预制体
         // this.loadGameScene();
