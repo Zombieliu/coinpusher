@@ -27,7 +27,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useTranslation } from '@/components/providers/i18n-provider'
-import { useCallback } from 'react'
 import { getExplorerUrl } from '@/lib/web3'
 
 export default function UserDetailPage() {

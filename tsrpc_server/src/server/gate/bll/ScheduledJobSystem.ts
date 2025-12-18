@@ -1,7 +1,9 @@
 import { MongoDBService } from "../db/MongoDBService";
 import { ObjectId } from "mongodb";
 import { AnnouncementSystem } from "./AnnouncementSystem";
-import fetch from "node-fetch";
+import * as http from "http";
+import * as https from "https";
+import { URL } from "url";
 
 type JobStatus = 'pending' | 'running' | 'done' | 'failed';
 type JobType = 'announcement' | 'reward' | 'webhook';
@@ -93,13 +95,15 @@ export class ScheduledJobSystem {
         try {
             const now = Date.now();
             const col = MongoDBService.getCollection<ScheduledJob>('scheduled_jobs');
-            const job = await col.findOneAndUpdate(
+            const result = await col.findOneAndUpdate(
                 { status: 'pending', runAt: { $lte: now } },
                 { $set: { status: 'running' } },
                 { sort: { runAt: 1 } }
             );
-            if (!job.value) return;
-            const j = job.value;
+            const j = (result as any)?.value as (ScheduledJob | undefined);
+            if (!j) {
+                return;
+            }
             const attemptStart = Date.now();
             try {
                 const { logMeta } = await this.execute(j);
@@ -120,9 +124,10 @@ export class ScheduledJobSystem {
                         }
                     }
                 });
-            } catch (err: JobError) {
+            } catch (err) {
+                const jobError = err as JobError;
                 const executedAt = Date.now();
-                const message = err?.message || String(err);
+                const message = jobError?.message || String(jobError);
                 const currentRetry = j.retryCount ?? 0;
                 const maxRetries = j.maxRetries ?? 0;
                 const shouldRetry = currentRetry < maxRetries;
@@ -132,7 +137,7 @@ export class ScheduledJobSystem {
                     executedAt,
                     duration: executedAt - attemptStart,
                     attempt: currentRetry + 1,
-                    ...(err?.logMeta || {})
+                    ...(jobError?.logMeta || {})
                 };
                 if (shouldRetry) {
                     const nextRun = executedAt + (j.retryDelay ?? 60_000);
@@ -289,34 +294,26 @@ export class ScheduledJobSystem {
         const headers = payload.headers || { 'Content-Type': 'application/json' };
         const body = payload.body ? JSON.stringify(payload.body) : undefined;
         const requestBodyPreview = body ? this.truncatePreview(body) : undefined;
-        try {
-            const res = await fetch(url, { method, headers, body, timeout: 10_000 });
-            const responseText = await res.text().catch(() => '');
-            const responseBodyPreview = responseText ? this.truncatePreview(responseText) : undefined;
-            const logMeta = {
-                httpStatus: res.status,
-                url,
-                method,
-                requestBodyPreview,
-                responseBodyPreview
-            };
-            if (!res.ok) {
-                const error: JobError = new Error(`webhook_http_${res.status}`) as JobError;
-                error.logMeta = logMeta;
-                throw error;
-            }
-            return { logMeta };
-        } catch (err) {
-            const error = err as JobError;
-            if (!error.logMeta) {
-                error.logMeta = {
-                    url,
-                    method,
-                    requestBodyPreview
-                };
-            }
+        const { status, bodyText } = await this.httpRequest(url, {
+            method,
+            headers,
+            body,
+            timeout: 10_000
+        });
+        const responseBodyPreview = bodyText ? this.truncatePreview(bodyText) : undefined;
+        const logMeta = {
+            httpStatus: status,
+            url,
+            method,
+            requestBodyPreview,
+            responseBodyPreview
+        };
+        if (status < 200 || status >= 300) {
+            const error: JobError = new Error(`webhook_http_${status}`) as JobError;
+            error.logMeta = logMeta;
             throw error;
         }
+        return { logMeta };
     }
 
     private static truncatePreview(value: string, limit = 400) {
@@ -324,5 +321,40 @@ export class ScheduledJobSystem {
             return value;
         }
         return value.slice(0, limit) + '…';
+    }
+
+    private static httpRequest(urlStr: string, options: { method?: string; headers?: Record<string, string>; body?: string; timeout?: number; }): Promise<{ status: number; bodyText: string }> {
+        const url = new URL(urlStr);
+        const isHttps = url.protocol === 'https:';
+        const requestFn = isHttps ? https.request : http.request;
+        return new Promise((resolve, reject) => {
+            const req = requestFn({
+                method: options.method || 'GET',
+                hostname: url.hostname,
+                port: url.port || (isHttps ? 443 : 80),
+                path: `${url.pathname}${url.search}`,
+                headers: options.headers,
+                timeout: options.timeout ?? 10_000
+            }, res => {
+                const chunks: Buffer[] = [];
+                res.on('data', chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+                res.on('end', () => {
+                    resolve({
+                        status: res.statusCode || 0,
+                        bodyText: Buffer.concat(chunks).toString('utf-8')
+                    });
+                });
+            });
+
+            req.on('error', reject);
+            req.on('timeout', () => {
+                req.destroy(new Error('request_timeout'));
+            });
+
+            if (options.body) {
+                req.write(options.body);
+            }
+            req.end();
+        });
     }
 }

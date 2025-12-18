@@ -2,7 +2,7 @@ import { ApiCall } from "tsrpc";
 import { ReqGetScheduledJobLogs, ResGetScheduledJobLogs } from "../../../../tsrpc/protocols/gate/admin/PtlGetScheduledJobLogs";
 import { AdminAuthMiddleware } from "../../middleware/AdminAuthMiddleware";
 import { AdminPermission } from "../../bll/AdminUserSystem";
-import { MongoDBService } from "../../bll/MongoDBService";
+import { MongoDBService } from "../../db/MongoDBService";
 import { ScheduledJob } from "../../bll/ScheduledJobSystem";
 
 export async function ApiGetScheduledJobLogs(call: ApiCall<ReqGetScheduledJobLogs, ResGetScheduledJobLogs>) {
