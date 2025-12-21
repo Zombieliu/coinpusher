@@ -124,9 +124,11 @@ export class HealthCheck {
         const memoryUsedMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
         const memoryTotalMB = Math.round(memoryUsage.heapTotal / 1024 / 1024);
         const memoryUsagePercent = (memoryUsedMB / memoryTotalMB) * 100;
+        const configuredThreshold = Number(process.env.HEALTH_MEMORY_THRESHOLD);
+        const memoryThreshold = Number.isFinite(configuredThreshold) ? configuredThreshold : 95;
 
         checks.memory = {
-            status: memoryUsagePercent > 90 ? 'degraded' : 'up',
+            status: memoryUsagePercent > memoryThreshold ? 'degraded' : 'up',
             message: `${memoryUsedMB}MB / ${memoryTotalMB}MB (${memoryUsagePercent.toFixed(1)}%)`,
         };
 
