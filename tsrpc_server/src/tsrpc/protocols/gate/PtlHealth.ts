@@ -14,7 +14,9 @@ export interface ResHealth extends BaseResponse {
     message?: string;
     timestamp?: number;
     uptime?: number;
-    checks?: Record<string, HealthCheckDetail>;
+    checks?: {
+        [key: string]: HealthCheckDetail;
+    };
 }
 
 export const conf: BaseConf = {};
