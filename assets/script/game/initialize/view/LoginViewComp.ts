@@ -59,9 +59,10 @@ export class LoginViewComp extends CCViewVM<Initialize> {
 
     /** 获取区服信息 */
     async showGameArea() {
+        const gateModel = smc.initialize.GateModel ?? (smc.initialize.GateModel = { area: [] } as any);
         var ret = await smc.net.hcGate.callApi(`GameArea`, {});
         if (ret.isSucc) {
-            smc.initialize.GateModel.area = ret.res.area;
+            gateModel.area = ret.res.area;
 
             this.toggle.removeFromParent();
 
@@ -88,11 +89,12 @@ export class LoginViewComp extends CCViewVM<Initialize> {
 
     /** 登录 */
     btnLogin() {
+        const gateModel = smc.initialize.GateModel ?? (smc.initialize.GateModel = { area: [] } as any);
         var url = "";
         this.tg_area.children.forEach(n => {
             if (n.getComponent(Toggle).isChecked) {
                 // 记录选中的匹配服务器地址
-                url = smc.initialize.GateModel.area[parseInt(n.name)].server;
+                url = gateModel.area?.[parseInt(n.name)]?.server;
             }
         });
 

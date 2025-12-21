@@ -11,12 +11,14 @@ const env = (typeof process !== 'undefined' && process.env) ? process.env : {} a
 export class ShareConfig {
     /** 默认网关 */
     // static gate: string = "dgflash.work:8000";
-    static gate: string = "127.0.0.1:2000";
+    // static gate: string = "127.0.0.1:2000";
+    static gate = 'gate-production-41a5.up.railway.app'; // 只写域名或 host:port
+    static https = true; // 如果后端启用 HTTPS 就设 true
 
     /** 🔒 强制HTTPS - 生产环境必须启用 */
-    static https: boolean = env.NODE_ENV === 'production'
-        ? true
-        : (env.FORCE_HTTPS === 'true');
+    // static https: boolean = env.NODE_ENV === 'production'
+    //     ? true
+    //     : (env.FORCE_HTTPS === 'true');
 
     /** 🔒 传输协议是否使用加密功能 - 生产环境必须启用 */
     static security: boolean = env.NODE_ENV === 'production'

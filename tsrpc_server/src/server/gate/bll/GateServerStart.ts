@@ -38,12 +38,26 @@ export class GateServerStartSystem extends ecs.ComblockSystem implements ecs.IEn
 
         // 初始化MongoDBService（用于Admin APIs）
         const { MongoDBService } = await import('../db/MongoDBService');
+        const { DragonflyDBService } = await import('../db/DragonflyDBService');
         const { Config } = await import('../../../module/config/Config');
         // 优先使用环境变量 MONGO_URI，如果没有则使用 Config.mongodb
         const mongoUri = process.env.MONGO_URI || `mongodb://${Config.mongodb}/`;
         const dbName = process.env.DB_NAME || 'coinpusher_game';
         await MongoDBService.connect(mongoUri, dbName);
         server.logger.log(chalk.green(`[MongoDBService] 已连接`));
+
+        // 连接 DragonflyDB/Redis（如果配置了 URL）
+        const dragonflyUrl = process.env.DRAGONFLY_URL;
+        if (dragonflyUrl) {
+            try {
+                await DragonflyDBService.connect(dragonflyUrl);
+                server.logger.log(chalk.green(`[DragonflyDB] 已连接`));
+            } catch (err: any) {
+                server.logger.error(`[DragonflyDB] 连接失败: ${err?.message || err}`);
+            }
+        } else {
+            server.logger.log(`[DragonflyDB] 未配置 DRAGONFLY_URL，跳过连接`);
+        }
 
         // Admin API目录 - 在数据库连接后加载
         const adminApiPath = path.resolve(__dirname, '../api/admin');
