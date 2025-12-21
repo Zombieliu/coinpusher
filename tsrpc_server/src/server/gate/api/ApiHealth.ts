@@ -4,7 +4,6 @@ import { HealthCheck } from "../../utils/HealthCheck";
 
 export async function ApiHealth(call: ApiCall<ReqHealth, ResHealth>) {
     const health = await HealthCheck.fullHealth();
-    call.setHttpResHeader('Content-Type', 'application/json');
     call.succ({
         status: health.status,
         message: health.status === 'healthy' ? 'ok' : 'degraded',
