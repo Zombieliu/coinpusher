@@ -65,21 +65,33 @@ export class LoginViewComp extends CCViewVM<Initialize> {
             gateModel.area = ret.res.area;
 
             this.toggle.removeFromParent();
+            this.tg_area.removeAllChildren();
 
-            var tc = this.tg_area.getComponent(ToggleContainer);
-            var i = 0;
-            ret.res.area.forEach(a => {
+            const tc = this.tg_area.getComponent(ToggleContainer);
+            const chainLabels = ['Sui', 'Solana'];
+            const chainOptions = chainLabels.map((label, idx) => {
+                return {
+                    label,
+                    server: ret.res.area[idx]?.server ?? ret.res.area[0]?.server ?? ''
+                };
+            }).filter(opt => !!opt.server);
+            gateModel.chainOptions = chainOptions;
+
+            chainOptions.forEach((opt, index) => {
                 var node = instantiate(this.toggle);
-                node.name = i.toString();
+                node.name = index.toString();
                 node.parent = this.tg_area;
+                const toggleComp = node.getComponent(Toggle);
+                if (index === 0 && toggleComp) {
+                    toggleComp.isChecked = true;
+                }
                 var lab = node.getChildByName("Label");
-                lab.name = i.toString();
-                lab.getComponent(Label).string = a.name;
+                lab.name = index.toString();
+                lab.getComponent(Label).string = opt.label;
                 lab.on(Node.EventType.TOUCH_END, (event: EventTouch) => {
-                    var index = parseInt(event.target.name);
-                    tc.toggleItems[index].isChecked = true;
+                    var idx = parseInt(event.target.name);
+                    tc.toggleItems[idx].isChecked = true;
                 }, this);
-                i++;
             });
         }
         else {
@@ -91,10 +103,11 @@ export class LoginViewComp extends CCViewVM<Initialize> {
     btnLogin() {
         const gateModel = smc.initialize.GateModel ?? (smc.initialize.GateModel = { area: [] } as any);
         var url = "";
+        const selections = gateModel.chainOptions ?? gateModel.area ?? [];
         this.tg_area.children.forEach(n => {
             if (n.getComponent(Toggle).isChecked) {
-                // 记录选中的匹配服务器地址
-                url = gateModel.area?.[parseInt(n.name)]?.server;
+                const idx = parseInt(n.name);
+                url = selections?.[idx]?.server ?? url;
             }
         });
 
@@ -106,8 +119,10 @@ export class LoginViewComp extends CCViewVM<Initialize> {
     private onHandler(event: string, args: any) {
         switch (event) {
             case InitializeEvent.Logined:
-                oops.gui.open(UIID.Demo_Match);
-                oops.gui.remove(UIID.Demo_Gate);
+                oops.gui.remove(UIID.Login);
+                oops.gui.open(UIID.Game).catch(err => {
+                    console.error('[LoginViewComp] Failed to open Game UI', err);
+                });
                 break;
         }
     }

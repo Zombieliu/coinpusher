@@ -22,12 +22,15 @@ import { EcsInitializeSystem, Initialize } from './game/initialize/Initialize';
 import { UIConfigData } from './game/common/config/GameUIConfig';
 import { CoinPusher } from './game/coinpusher/CoinPusher';
 import { EcsCoinPusherSystem } from './game/coinpusher/CoinPusher';
+import { InitializeEvent } from './game/initialize/InitializeEvent';
 
 
 const { ccclass, property } = _decorator;
 
 @ccclass('Main')
 export class Main extends Root {
+    private sceneLoaded = false;
+
     start() {
         // 清除上一个版本的本地存储数据，数据结构有变化，避免报错
         console.log("[Main] run() - Initializing game...");
@@ -46,16 +49,29 @@ export class Main extends Root {
 
     protected initEcsSystem() {
         oops.ecs.add(new EcsInitializeSystem());
-        // oops.ecs.add(new EcsCoinPusherSystem());  // 推金币游戏系统
+        oops.ecs.add(new EcsCoinPusherSystem());  // 推金币游戏系统
     }
 
     protected run() {
         smc.initialize = ecs.getEntity<Initialize>(Initialize);
         console.log("[Main] Creating CoinPusher entity...");
-        // smc.coinPusher = ecs.getEntity<CoinPusher>(CoinPusher);
+        oops.message.on(InitializeEvent.Logined, this.onLoginSuccess, this);
+    }
 
-        // 加载游戏场景预制体
-        // this.loadGameScene();
+    private onLoginSuccess = async () => {
+        if (this.sceneLoaded) {
+            return;
+        }
+        this.sceneLoaded = true;
+        if (!smc.coinPusher) {
+            smc.coinPusher = ecs.getEntity<CoinPusher>(CoinPusher);
+        }
+        await this.loadGameScene();
+    };
+
+    onDestroy() {
+        oops.message.off(InitializeEvent.Logined, this.onLoginSuccess, this);
+        super.onDestroy();
     }
 
 
@@ -107,7 +123,5 @@ export class Main extends Root {
         }
     }
 }
-
-
 
 

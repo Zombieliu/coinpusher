@@ -72,8 +72,22 @@ export class InitResSystem extends ecs.ComblockSystem implements ecs.IEntityEnte
     /** 加载完成进入游戏内容加载界面 */
     private onComplete(queue: AsyncQueue, e: Initialize) {
         queue.complete = async () => {
-            var node = await oops.gui.open(UIID.Login);
-            if (node) e.add(node.getComponent(LoadingViewComp) as ecs.Comp);
+            const node = await oops.gui.open(UIID.Login);
+            if (node) {
+                let comp = node.getComponent(LoadingViewComp);
+                if (!comp) {
+                    comp = node.addComponent(LoadingViewComp);
+                }
+                if (comp) {
+                    e.add(comp as ecs.Comp);
+                }
+                else {
+                    console.warn('[InitResSystem] Failed to attach LoadingViewComp to Login UI');
+                }
+            }
+            else {
+                console.warn('[InitResSystem] Failed to open Login UI');
+            }
             e.remove(InitResComp);
         };
     }

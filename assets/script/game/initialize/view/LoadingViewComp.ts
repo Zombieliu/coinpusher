@@ -64,7 +64,9 @@ export class LoadingViewComp extends CCViewVM<Initialize> {
         switch (event) {
             case GameEvent.LoginSuccess:
                 // 加载流程结束，移除加载提示界面
-                this.ent.remove(LoadingViewComp);
+                if (this.ent) {
+                    this.ent.remove(LoadingViewComp);
+                }
                 break;
         }
     }
@@ -92,7 +94,8 @@ export class LoadingViewComp extends CCViewVM<Initialize> {
         // 加载初始游戏内容资源的多语言提示文本
         this.data.prompt = oops.language.getLangByID("loading_load_game");
 
-        oops.res.loadDir("game", this.onProgressCallback.bind(this), this.onCompleteCallback.bind(this));
+        // 仅加载实际用到的 UI 资源，避免缺失的3D模型导致报错
+        oops.res.loadDir("gui", this.onProgressCallback.bind(this), this.onCompleteCallback.bind(this));
     }
 
     /** 加载进度事件 */
