@@ -35,7 +35,7 @@ export class Main extends Root {
         // 清除上一个版本的本地存储数据，数据结构有变化，避免报错
         console.log("[Main] run() - Initializing game...");
         oops.storage.clear();
-        NetworkManager.instance.init("http://localhost:2000"); // Gate Server URL
+        NetworkManager.instance.init();
         const seed = Date.now().toString();
         console.log(`[Main] Initializing global RNG with seed: ${seed}`);
         new SeedRandom(seed);
@@ -54,6 +54,9 @@ export class Main extends Root {
 
     protected run() {
         smc.initialize = ecs.getEntity<Initialize>(Initialize);
+        if (!smc.coinPusher) {
+            smc.coinPusher = ecs.getEntity<CoinPusher>(CoinPusher);
+        }
         console.log("[Main] Creating CoinPusher entity...");
         oops.message.on(InitializeEvent.Logined, this.onLoginSuccess, this);
     }
@@ -66,7 +69,12 @@ export class Main extends Root {
         if (!smc.coinPusher) {
             smc.coinPusher = ecs.getEntity<CoinPusher>(CoinPusher);
         }
-        await this.loadGameScene();
+        const sceneLoaded = await this.loadGameScene();
+        if (sceneLoaded && smc.coinPusher.GameView && smc.coinPusher.GameState) {
+            smc.coinPusher.startGame();
+        } else {
+            console.warn('[Main] CoinPusher components not ready after scene load');
+        }
     };
 
     onDestroy() {
@@ -78,11 +86,11 @@ export class Main extends Root {
     /**
      * 加载游戏场景预制体
      */
-    private async loadGameScene() {
+    private async loadGameScene(): Promise<boolean> {
         const gameNode = this.game;
         if (!gameNode) {
             console.error("[Main] Game node not found!");
-            return;
+            return false;
         }
 
         console.log("[Main] ========== Loading game scene prefab ==========");
@@ -114,14 +122,10 @@ export class Main extends Root {
             smc.coinPusher.initScene(sceneNode);
             console.log("[Main] ✅ CoinPusher scene initialized");
 
-            // 启动游戏
-            console.log("[Main] ========== Starting CoinPusher game ==========");
-            smc.coinPusher.startGame();
-            console.log("[Main] ✅ CoinPusher game started");
+            return true;
         } catch (error) {
             console.error("[Main] Error loading game scene:", error);
+            return false;
         }
     }
 }
-
-

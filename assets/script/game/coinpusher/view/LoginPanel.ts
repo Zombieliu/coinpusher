@@ -36,6 +36,8 @@ import { oops } from "../../../../../extensions/oops-plugin-framework/assets/cor
 import { UICallbacks, ViewParams } from "../../../../../extensions/oops-plugin-framework/assets/core/gui/layer/Defines";
 import { UIView } from "../../common/ui/UIView";
 import { UIID } from "../../common/config/GameUIConfig";
+import { GameEvent } from "../../common/config/GameEvent";
+import { InitializeEvent } from "../../initialize/InitializeEvent";
 import { SuiManager } from "../../blockchain/SuiManager"; // 仍然可能需要 SuiManager 来获取地址
 import { DiscordManager } from "../../discord/DiscordManager";
 import { smc } from "../../common/ecs/SingletonModuleComp";
@@ -292,14 +294,7 @@ export class LoginPanel extends UIView {
         // 关闭登录面板
         oops.gui.remove(UIID.Login);
 
-        // 启动推金币游戏
-        if (smc.coinPusher) {
-            smc.coinPusher.startGame();
-
-            // 打开游戏面板
-            oops.gui.open(UIID.Game);
-        } else {
-            console.error('[LoginPanel] CoinPusher entity not initialized!');
-        }
-    }
+        oops.message.dispatchEvent(GameEvent.LoginSuccess);
+        oops.message.dispatchEvent(InitializeEvent.Logined);
+}
 }

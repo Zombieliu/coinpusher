@@ -3,9 +3,14 @@ import { CC_EDITOR } from "cc/env";
 import type { WsClient } from "tsrpc-browser";
 import { MsgSyncPhysics } from "../../tsrpc/protocols/room/game/MsgSyncPhysics";
 import { ReqDropCoin, ResDropCoin } from "../../tsrpc/protocols/room/game/PtlDropCoin";
+import { ShareConfig } from "../../tsrpc/models/ShareConfig";
+import { Security } from "../../tsrpc/models/Security";
+import { oops } from "../../../../extensions/oops-plugin-framework/assets/core/Oops";
+import { BaseResponse } from "../../tsrpc/protocols/base";
 
 export class RoomService {
     client: WsClient<ServiceTypeRoom> | null = null;
+    private _physicsListenerAttached = false;
 
     // ========== 快照缓冲区 ==========
     snapshots: { serverTick: number, clientTime: number, data: MsgSyncPhysics }[] = [];
@@ -27,6 +32,44 @@ export class RoomService {
     private _rttSamples: number[] = [];
 
     // ========== 方法 ==========
+
+    /** 连接房间服务器 */
+    async connect(serverUrl: string): Promise<boolean> {
+        if (CC_EDITOR) return false;
+
+        try {
+            const { WsClient } = await import("tsrpc-browser");
+
+            if (this.client) {
+                await this.client.disconnect();
+                this.client = null;
+                this._physicsListenerAttached = false;
+            }
+
+            this.client = new WsClient(ServiceProtoRoom, {
+                server: serverUrl,
+                logger: console,
+                json: ShareConfig.json,
+                heartbeat: {
+                    interval: ShareConfig.heartbeat_interval,
+                    timeout: ShareConfig.heartbeat_timeout
+                }
+            });
+            this._applySecurity(this.client);
+            this._applyAuth(this.client);
+
+            await this.client.connect();
+            this.listenPhysics();
+            this.startPing();
+            console.log(`[RoomService] ✅ Connected to room server: ${serverUrl}`);
+            return true;
+        } catch (error) {
+            console.error('[RoomService] Failed to connect:', error);
+            this.client = null;
+            this._physicsListenerAttached = false;
+            return false;
+        }
+    }
 
     /** 开始定期Ping - 建议连接后立即调用 */
     startPing(interval: number = 2000) {
@@ -94,7 +137,7 @@ export class RoomService {
 
     /** 监听物理快照 */
     listenPhysics() {
-        if (!this.client) return;
+        if (!this.client || this._physicsListenerAttached) return;
 
         this.client.listenMsg("game/SyncPhysics", (msg) => {
             this.snapshots.push({
@@ -108,6 +151,7 @@ export class RoomService {
             // 更新估计的 serverTick
             this.estimatedServerTick = msg.serverTick;
         });
+        this._physicsListenerAttached = true;
     }
 
     /** 投币 */
@@ -126,5 +170,45 @@ export class RoomService {
     destroy() {
         this.stopPing();
         this.client = null;
+    }
+
+    private _applySecurity(client: WsClient<ServiceTypeRoom>) {
+        if (!ShareConfig.security) return;
+
+        client.flows.preSendMsgFlow.push(v => {
+            if (v.data instanceof Uint8Array) {
+                v.data = Security.encrypt(v.data);
+            }
+            return v;
+        });
+
+        client.flows.preRecvMsgFlow.push(v => {
+            if (v.data instanceof Uint8Array) {
+                v.data = Security.decrypt(v.data);
+            }
+            return v;
+        });
+    }
+
+    private _applyAuth(client: WsClient<ServiceTypeRoom>) {
+        client.flows.preCallApiFlow.push(v => {
+            const token = oops.storage.get("SSO_TOKEN");
+            if (token) {
+                (v.req as any).__ssoToken = token;
+            }
+            return v;
+        });
+
+        client.flows.postApiReturnFlow.push(v => {
+            if (v.return.isSucc) {
+                const res = v.return.res as BaseResponse;
+                if (res.__ssoToken !== undefined) {
+                    oops.storage.set('SSO_TOKEN', res.__ssoToken);
+                }
+            } else if (v.return.err.code === 'NEED_LOGIN') {
+                oops.storage.remove('SSO_TOKEN');
+            }
+            return v;
+        });
     }
 }

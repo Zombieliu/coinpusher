@@ -9,6 +9,7 @@ import { _decorator, Component } from "cc";
 import { oops } from "../../../../../extensions/oops-plugin-framework/assets/core/Oops";
 import { UIID } from "../../common/config/GameUIConfig";
 import { GameEvent } from "../../common/config/GameEvent";
+import { InitializeEvent } from "../../initialize/InitializeEvent";
 
 const { ccclass } = _decorator;
 
@@ -37,15 +38,13 @@ export class SimpleCoinPusherLogin extends Component {
 
     /** 登录成功 */
     private onLoginSuccess() {
-        console.log('[SimpleCoinPusherLogin] Login success, opening game UI');
+        console.log('[SimpleCoinPusherLogin] Login success, notifying systems');
 
         // 关闭登录界面
         oops.gui.remove(UIID.Login);
 
-        // 打开游戏主界面
-        oops.gui.open(UIID.Game);
-
         // 触发登录成功事件（其他系统可能需要监听）
         oops.message.dispatchEvent(GameEvent.LoginSuccess);
+        oops.message.dispatchEvent(InitializeEvent.Logined);
     }
 }

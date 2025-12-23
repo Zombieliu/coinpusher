@@ -1,6 +1,7 @@
 import { GateService } from "./GateService";
 import { MatchService } from "./MatchService";
 import { RoomService } from "./RoomService";
+import { NetworkConfig, NetworkEndpoints } from "../config/NetworkConfig";
 
 export class NetworkManager {
     private static _instance: NetworkManager;
@@ -13,16 +14,18 @@ export class NetworkManager {
     match: MatchService = null!;
     room: RoomService = null!;
 
-    // 配置
-    private config = {
-        gateUrl: "http://localhost:2000", // 开发环境默认值
-    };
+    // 当前端点配置
+    private endpoints: NetworkEndpoints = NetworkConfig.endpoints;
 
-    init(gateUrl: string) {
-        this.config.gateUrl = gateUrl;
-        this.gate = new GateService(gateUrl);
+    init(overrides?: Partial<NetworkEndpoints>) {
+        if (overrides) {
+            NetworkConfig.overrideEndpoints(overrides);
+        }
+
+        this.endpoints = NetworkConfig.endpoints;
+        this.gate = new GateService(this.endpoints.gateUrl);
         this.match = new MatchService();
         this.room = new RoomService();
-        console.log(`[NetworkManager] Initialized with Gate: ${gateUrl}`);
+        console.log(`[NetworkManager] Initialized with Gate: ${this.endpoints.gateUrl}`);
     }
 }

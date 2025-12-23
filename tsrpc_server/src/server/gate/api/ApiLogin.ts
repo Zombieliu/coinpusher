@@ -2,6 +2,8 @@ import { ApiCall } from "tsrpc";
 import { ReqLogin, ResLogin } from "../../../tsrpc/protocols/gate/PtlLogin";
 import { UserDB } from "../data/UserDB";
 
+const MATCH_SERVER_URL = process.env.MATCH_URL || "http://127.0.0.1:3001";
+
 export async function ApiLogin(call: ApiCall<ReqLogin, ResLogin>) {
     let user = await UserDB.getUser(call.req.username); // UserDB.getUser 改为异步
     let offlineReward = 0;
@@ -33,6 +35,6 @@ export async function ApiLogin(call: ApiCall<ReqLogin, ResLogin>) {
         token: "mock_token_" + user.userId,
         gold: user.gold,
         offlineReward,
-        matchUrl: "http://127.0.0.1:3001" // 默认 Match Server 地址
+        matchUrl: MATCH_SERVER_URL
     });
 }

@@ -16,7 +16,7 @@
  * - 摄像机节点
  */
 
-import { Node, Camera, Animation, Component, Prefab } from "cc";
+import { Node, Camera, Animation, Component, Prefab, RigidBody, MeshRenderer, instantiate } from "cc";
 import { ecs } from "../../../../../extensions/oops-plugin-framework/assets/libs/ecs/ECS";
 import { PhysicsComp } from "../bll/PhysicsComp";
 import { oops } from "../../../../../extensions/oops-plugin-framework/assets/core/Oops";
@@ -41,6 +41,9 @@ export class GameViewComp extends ecs.Comp {
 
     /** 特效父节点 */
     effectParent: Node | null = null;
+
+    /** 防止重复执行灯牌修复逻辑 */
+    private _isEnsuringBoardEffects = false;
 
     // ========== 生命周期 ==========
 
@@ -120,11 +123,23 @@ export class GameViewComp extends ecs.Comp {
             console.warn('[GameViewComp] Effect parent (effParent) not found!');
         } else {
             console.log('[GameViewComp] ✓ Effect parent found with', this.effectParent.children.length, 'children');
+            void this._ensureBoardEffects();
         }
 
         console.log('[GameViewComp] Scene nodes initialized');
 
         // 设置 PhysicsComp 的场景节点引用
+        if (this.coinParent) {
+            console.log('[GameViewComp] Disabling physics on prefab coins to prevent falling');
+            this.coinParent.children.forEach(child => {
+                const rb = child.getComponent(RigidBody);
+                if (rb) {
+                    rb.enabled = false;
+                    child.removeComponent(RigidBody);
+                }
+            });
+        }
+
         if (this.pushNode && this.coinParent) {
             console.log('[GameViewComp] Setting PhysicsComp nodes...');
             const physicsComp = this.ent.get(PhysicsComp);
@@ -265,6 +280,8 @@ export class GameViewComp extends ecs.Comp {
                 this.cameraNode!.setRotationFromEuler(-24.302, 0, 0);
                 console.log('[GameViewComp] Camera reset to game position:', this.cameraNode!.position);
 
+                void this._ensureBoardEffects();
+
                 onFinished?.();
             });
 
@@ -275,7 +292,107 @@ export class GameViewComp extends ecs.Comp {
             // 没有动画，直接设置到游戏位置
             this.cameraNode.setPosition(-0.06, 8.07, 10.391);
             this.cameraNode.setRotationFromEuler(-24.302, 0, 0);
+            void this._ensureBoardEffects();
             onFinished?.();
+        }
+    }
+
+    /**
+     * 确保四个灯牌特效（board1-4）存在且动画正常
+     * 如果发现缺失或损坏，会从 effect/prefab/board 重新实例化对应节点
+     */
+    private async _ensureBoardEffects() {
+        if (this._isEnsuringBoardEffects) {
+            return;
+        }
+
+        this._isEnsuringBoardEffects = true;
+
+        try {
+            if (!this.effectParent) {
+                console.warn('[GameViewComp] Cannot ensure board effects: effect parent missing');
+                return;
+            }
+
+            const boardNameMap: Record<string, string> = {
+                board1: 'Node',
+                board2: 'Node-001',
+                board3: 'Node-002',
+                board4: 'Node-003'
+            };
+
+            const boardsToRepair: string[] = [];
+
+            for (const boardName of Object.keys(boardNameMap)) {
+                const boardNode = this.effectParent.getChildByName(boardName);
+                if (!boardNode) {
+                    console.warn(`[GameViewComp] ${boardName} is missing, will recreate`);
+                    boardsToRepair.push(boardName);
+                    continue;
+                }
+
+                const meshNode = boardNode.getChildByName('big');
+                const meshRenderer = meshNode?.getComponent(MeshRenderer);
+                const animation = boardNode.getComponent(Animation);
+
+                if (!meshRenderer || !meshRenderer.mesh || meshRenderer.materials.length === 0) {
+                    console.warn(`[GameViewComp] ${boardName} mesh is invalid, will recreate`);
+                    boardsToRepair.push(boardName);
+                    continue;
+                }
+
+                if (!animation || (!animation.defaultClip && animation.clips.length === 0)) {
+                    console.warn(`[GameViewComp] ${boardName} animation missing, will recreate`);
+                    boardsToRepair.push(boardName);
+                    continue;
+                }
+            }
+
+            if (!boardsToRepair.length) {
+                return;
+            }
+
+            console.log('[GameViewComp] Recreating boards:', boardsToRepair.join(', '));
+
+            const prefab = await oops.res.loadAsync('effect/prefab/board', Prefab) as Prefab;
+            if (!prefab) {
+                console.error('[GameViewComp] Failed to load board prefab');
+                return;
+            }
+
+            const prefabInstance = instantiate(prefab);
+
+            for (const boardName of boardsToRepair) {
+                const sourceName = boardNameMap[boardName];
+                const sourceNode = prefabInstance.getChildByName(sourceName);
+                if (!sourceNode) {
+                    console.warn(`[GameViewComp] Board prefab missing child ${sourceName}`);
+                    continue;
+                }
+
+                const existing = this.effectParent.getChildByName(boardName);
+                if (existing) {
+                    existing.destroy();
+                }
+
+                sourceNode.removeFromParent();
+                sourceNode.name = boardName;
+                this.effectParent.addChild(sourceNode);
+
+                const animation = sourceNode.getComponent(Animation);
+                if (animation && animation.defaultClip) {
+                    const state = animation.getState(animation.defaultClip.name);
+                    if (!state || !state.isPlaying) {
+                        animation.play(animation.defaultClip.name);
+                    }
+                }
+            }
+
+            prefabInstance.destroy();
+        } catch (error) {
+            console.error('[GameViewComp] Failed to ensure board effects:', error);
+        } finally {
+            this._isEnsuringBoardEffects = false;
         }
     }
 

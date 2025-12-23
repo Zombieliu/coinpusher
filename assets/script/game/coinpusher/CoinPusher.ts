@@ -117,6 +117,14 @@ export class CoinPusher extends CCEntity {
             GameViewComp
         );
 
+        this.CoinModel = this.get(CoinModelComp);
+        this.GameState = this.get(GameStateComp);
+        this.Physics = this.get(PhysicsComp);
+        this.Reward = this.get(RewardComp);
+        this.Jackpot = this.get(JackpotComp);
+        this.Effect = this.get(EffectComp);
+        this.GameView = this.get(GameViewComp);
+
         console.log('[CoinPusher] Components added, verifying...');
         console.log('[CoinPusher] - CoinModel:', !!this.CoinModel);
         console.log('[CoinPusher] - GameState:', !!this.GameState);

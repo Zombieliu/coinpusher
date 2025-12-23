@@ -39,9 +39,6 @@ export class LoadingViewComp extends CCViewVM<Initialize> {
             // 关闭加载界面
             oops.gui.remove(UIID.Loading);
 
-            // 推金币游戏：直接打开游戏主界面（单机游戏不需要登录）
-            console.log("[LoadingViewComp] Opening Game UI (skip login for single player)");
-            oops.gui.open(UIID.Game);
         }, 500);
     }
 
@@ -100,6 +97,11 @@ export class LoadingViewComp extends CCViewVM<Initialize> {
 
     /** 加载进度事件 */
     private onProgressCallback(finished: number, total: number, item: any) {
+        if (!this.data) {
+            // 视图已销毁或尚未初始化
+            return;
+        }
+
         this.data.finished = finished;
         this.data.total = total;
 
@@ -112,11 +114,15 @@ export class LoadingViewComp extends CCViewVM<Initialize> {
 
     /** 加载完成事件 */
     private onCompleteCallback() {
+        if (!this.data) {
+            return;
+        }
+
         // 获取用户信息的多语言提示文本
         this.data.prompt = oops.language.getLangByID("loading_load_player");
 
-        // 推金币游戏：直接触发登录成功事件，打开游戏界面
-        console.log("[LoadingViewComp] Resource loading complete, opening game UI");
+        // 推金币游戏：直接触发登录成功事件，等待登录逻辑处理
+        console.log("[LoadingViewComp] Resource loading complete, dispatching login success");
         oops.message.dispatchEvent(GameEvent.LoginSuccess);
     }
 }

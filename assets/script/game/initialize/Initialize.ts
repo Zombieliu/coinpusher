@@ -28,13 +28,10 @@ export class Initialize extends CCEntity {
      * 推金币登录流程（单机版本直接进入游戏）
      */
     login(username: string, serverUrl: string) {
-        console.log(`[Initialize] Mock login for ${username} -> ${serverUrl}`);
+        console.log(`[Initialize] Login success for ${username} -> ${serverUrl}`);
         if (oops.gui.get(UIID.Login)) {
             oops.gui.remove(UIID.Login);
         }
-        oops.gui.open(UIID.Game).catch(err => {
-            console.error('[Initialize] Failed to open Game UI', err);
-        });
         oops.message.dispatchEvent(GameEvent.LoginSuccess);
         oops.message.dispatchEvent(InitializeEvent.Logined);
     }
