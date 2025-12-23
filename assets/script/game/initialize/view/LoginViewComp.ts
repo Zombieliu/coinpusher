@@ -123,6 +123,10 @@ export class LoginViewComp extends CCViewVM<Initialize> {
         this._isLoggingIn = true;
         try {
             const gateRes = await NetworkManager.instance.gate.login(username);
+            // 将服务器返回的 token 存为 SSO_TOKEN，供 Match/Room 请求使用
+            if (gateRes.token) {
+                oops.storage.set('SSO_TOKEN', gateRes.token);
+            }
             const matchUrl = this._resolveMatchUrl(gateRes.matchUrl);
             if (!matchUrl) {
                 throw new Error('匹配服务器地址为空');

@@ -6,6 +6,7 @@
  */
 import { HttpServer, WsServer } from "tsrpc";
 import * as uuid from "uuid";
+import { ObjectId } from "mongodb";
 import { ecs } from "../../core/ecs/ECS";
 import { DbUser } from "./bll/User";
 import { BaseConf, BaseRequest } from "../../tsrpc/protocols/base";
@@ -19,6 +20,9 @@ const SSO_VALID_TIME = 86400000 * 7;
 @ecs.register(`Account`)
 export class Account extends ecs.Entity {
     AccountModel!: AccountModelComp;
+    /** 映射 mock token 用户 key，确保多进程下依然能通过令牌校验 */
+    private _mockUserKeyMap: Map<string, number> = new Map();
+    private _mockUserKeySeed = 1_000_000;
 
     protected init() {
         this.addComponents<ecs.Comp>(
@@ -64,7 +68,7 @@ export class Account extends ecs.Entity {
             // 执行 API 接口实现之前通过令牌获取当前用户信息
             let req = call.req as BaseRequest;
             if (req.__ssoToken) {
-                call.user = this.parseSSO(req.__ssoToken);
+                call.user = this.parseSSO(req.__ssoToken) ?? this._acceptMockGateToken(req.__ssoToken);
             }
 
             // 验证请求客户端地址是否在白名单列表中
@@ -81,6 +85,47 @@ export class Account extends ecs.Entity {
 
             return call;
         });
+    }
+
+    /** 允许未集成旧帐号系统的 Gate Token 直接访问 Match/Room */
+    private _acceptMockGateToken(token: string): DbUser | undefined {
+        const prefix = 'mock_token_';
+        if (!token.startsWith(prefix)) {
+            return undefined;
+        }
+
+        const userId = token.substring(prefix.length);
+        if (!userId) {
+            return undefined;
+        }
+
+        const key = this._obtainMockUserKey(userId);
+        let user = this.AccountModel.users.get(key);
+        if (!user) {
+            user = {
+                _id: new ObjectId(),
+                key,
+                username: userId,
+                createtime: new Date()
+            } as DbUser;
+            this.AccountModel.users.set(key, user);
+        }
+
+        this.AccountModel.ssoTokens[token] = {
+            key,
+            expiredTime: Date.now() + SSO_VALID_TIME
+        };
+
+        return user;
+    }
+
+    private _obtainMockUserKey(userId: string): number {
+        let key = this._mockUserKeyMap.get(userId);
+        if (!key) {
+            key = this._mockUserKeySeed++;
+            this._mockUserKeyMap.set(userId, key);
+        }
+        return key;
     }
 
     /** 执行 API 接口实现之前通过令牌获取当前用户信息 */
