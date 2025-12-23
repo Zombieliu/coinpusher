@@ -42,7 +42,10 @@ export const Config = {
         "127.0.0.1": true,
         "192.168.31.17": true,
         "43.142.65.105": true,
-        "dgflash.work": true
+        "dgflash.work": true,
+        // Railway 出口 IP（房间、匹配服务接入用）
+        "66.33.22.72": true,
+        "66.33.22.175": true
     }
 }
 
