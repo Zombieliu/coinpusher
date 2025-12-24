@@ -34,6 +34,7 @@ export class MatchServerJoinRoomSystem extends ecs.ComblockSystem implements ecs
             if (rooms.some(v => v.url === serverUrl)) return;
 
             let wscRoom = CommonFactory.createWscRoom(serverUrl, server);
+            server.logger.log(`[Match][RoomJoin] Connecting to room server ${call.req.serverUrl}`);
 
             // 添加房间服务器
             let irs: IRoomServer = {
@@ -52,6 +53,7 @@ export class MatchServerJoinRoomSystem extends ecs.ComblockSystem implements ecs
                 // 连接房间服务器网络
                 let op = await wscRoom.connect();
                 if (!op.isSucc) {
+                    server.logger.error(`[Match][RoomJoin] Failed to connect ${serverUrl}: ${op.errMsg}`);
                     throw new TsrpcError(op.errMsg);
                 }
 
@@ -62,11 +64,13 @@ export class MatchServerJoinRoomSystem extends ecs.ComblockSystem implements ecs
 
                 // 授权失败立即断开
                 if (!opAuth.isSucc) {
+                    server.logger.error(`[Match][RoomJoin] Auth rejected by ${serverUrl}: ${opAuth.err?.message || opAuth.err?.code}`);
                     wscRoom.disconnect();
                     throw opAuth.err;
                 }
             }
             catch (e: unknown) {
+                server.logger.error(`[Match][RoomJoin] Error while handling ${serverUrl}:`, e);
                 // 房间服务器列表中删除
                 rooms.remove(v => v.url === serverUrl);
                 throw e;
