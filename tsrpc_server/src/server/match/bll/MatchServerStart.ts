@@ -35,12 +35,14 @@ export class MatchServerStartSystem extends ecs.ComblockSystem implements ecs.IE
         // 启动匹配服务器
         await server.start();
         server.logger.log(chalk.green(`[匹配服务器] 启动成功`));
+        server.logger.log(`[匹配服务器] 进程 PID=${process.pid}, Node=${process.version}`);
 
         // 定时 log 播报房间状态
         var rooms = e.MatchModel.rooms;
         setInterval(() => {
             // 清理超时节点
             RoomServerManager.instance.cleanUp();
+            server.logger.log(`[匹配服务器] 进程状态 -> uptime=${process.uptime().toFixed(1)}s, rss=${(process.memoryUsage().rss / 1024 / 1024).toFixed(1)}MB`);
 
             server.logger.log(`
         [匹配服务器状态播报]
