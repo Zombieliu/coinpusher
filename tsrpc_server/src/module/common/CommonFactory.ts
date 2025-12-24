@@ -20,10 +20,11 @@ import { CommonUtil } from "./CommonUtil";
 export class CommonFactory {
     /** 创建 Http 网关服务端对象 */
     static createHsGate() {
+        const useTlsGate = ShareConfig.https && CommonUtil.isInternalTlsEnabled();
         var options: Partial<HttpServerOptions<ServiceTypeGate>> = {
             port: parseInt(Config.gate.port),
             json: ShareConfig.json,
-            https: ShareConfig.https ? CommonUtil.getCertificate() : undefined,
+            https: useTlsGate ? CommonUtil.getCertificate() : undefined,
             cors: '*'  // 允许所有来源的CORS请求（开发环境）
         }
 
@@ -35,10 +36,11 @@ export class CommonFactory {
 
     /** 创建 Http 匹配服务端对象 */
     static createHsMatch() {
+        const useTlsMatch = ShareConfig.https && CommonUtil.isInternalTlsEnabled();
         var options: Partial<HttpServerOptions<ServiceTypeMatch>> = {
             port: parseInt(Config.match.port),
             json: ShareConfig.json,
-            https: CommonUtil.getCertificate()
+            https: useTlsMatch ? CommonUtil.getCertificate() : undefined
         }
 
         var hs = new HttpServer(ServiceProtoMatch, options);
@@ -50,11 +52,12 @@ export class CommonFactory {
 
     /** 创建 Websocket 房间服务器 */
     static createWssRoom() {
+        const useTlsRoom = ShareConfig.https && CommonUtil.isInternalTlsEnabled();
         let options: Partial<WsServerOptions<ServiceTypeRoom>> = {
             port: parseInt(Config.room.port),
             logMsg: Config.room.logMsg,
             json: ShareConfig.json,
-            wss: CommonUtil.getCertificate()
+            wss: useTlsRoom ? CommonUtil.getCertificate() : undefined
         }
 
         let wss = new WsServer(ServiceProtoRoom, options);
@@ -90,8 +93,14 @@ export class CommonFactory {
 
     /** 创建匹配服务器的 Http 客户端连接 */
     static createHcMatch(serverUrl: string) {
-        const useTls = CommonUtil.isInternalTlsEnabled();
-        let url = `${useTls ? "https" : "http"}://${serverUrl}/`;
+        let url = serverUrl.trim();
+        const hasScheme = /^[a-zA-Z][\w+.-]*:\/\//.test(url);
+        if (!hasScheme) {
+            const normalized = url.replace(/\/+$/, '');
+            url = `https://${normalized}/`;
+        } else if (!url.endsWith('/')) {
+            url = `${url}/`;
+        }
         console.log('[CommonFactory] createHcMatch ->', url);
         let hc = new HttpClient(ServiceProtoMatch, { server: url });
         this.flowClientApi(hc);
