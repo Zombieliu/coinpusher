@@ -91,6 +91,7 @@ export class CommonFactory {
     /** 创建匹配服务器的 Http 客户端连接 */
     static createHcMatch(serverUrl: string) {
         let url = `${ShareConfig.https ? "https" : "http"}://${serverUrl}/`;
+        console.log('[CommonFactory] createHcMatch ->', url);
         let hc = new HttpClient(ServiceProtoMatch, { server: url });
         this.flowClientApi(hc);
 
