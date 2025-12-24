@@ -11,6 +11,16 @@ import { ecs } from "../../core/ecs/ECS";
 import { ShareConfig } from '../../tsrpc/models/ShareConfig';
 import { Config } from "../config/Config";
 
+const internalTlsEnabled = (() => {
+    const flag = process.env.ENABLE_INTERNAL_TLS;
+    if (!flag) {
+        // 如果未显式配置，则当存在证书信息时仍默认开启
+        return !!(process.env.TLS_KEY_PATH || process.env.TLS_CERT_PATH || process.env.TLS_KEY || process.env.TLS_CERT);
+    }
+    const lowered = flag.toLowerCase();
+    return !(lowered === 'false' || lowered === '0' || lowered === 'no');
+})();
+
 /** 服务器工具 */
 export class CommonUtil {
     /** ECS 实始化 */
@@ -23,9 +33,13 @@ export class CommonUtil {
         }, ms);
     }
 
+    static isInternalTlsEnabled(): boolean {
+        return internalTlsEnabled;
+    }
+
     /** 获取证书 */
     static getCertificate(): any {
-        if (ShareConfig.https) {
+        if (ShareConfig.https && internalTlsEnabled) {
             const keyPath = process.env.TLS_KEY_PATH
                 ? process.env.TLS_KEY_PATH
                 : path.resolve(__dirname, `../../${Config.certificate}.key`);
