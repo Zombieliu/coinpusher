@@ -26,8 +26,12 @@ export class CommonUtil {
     /** 获取证书 */
     static getCertificate(): any {
         if (ShareConfig.https) {
-            const keyPath = path.resolve(__dirname, `../../${Config.certificate}.key`);
-            const certPath = path.resolve(__dirname, `../../${Config.certificate}.crt`);
+            const keyPath = process.env.TLS_KEY_PATH
+                ? process.env.TLS_KEY_PATH
+                : path.resolve(__dirname, `../../${Config.certificate}.key`);
+            const certPath = process.env.TLS_CERT_PATH
+                ? process.env.TLS_CERT_PATH
+                : path.resolve(__dirname, `../../${Config.certificate}.crt`);
 
             if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
                 console.warn(`[CommonUtil] Certificate files not found (${keyPath}, ${certPath}), falling back to HTTP.`);
