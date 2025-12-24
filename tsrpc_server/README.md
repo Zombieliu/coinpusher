@@ -14,3 +14,5 @@
     - pm2 delete all 停止所有服务器
 
 - tsrpc细节教程[参考](https://tsrpc.cn/) 
+
+1
