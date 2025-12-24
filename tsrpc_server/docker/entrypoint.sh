@@ -14,6 +14,10 @@ if [ -n "$TLS_KEY" ] && [ -n "$TLS_CERT" ]; then
 
   export TLS_KEY_PATH="$KEY_PATH"
   export TLS_CERT_PATH="$CERT_PATH"
+
+  echo "[Entrypoint] TLS credentials detected. Key: $TLS_KEY_PATH, Cert: $TLS_CERT_PATH"
+else
+  echo "[Entrypoint] TLS credentials not provided. Falling back to HTTP."
 fi
 
 ENTRY="${SERVER_ENTRY:-ServerGate}"
