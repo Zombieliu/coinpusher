@@ -153,8 +153,8 @@ export class LoginViewComp extends CCViewVM<Initialize> {
                 oops.gui.open(UIID.OfflineReward, { gold: gateRes.offlineReward });
             }
 
-            oops.storage.setGlobalData("lastUsername", username);
-            oops.storage.setGlobalData('hasPasskeyLogin', true);
+            oops.storage.set("lastUsername", username);
+            oops.storage.set('hasPasskeyLogin', true);
 
             smc.initialize.login(username, selection?.rawHost ?? "");
         } catch (error: any) {

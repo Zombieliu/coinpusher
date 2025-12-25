@@ -20,6 +20,8 @@ import { serviceProto as ServiceProtoGate, ServiceType as ServiceTypeGate } from
 import { signInternalRequest } from '../utils/SecurityUtils';
 import { SnapshotValidator, SignedSnapshot } from '../utils/SnapshotValidator';
 
+const rustIntegrationEnabled = (process.env.RUST_ROOM_ENABLED || '').toLowerCase() === 'true';
+
 // ========== 协议定义（和 Rust 对应） ==========
 
 export type RoomId = string;
@@ -399,38 +401,54 @@ export class RustRoomClient extends EventEmitter {
 
 // ========== 单例导出 ==========
 
-let rustRoomClient: RustRoomClient | null = null;
+let rustRoomClient: (RustRoomClient | DummyRustRoomClient) | null = null;
 
-export function getRustRoomClient(): RustRoomClient {
+class DummyRustRoomClient extends EventEmitter {
+    connect() {
+        console.warn('[RustRoomClient] Integration disabled. Running in dummy mode.');
+    }
+    createRoom(_roomId: RoomId, _config: RoomConfig) {
+        console.log(`[RustRoomClient] (dummy) createRoom ${_roomId}`);
+    }
+    destroyRoom(_roomId: RoomId) { }
+    playerJoin(_roomId: RoomId, _playerId: PlayerId) { }
+    playerLeave(_roomId: RoomId, _playerId: PlayerId) { }
+    playerDropCoin(_roomId: RoomId, _playerId: PlayerId, _x: number, _tick?: number) { }
+    handleWalletResult(_roomId: RoomId, _playerId: PlayerId, _txId: TransactionId, _ok: boolean) { }
+}
+
+export function getRustRoomClient(): RustRoomClient | DummyRustRoomClient {
     if (!rustRoomClient) {
-        const host = process.env.RUST_ROOM_HOST || '127.0.0.1';
-        const port = parseInt(process.env.RUST_ROOM_PORT || '9000');
+        if (!rustIntegrationEnabled) {
+            rustRoomClient = new DummyRustRoomClient();
+            rustRoomClient.connect();
+        } else {
+            const host = process.env.RUST_ROOM_HOST || '127.0.0.1';
+            const port = parseInt(process.env.RUST_ROOM_PORT || '9000');
 
-        rustRoomClient = new RustRoomClient(host, port);
-        rustRoomClient.connect();
+            const client = new RustRoomClient(host, port);
+            rustRoomClient = client;
+            client.connect();
 
-        // 处理完整快照消息 - 转换格式并广播给客户端
-        rustRoomClient.on('snapshot', (msg: Extract<ToNode, { type: 'Snapshot' }>) => {
-            handleRustSnapshot(msg);
-        });
+            client.on('snapshot', (msg: Extract<ToNode, { type: 'Snapshot' }>) => {
+                handleRustSnapshot(msg);
+            });
 
-        // 处理增量快照消息 - 应用增量并广播给客户端
-        rustRoomClient.on('deltaSnapshot', (msg: Extract<ToNode, { type: 'DeltaSnapshot' }>) => {
-            handleRustDeltaSnapshot(msg);
-        });
+            client.on('deltaSnapshot', (msg: Extract<ToNode, { type: 'DeltaSnapshot' }>) => {
+                handleRustDeltaSnapshot(msg);
+            });
 
-        // 处理扣费请求
-        rustRoomClient.on('needDeductGold', (msg: Extract<ToNode, { type: 'NeedDeductGold' }>) => {
-            handleNeedDeductGold(msg);
-        });
+            client.on('needDeductGold', (msg: Extract<ToNode, { type: 'NeedDeductGold' }>) => {
+                handleNeedDeductGold(msg);
+            });
 
-        // 处理房间关闭
-        rustRoomClient.on('roomClosed', (msg: Extract<ToNode, { type: 'RoomClosed' }>) => {
-            console.warn(`[RustRoomClient] Room closed: ${msg.room_id}, reason: ${msg.reason}`);
-        });
+            client.on('roomClosed', (msg: Extract<ToNode, { type: 'RoomClosed' }>) => {
+                console.warn(`[RustRoomClient] Room closed: ${msg.room_id}, reason: ${msg.reason}`);
+            });
+        }
     }
 
-    return rustRoomClient;
+    return rustRoomClient!;
 }
 
 /**

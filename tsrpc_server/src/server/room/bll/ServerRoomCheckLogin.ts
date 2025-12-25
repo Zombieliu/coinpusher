@@ -28,7 +28,7 @@ export class ServerRoomCheckLoginSystem extends ecs.ComblockSystem implements ec
             const conn = call.conn as RoomConnection;
             const name = call.service.name;
             // 部分接口需要登录和加入房间后才可使用
-            if (!name.startsWith('admin/') && name !== 'RoomJoin') {
+            if (!name.startsWith('admin/') && name !== 'RoomJoin' && name !== 'game/Ping') {
                 if (!conn.role.RoleModel.state.id) {
                     call.error('你还未登录', { code: 'ERROR_NEED_LOGIN' });
                     return undefined;
