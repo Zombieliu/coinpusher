@@ -1,0 +1,34 @@
+# 编译产物
+target/
+*.log
+
+# 测试结果
+perf-results/
+stress-test-*.log
+
+# Docker相关
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Git
+.git/
+.gitignore
+
+# 文档
+*.md
+LICENSE
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 测试脚本
+*.sh
+*.py
+
+# 临时文件
+*.tmp
+*.bak

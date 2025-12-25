@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # 4核8G配置 - 入门级云服务器
+  room-service-4c8g:
+    build: .
+    container_name: room-service-4c8g
+    ports:
+      - "9001:9000"
+    environment:
+      - RUST_LOG=info
+      - ROOM_SERVICE_ADDR=0.0.0.0:9000
+      - TICK_RATE=30
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '4.0'
+          memory: 8G
+    networks:
+      - perf-test
+    profiles:
+      - 4c8g
+
+  # 8核16G配置 - 标准云服务器
+  room-service-8c16g:
+    build: .
+    container_name: room-service-8c16g
+    ports:
+      - "9002:9000"
+    environment:
+      - RUST_LOG=info
+      - ROOM_SERVICE_ADDR=0.0.0.0:9000
+      - TICK_RATE=30
+    deploy:
+      resources:
+        limits:
+          cpus: '8.0'
+          memory: 16G
+        reservations:
+          cpus: '8.0'
+          memory: 16G
+    networks:
+      - perf-test
+    profiles:
+      - 8c16g
+
+  # 2核4G配置 - 测试最低配置
+  room-service-2c4g:
+    build: .
+    container_name: room-service-2c4g
+    ports:
+      - "9003:9000"
+    environment:
+      - RUST_LOG=info
+      - ROOM_SERVICE_ADDR=0.0.0.0:9000
+      - TICK_RATE=30
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+    networks:
+      - perf-test
+    profiles:
+      - 2c4g
+
+networks:
+  perf-test:
+    driver: bridge
