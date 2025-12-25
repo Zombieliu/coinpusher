@@ -28,6 +28,9 @@ node_modules/
 /local/
 /build/
 
+# Rust build artifacts
+/physics-worker/target/
+
 #//////////////////////////
 # Next.js / Playwright
 #//////////////////////////
