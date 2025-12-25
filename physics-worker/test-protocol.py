@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
 """简单测试 - 调试协议格式"""
 
+import argparse
+import json
+import os
 import socket
 import struct
-import msgpack
-import json
 
-HOST = '127.0.0.1'
-PORT = 9000
+import msgpack
+
+parser = argparse.ArgumentParser(description="Test Rust room service protocol")
+parser.add_argument('--host', default=os.environ.get('PHYSICS_HOST', '127.0.0.1'),
+                    help='Target host (default: 127.0.0.1 or PHYSICS_HOST env)')
+parser.add_argument('--port', type=int, default=int(os.environ.get('PHYSICS_PORT', '9000')),
+                    help='Target port (default: 9000 or PHYSICS_PORT env)')
+args = parser.parse_args()
+
+HOST = args.host
+PORT = args.port
 
 def send_msgpack(sock, msg):
     """发送 MessagePack 消息"""
@@ -57,7 +67,7 @@ def receive_any(sock):
     return msg
 
 try:
-    print("🔗 连接服务器...")
+    print(f"🔗 连接服务器 {HOST}:{PORT} ...")
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((HOST, PORT))
     sock.settimeout(5.0)

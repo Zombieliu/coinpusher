@@ -433,6 +433,8 @@ export function getRustRoomClient(): RustRoomClient | DummyRustRoomClient {
             const host = process.env.RUST_ROOM_HOST || '127.0.0.1';
             const port = parseInt(process.env.RUST_ROOM_PORT || '9000');
 
+            console.log(`[RustRoomClient] Integration enabled. Connecting target: ${host}:${port}`);
+
             const client = new RustRoomClient(host, port);
             rustRoomClient = client;
             client.connect();
