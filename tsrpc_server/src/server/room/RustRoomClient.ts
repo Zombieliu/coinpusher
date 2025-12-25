@@ -415,6 +415,13 @@ class DummyRustRoomClient extends EventEmitter {
     playerLeave(_roomId: RoomId, _playerId: PlayerId) { }
     playerDropCoin(_roomId: RoomId, _playerId: PlayerId, _x: number, _tick?: number) { }
     handleWalletResult(_roomId: RoomId, _playerId: PlayerId, _txId: TransactionId, _ok: boolean) { }
+    walletResult(_roomId: RoomId, _playerId: PlayerId, _txId: TransactionId, _ok: boolean): boolean {
+        console.log('[RustRoomClient] (dummy) walletResult invoked');
+        return true;
+    }
+    ['applyDeltaSnapshot'](_roomId: RoomId, _delta: any) {
+        return [];
+    }
 }
 
 export function getRustRoomClient(): RustRoomClient | DummyRustRoomClient {
@@ -626,17 +633,17 @@ async function handleNeedDeductGold(msg: Extract<ToNode, { type: 'NeedDeductGold
         // 回调 Rust
         const rustClient = getRustRoomClient();
         if (ret.isSucc) {
-            rustClient.walletResult(msg.room_id, msg.player_id, msg.tx_id, true);
+            if (typeof rustClient['walletResult'] === 'function') { rustClient.walletResult(msg.room_id, msg.player_id, msg.tx_id, true); }
             console.log(`[RustRoomClient] Deducted ${msg.amount} gold from player ${msg.player_id}, remaining: ${ret.res.balance}`);
         } else {
-            rustClient.walletResult(msg.room_id, msg.player_id, msg.tx_id, false);
+            if (typeof rustClient['walletResult'] === 'function') { rustClient.walletResult(msg.room_id, msg.player_id, msg.tx_id, false); }
             console.warn(`[RustRoomClient] Failed to deduct gold for player ${msg.player_id}: ${ret.err?.message}`);
         }
     } catch (error) {
         console.error('[RustRoomClient] Error handling deduct gold:', error);
         // 失败回调 Rust
         const rustClient = getRustRoomClient();
-        rustClient.walletResult(msg.room_id, msg.player_id, msg.tx_id, false);
+        if (typeof rustClient['walletResult'] === 'function') { rustClient.walletResult(msg.room_id, msg.player_id, msg.tx_id, false); }
     }
 }
 
