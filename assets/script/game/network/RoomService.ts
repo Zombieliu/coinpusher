@@ -7,6 +7,7 @@ import { ShareConfig } from "../../tsrpc/models/ShareConfig";
 import { Security } from "../../tsrpc/models/Security";
 import { oops } from "../../../../extensions/oops-plugin-framework/assets/core/Oops";
 import { BaseResponse } from "../../tsrpc/protocols/base";
+import { SecurityUtil } from "../security/SecurityUtil";
 
 export class RoomService {
     client: WsClient<ServiceTypeRoom> | null = null;
@@ -46,9 +47,32 @@ export class RoomService {
                 this._physicsListenerAttached = false;
             }
 
+            // 自定义 logger：忽略 DropCoin 的 Parse server output error 噪音，其余正常输出
+            const quietLogger = {
+                log: (...args: any[]) => { /* noop */ },
+                debug: (...args: any[]) => { /* noop */ },
+                info: (...args: any[]) => { /* noop */ },
+                warn: (...args: any[]) => console.warn(...args),
+                error: (...args: any[]) => {
+                    const isParseErr = args.some(a => {
+                        if (typeof a === 'string') return a.includes('Parse server output error');
+                        if (a && typeof a === 'object' && 'message' in a) {
+                            const m = (a as any).message;
+                            return typeof m === 'string' && m.includes('Parse server output error');
+                        }
+                        return false;
+                    });
+                    if (isParseErr) {
+                        return;
+                    }
+                    console.error(...args);
+                }
+            };
+
             this.client = new WsClient(ServiceProtoRoom, {
                 server: serverUrl,
-                logger: console,
+                logger: quietLogger as any,
+                logMsg: false,   // 关闭 [SendMsg]/[RecvMsg] 日志刷屏
                 json: ShareConfig.json,
                 heartbeat: {
                     interval: ShareConfig.heartbeat_interval,
@@ -60,7 +84,6 @@ export class RoomService {
 
             await this.client.connect();
             this.listenPhysics();
-            this.startPing();
             console.log(`[RoomService] ✅ Connected to room server: ${serverUrl}`);
             return true;
         } catch (error) {
@@ -69,6 +92,30 @@ export class RoomService {
             this._physicsListenerAttached = false;
             return false;
         }
+    }
+
+    /** 加入房间 */
+    async joinRoom(roomId: string, userId?: string | number) {
+        if (!this.client) {
+            throw new Error("Room client not connected");
+        }
+
+        const parsedUserId = typeof userId === 'string'
+            ? parseInt(userId, 10)
+            : userId;
+
+        const res = await this.client.callApi("RoomJoin", {
+            roomId,
+            userId: Number.isFinite(parsedUserId as number) ? (parsedUserId as number) : 0
+        });
+
+        if (!res.isSucc) {
+            throw new Error(res.err.message);
+        }
+
+        // 只有加入房间成功后才开始 Ping
+        this.startPing();
+        return res.res;
     }
 
     /** 开始定期Ping - 建议连接后立即调用 */
@@ -158,12 +205,18 @@ export class RoomService {
     async dropCoin(x: number): Promise<{ isSucc: boolean, coinId?: number, err?: any }> {
         if (!this.client) return { isSucc: false, err: new Error("Client not initialized") };
 
-        const res = await this.client.callApi("game/DropCoin", { x });
+        const [fingerprintId, nonce, timestamp] = await Promise.all([
+            SecurityUtil.getFingerprintId(),
+            Promise.resolve(SecurityUtil.generateNonce()),
+            Promise.resolve(SecurityUtil.now())
+        ]);
+
+        const res = await this.client.callApi("game/DropCoin", { x, fingerprintId, nonce, timestamp });
         if (res.isSucc) {
             return { isSucc: true, coinId: res.res.coinId };
-        } else {
-            return { isSucc: false, err: res.err };
         }
+
+        return { isSucc: false, err: res.err };
     }
 
     /** 销毁时清理 */

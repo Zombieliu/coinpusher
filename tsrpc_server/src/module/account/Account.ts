@@ -12,6 +12,7 @@ import { DbUser } from "./bll/User";
 import { BaseConf, BaseRequest } from "../../tsrpc/protocols/base";
 import { Config } from "../config/Config";
 import { AccountModelComp } from "./model/AccountModel";
+import { RolePosition, RoleRotation } from "../../tsrpc/types/RoleState";
 
 /** 登录令牌过期时间为7天 */
 const SSO_VALID_TIME = 86400000 * 7;
@@ -23,6 +24,8 @@ export class Account extends ecs.Entity {
     /** 映射 mock token 用户 key，确保多进程下依然能通过令牌校验 */
     private _mockUserKeyMap: Map<string, number> = new Map();
     private _mockUserKeySeed = 1_000_000;
+    private readonly _defaultPos: RolePosition = { x: 0, y: 1.7, z: 0 };
+    private readonly _defaultRotation: RoleRotation = { x: 0, y: 0, z: 0, w: 1 };
 
     protected init() {
         this.addComponents<ecs.Comp>(
@@ -116,7 +119,7 @@ export class Account extends ecs.Entity {
             expiredTime: Date.now() + SSO_VALID_TIME
         };
 
-        return user;
+        return this._ensureUserTransform(user);
     }
 
     private _obtainMockUserKey(userId: string): number {
@@ -126,6 +129,16 @@ export class Account extends ecs.Entity {
             this._mockUserKeyMap.set(userId, key);
         }
         return key;
+    }
+
+    private _ensureUserTransform(user: DbUser): DbUser {
+        if (!user.pos) {
+            user.pos = { ...this._defaultPos };
+        }
+        if (!user.rotation) {
+            user.rotation = { ...this._defaultRotation };
+        }
+        return user;
     }
 
     /** 执行 API 接口实现之前通过令牌获取当前用户信息 */
@@ -146,7 +159,7 @@ export class Account extends ecs.Entity {
         // 延长过期时间
         info.expiredTime = Date.now() + SSO_VALID_TIME;
 
-        return user;
+        return this._ensureUserTransform(user);
     }
 }
 

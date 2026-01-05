@@ -109,9 +109,34 @@ PAYPAL_CLIENT_ID=your_paypal_client_id
 PAYPAL_SECRET=your_paypal_secret
 
 STRIPE_SECRET_KEY=your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
+STRIPE_SUCCESS_URL=https://your-frontend.example/stripe/success?orderId={ORDER_ID}&sessionId={CHECKOUT_SESSION_ID}
+STRIPE_CANCEL_URL=https://your-frontend.example/stripe/cancel?orderId={ORDER_ID}
 
 SUI_WALLET_ADDRESS=your_sui_wallet_address
+
+# 汇率配置（用于多币种统计）
+FX_BASE=USD
+FX_SYMBOLS=USD,CNY,EUR
 ```
+
+### Nginx/反向代理配置（确保 Stripe Webhook 签名可用）
+
+```
+location /StripeWebhook {
+    proxy_pass http://gate-server:3000/StripeWebhook;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Stripe-Signature $http_stripe_signature;
+    proxy_request_buffering off;   # 不改写/缓冲请求体
+    proxy_buffering off;
+    proxy_set_header Content-Length $content_length;
+    proxy_set_header Content-Type $content_type;
+}
+```
+
+保证请求体原样透传（不要启用压缩/改写），否则 webhook 签名校验会失败。
 
 ### 3. 数据库初始化
 

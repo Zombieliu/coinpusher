@@ -25,7 +25,7 @@ const { ccclass, property } = _decorator;
 export class GoodsComp extends Component {
     // ========== 金币属性 ==========
     /** 金币价值（普通金币为1，特殊金币可能更高） */
-    @property({ type: CCInteger, tooltip: '金币价值' })
+    @property({ type: CCInteger, tooltip: 'Coin value' })
     goldValue: number = 1;
 
     /** 分帧检查索引（用于性能优化） */

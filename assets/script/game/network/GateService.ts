@@ -5,6 +5,7 @@ import { ShareConfig } from "../../tsrpc/models/ShareConfig";
 import { Security } from "../../tsrpc/models/Security";
 import { BaseResponse } from "../../tsrpc/protocols/base";
 import { oops } from "../../../../extensions/oops-plugin-framework/assets/core/Oops";
+import { SecurityUtil } from "../security/SecurityUtil";
 
 export class GateService {
     client: HttpClient<ServiceTypeGate> | null = null;
@@ -30,8 +31,14 @@ export class GateService {
 
     async login(username: string) {
         if (!this.client) await this.initClient();
-        
-        const res = await this.client!.callApi("Login", { username });
+
+        const [fingerprintId, nonce, timestamp] = await Promise.all([
+            SecurityUtil.getFingerprintId(),
+            Promise.resolve(SecurityUtil.generateNonce()),
+            Promise.resolve(SecurityUtil.now())
+        ]);
+
+        const res = await this.client!.callApi("Login", { username, fingerprintId, nonce, timestamp });
         if (!res.isSucc) {
             throw new Error(res.err.message);
         }

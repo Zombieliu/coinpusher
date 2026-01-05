@@ -9,6 +9,12 @@
 export interface BaseRequest {
     /** 通行证 */
     __ssoToken?: string;
+    /** 设备指纹 ID（客户端生成并缓存） */
+    fingerprintId?: string;
+    /** 防重放 nonce（客户端随机生成，服务端可选去重） */
+    nonce?: string;
+    /** 客户端时间戳（ms，服务端可校验时间窗） */
+    timestamp?: number;
 }
 
 /** HTTP 基础返回数据 */

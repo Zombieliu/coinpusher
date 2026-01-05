@@ -20,7 +20,7 @@ export class HotOptions {
         for (let key in this) {
             if (key !== "check") {
                 if (!this[key]) {
-                    log(`参数HotOptions.${key}未设置！`);
+                    log(`HotOptions.${key} is not set!`);
                     return false;
                 }
             }
@@ -59,7 +59,7 @@ export class Hot {
 
         oops.res.load("project", (err: Error | null, res: any) => {
             if (err) {
-                error("【热更新界面】缺少热更新配置文件");
+                error("[HotUpdate] Missing hot-update config file");
                 return;
             }
 
@@ -68,7 +68,7 @@ export class Hot {
             this.manifest = res.nativeUrl;
             this.storagePath = `${native.fileUtils.getWritablePath()}oops_framework_remote`;
             this.assetsMgr = new native.AssetsManager(this.manifest, this.storagePath, (versionA, versionB) => {
-                console.log("【热更新】客户端版本: " + versionA + ", 当前最新版本: " + versionB);
+                console.log("[HotUpdate] Client version: " + versionA + ", latest version: " + versionB);
                 this.options?.onVersionInfo && this.options.onVersionInfo({ local: versionA, server: versionB });
 
                 let vA = versionA.split('.');
@@ -104,11 +104,11 @@ export class Hot {
             });
 
             var localManifest = this.assetsMgr.getLocalManifest();
-            console.log('【热更新】热更资源存放路径: ' + this.storagePath);
-            console.log('【热更新】本地资源配置路径: ' + this.manifest);
-            console.log('【热更新】本地包地址: ' + localManifest.getPackageUrl());
-            console.log('【热更新】远程 project.manifest 地址: ' + localManifest.getManifestFileUrl());
-            console.log('【热更新】远程 version.manifest 地址: ' + localManifest.getVersionFileUrl());
+            console.log('[HotUpdate] Storage path: ' + this.storagePath);
+            console.log('[HotUpdate] Local manifest path: ' + this.manifest);
+            console.log('[HotUpdate] Local package url: ' + localManifest.getPackageUrl());
+            console.log('[HotUpdate] Remote project.manifest url: ' + localManifest.getManifestFileUrl());
+            console.log('[HotUpdate] Remote version.manifest url: ' + localManifest.getVersionFileUrl());
 
             this.checkUpdate();
         });
@@ -122,16 +122,16 @@ export class Hot {
     // 检查更新
     checkUpdate() {
         if (!this.assetsMgr) {
-            console.log('【热更新】请先初始化')
+            console.log('[HotUpdate] Please initialize first')
             return;
         }
 
         if (this.assetsMgr.getState() === jsb.AssetsManager.State.UNINITED) {
-            error('【热更新】未初始化')
+            error('[HotUpdate] Not initialized')
             return;
         }
         if (!this.assetsMgr.getLocalManifest().isLoaded()) {
-            console.log('【热更新】加载本地 manifest 失败 ...');
+            console.log('[HotUpdate] Failed to load local manifest...');
             return;
         }
         this.assetsMgr.setEventCallback(this.onHotUpdateCallBack.bind(this));
@@ -143,7 +143,7 @@ export class Hot {
     /** 开始更热 */
     hotUpdate() {
         if (!this.assetsMgr) {
-            console.log("【热更新】请先初始化")
+            console.log("[HotUpdate] Please initialize first")
             return
         }
         this.assetsMgr.setEventCallback(this.onHotUpdateCallBack.bind(this));
@@ -155,15 +155,15 @@ export class Hot {
         let code = event.getEventCode();
         switch (code) {
             case native.EventAssetsManager.ALREADY_UP_TO_DATE:
-                console.log("【热更新】当前版本与远程版本一致且无须更新");
+                console.log("[HotUpdate] Already up to date");
                 this.options?.onNoNeedToUpdate && this.options.onNoNeedToUpdate(code)
                 break;
             case native.EventAssetsManager.NEW_VERSION_FOUND:
-                console.log("【热更新】发现新版本,请更新");
+                console.log("[HotUpdate] New version found, please update");
                 this.options?.onNeedToUpdate && this.options.onNeedToUpdate(code, this.assetsMgr!.getTotalBytes());
                 break;
             case native.EventAssetsManager.ASSET_UPDATED:
-                console.log('【热更新】资产更新');
+                console.log('[HotUpdate] Asset updated');
                 break;
             case native.EventAssetsManager.UPDATE_PROGRESSION:
                 if (this.state === Hot.State.Update) {
@@ -171,7 +171,7 @@ export class Hot {
                     // event.getPercentByFile();
                     // event.getDownloadedFiles() + ' / ' + event.getTotalFiles();
                     // event.getDownloadedBytes() + ' / ' + event.getTotalBytes();
-                    console.log('【热更新】更新中...', event.getDownloadedFiles(), event.getTotalFiles(), event.getPercent());
+                    console.log('[HotUpdate] Updating...', event.getDownloadedFiles(), event.getTotalFiles(), event.getPercent());
                     this.options?.onUpdateProgress && this.options.onUpdateProgress(event);
                 }
                 break;
@@ -197,12 +197,12 @@ export class Hot {
         localStorage.setItem('HotUpdateSearchPaths', JSON.stringify(searchPaths));
         native.fileUtils.setSearchPaths(searchPaths);
 
-        console.log("【热更新】更新成功");
+        console.log("[HotUpdate] Update succeeded");
         this.options?.onUpdateSucceed && this.options.onUpdateSucceed();
     }
 
     private showSearchPath() {
-        console.log("========================搜索路径========================");
+        console.log("========================Search Paths========================");
         let searchPaths = native.fileUtils.getSearchPaths();
         for (let i = 0; i < searchPaths.length; i++) {
             console.log("[" + i + "]: " + searchPaths[i]);

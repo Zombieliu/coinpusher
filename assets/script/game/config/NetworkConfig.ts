@@ -20,8 +20,8 @@ export interface NetworkEndpoints {
 
 const PRESET_ENDPOINTS: Record<NetworkEnvironment, NetworkEndpoints> = {
     local: {
-        gateUrl: "https://gate-production-41a5.up.railway.app",
-        matchUrl: "https://match-production-41a5.up.railway.app"
+        gateUrl: "http://localhost:32000",
+        matchUrl: "http://localhost:3001"
     },
     test: {
         gateUrl: "https://gate-production-41a5.up.railway.app",
@@ -40,6 +40,40 @@ class NetworkConfigManager {
     constructor() {
         const runtimeEnv = (globalThis as any).__NETWORK_ENV__ as NetworkEnvironment | undefined;
         this._env = runtimeEnv && PRESET_ENDPOINTS[runtimeEnv] ? runtimeEnv : "local";
+    }
+
+    /** 将 localhost/127.0.0.1 地址替换为当前页面主机，便于 docker/局域网访问 */
+    private _normalizeUrl(url: string, host?: string): string {
+        if (!url) return url;
+        try {
+            const u = new URL(url);
+            const h = host ?? this._getRuntimeHostOverride() ?? (typeof window !== 'undefined' ? window.location.hostname : undefined);
+            const isLoopback = u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '0.0.0.0' || u.hostname === '::1';
+            if (isLoopback && h && h !== 'localhost' && h !== '127.0.0.1') {
+                u.hostname = h;
+                return u.toString();
+            }
+            return url;
+        } catch {
+            return url;
+        }
+    }
+
+    /** 读取运行时手动指定的局域网主机（优先级最高） */
+    private _getRuntimeHostOverride(): string | undefined {
+        // 1) 全局变量注入
+        const g: any = globalThis as any;
+        if (typeof g.__LAN_HOST__ === 'string' && g.__LAN_HOST__) {
+            return g.__LAN_HOST__;
+        }
+
+        // 2) URL 参数 ?lanHost=192.168.x.x
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const v = params.get('lanHost') || params.get('lan_host');
+            if (v) return v;
+        }
+        return undefined;
     }
 
     /** 当前环境 */
@@ -69,6 +103,16 @@ class NetworkConfigManager {
         return {
             ...PRESET_ENDPOINTS[this._env],
             ...this._overrides
+        };
+    }
+
+    /** 适配当前主机后的端点（处理 docker/局域网访问） */
+    get resolvedEndpoints(): NetworkEndpoints {
+        const base = this.endpoints;
+        const host = this._getRuntimeHostOverride() ?? (typeof window !== 'undefined' ? window.location.hostname : undefined);
+        return {
+            gateUrl: this._normalizeUrl(base.gateUrl, host),
+            matchUrl: base.matchUrl ? this._normalizeUrl(base.matchUrl, host) : undefined
         };
     }
 }

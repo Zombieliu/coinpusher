@@ -11,6 +11,14 @@ const gateClient = new HttpClient<ServiceTypeGate>(ServiceProtoGate, {
     logger: console
 });
 
+const isRustIntegrationEnabled = (() => {
+    const raw = process.env.RUST_ROOM_ENABLED;
+    if (raw === undefined) {
+        return true;
+    }
+    return raw.toLowerCase() === "true";
+})();
+
 export class PhysicsSystem extends ecs.ComblockSystem implements ecs.IEntityEnterSystem, ecs.ISystemUpdate {
     filter(): ecs.IMatcher {
         return ecs.allOf(PhysicsComp);
@@ -18,11 +26,17 @@ export class PhysicsSystem extends ecs.ComblockSystem implements ecs.IEntityEnte
 
     async entityEnter(e: Room): Promise<void> {
         const comp = e.get(PhysicsComp);
+        const roomId = e.RoomModel.data?.id || 'unknown';
+
+        if (isRustIntegrationEnabled) {
+            console.log(`[PhysicsSystem] Rust integration ON, skip local physics for Room ${roomId}`);
+            comp.world = null;
+            return;
+        }
         
         try {
             await PhysicsWorld.waitForInit();
             comp.world = new PhysicsWorld();
-            const roomId = e.RoomModel.data?.id || 'unknown';
             console.log(`[PhysicsSystem] Physics world initialized for Room ${roomId}`);
         } catch (err) {
             console.error(`[PhysicsSystem] Failed to init PhysicsWorld:`, err);
@@ -30,6 +44,10 @@ export class PhysicsSystem extends ecs.ComblockSystem implements ecs.IEntityEnte
     }
 
     update(e: Room): void {
+        if (isRustIntegrationEnabled) {
+            return;
+        }
+
         const comp = e.get(PhysicsComp);
         if (!comp.world) return;
 
@@ -82,6 +100,7 @@ export class PhysicsSystem extends ecs.ComblockSystem implements ecs.IEntityEnte
             e.broadcastMsg('game/SyncPhysics', {
                 serverTick: comp.serverTick,  // ✅ 服务器权威时间戳
                 pushZ: Number(comp.world.pushPlatformBody.translation().z.toFixed(2)),
+                pushSpeed: comp.world.getPushVelocity(),
                 coins: result.coins,           // ✅ 增量更新：只包含有变化的硬币
                 removed: result.removed.length > 0 ? result.removed : undefined  // ✅ 被移除的硬币
             });

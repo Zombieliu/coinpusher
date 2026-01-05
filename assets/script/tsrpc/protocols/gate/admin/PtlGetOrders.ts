@@ -1,4 +1,4 @@
-import { PaymentOrder, OrderStatus } from "../../../../server/gate/bll/PaymentSystem";
+import { PaymentOrder, OrderStatus } from "../../../types/payment";
 
 export interface ReqGetOrders {
     __ssoToken?: string;

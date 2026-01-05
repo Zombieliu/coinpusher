@@ -56,6 +56,7 @@ export interface SecurityHeadersConfig {
 }
 
 export class SecurityHeaders {
+    static enabled = process.env.SECURITY_HEADERS_ENABLED !== 'false';
     private static readonly DEFAULT_CONFIG: SecurityHeadersConfig = {
         csp: {
             enabled: true,
@@ -111,6 +112,9 @@ export class SecurityHeaders {
      * 🔒 生成安全响应头
      */
     static getHeaders(): Record<string, string> {
+        if (!this.enabled) {
+            return {};
+        }
         if (!this.config) {
             this.initialize();
         }

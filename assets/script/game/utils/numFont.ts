@@ -21,15 +21,15 @@ export class NumFont extends Component {
     @property(Material)
     matNumList: Array<Material> = [];
 
-    @property({ type: horizontalAlignListName, displayName: "horizontalAlign", tooltip: '水平对齐' })
+    @property({ type: horizontalAlignListName, displayName: "horizontalAlign", tooltip: 'Horizontal alignment' })
     horizontalAlign: number = 1; //水平对齐
 
     //-----------相对于Cube的大小
-    @property({ displayName: "width / height", tooltip: '宽/高' })
+    @property({ displayName: "width / height", tooltip: 'Width / height' })
     ndNumFont: number = 1; //'宽/高'
-    @property({ displayName: "rangeX", tooltip: 'x轴区间' })
+    @property({ displayName: "rangeX", tooltip: 'X-axis range' })
     rangeX: number = 1; //限制x轴区间
-    @property({ displayName: "rangeZ", tooltip: 'z轴区间' })
+    @property({ displayName: "rangeZ", tooltip: 'Z-axis range' })
     rangeZ: number = 1; //限制z轴区间
 
     /**

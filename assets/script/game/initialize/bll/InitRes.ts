@@ -53,7 +53,7 @@ export class InitResSystem extends ecs.ComblockSystem implements ecs.IEntityEnte
             // 设置默认语言
             let lan = oops.storage.get("language");
             if (lan == null || lan == "") {
-                lan = "zh";
+                lan = "en";
                 oops.storage.set("language", lan);
             }
 
@@ -72,21 +72,26 @@ export class InitResSystem extends ecs.ComblockSystem implements ecs.IEntityEnte
     /** 加载完成进入游戏内容加载界面 */
     private onComplete(queue: AsyncQueue, e: Initialize) {
         queue.complete = async () => {
-            const node = await oops.gui.open(UIID.Login);
+            const node = await oops.gui.open(UIID.Loading);
             if (node) {
                 let comp = node.getComponent(LoadingViewComp);
                 if (!comp) {
                     comp = node.addComponent(LoadingViewComp);
                 }
                 if (comp) {
-                    e.add(comp as ecs.Comp);
+                    if (!e.has(LoadingViewComp)) {
+                        e.add(comp as ecs.Comp);
+                    }
+                    else {
+                        console.warn("[InitResSystem] LoadingViewComp already attached, skip re-adding");
+                    }
                 }
                 else {
-                    console.warn('[InitResSystem] Failed to attach LoadingViewComp to Login UI');
+                    console.warn('[InitResSystem] Failed to attach LoadingViewComp to Loading UI');
                 }
             }
             else {
-                console.warn('[InitResSystem] Failed to open Login UI');
+                console.warn('[InitResSystem] Failed to open Loading UI');
             }
             e.remove(InitResComp);
         };

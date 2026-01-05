@@ -56,6 +56,7 @@ import { EffectComp } from "./bll/EffectComp";
 
 // View Layer
 import { GameViewComp } from "./view/GameViewComp";
+import { UIID } from "../common/config/GameUIConfig";
 
 /**
  * 推金币游戏主 Entity
@@ -165,8 +166,17 @@ export class CoinPusher extends CCEntity {
         this.GameState.startGame();
 
         // 播放摄像机动画
-        this.GameView.playCameraAnimation(() => {
+        this.GameView.playCameraAnimation(async () => {
             console.log('[CoinPusher] Game started, camera animation finished');
+            // 摄像机动画结束后再打开主界面，保持与原版流程一致
+            try {
+                const alreadyOpen = !!oops.gui.get(UIID.Game);
+                if (!alreadyOpen) {
+                    await oops.gui.open(UIID.Game);
+                }
+            } catch (err) {
+                console.error('[CoinPusher] Failed to open Game UI after camera animation:', err);
+            }
         });
     }
 

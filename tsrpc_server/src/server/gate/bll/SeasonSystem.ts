@@ -394,6 +394,33 @@ export class SeasonSystem {
     }
 
     /**
+     * 撤销已领取的赛季奖励（仅金币/彩票，其他暂不回收）
+     */
+    static async revokeClaimedReward(userId: string, level: number, type: BattlePassType): Promise<void> {
+        const data = this.getUserSeasonData(userId);
+        const list = type === BattlePassType.Free ? data.claimedFreeRewards : data.claimedPremiumRewards;
+        if (!list.includes(level)) return;
+
+        const rewardConfig = this.LEVEL_REWARDS.find(r => r.level === level);
+        const reward = type === BattlePassType.Free ? rewardConfig?.freeReward : rewardConfig?.premiumReward;
+        if (!reward) return;
+
+        // 回退金币
+        if (reward.gold) {
+            await UserDB.deductGold(userId, reward.gold);
+        }
+        // 回退彩票
+        if (reward.tickets) {
+            await UserDB.consumeTickets(userId, reward.tickets);
+        }
+
+        // 移除领取记录
+        const idx = list.indexOf(level);
+        if (idx >= 0) list.splice(idx, 1);
+        console.warn(`[SeasonSystem] 撤销赛季奖励 user=${userId} level=${level} type=${type}`);
+    }
+
+    /**
      * 获取所有奖励列表（供客户端展示）
      */
     static getAllRewards(): LevelReward[] {
@@ -406,6 +433,18 @@ export class SeasonSystem {
     static getMultiplier(userId: string): number {
         const data = this.getUserSeasonData(userId);
         return data.multiplier;
+    }
+
+    /**
+     * 回退高级通行证（尽力而为，不处理已领取奖励）
+     */
+    static revokePremiumPass(userId: string): void {
+        const data = this.getUserSeasonData(userId);
+        if (!data.hasPremiumPass) {
+            return;
+        }
+        data.hasPremiumPass = false;
+        console.warn(`[SeasonSystem] 已回退高级通行证 user=${userId} season=${data.seasonId}`);
     }
 
     /**

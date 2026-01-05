@@ -270,6 +270,13 @@ impl PhysicsWorld {
             &(),
         );
 
+        const GOODS_GET_MIN_POS_Y: f32 = -1.0;
+        const GOODS_DESTROY_MIN_POS_Y: f32 = -30.0;
+        const GOODS_GET_MIN_POS_X: f32 = -3.9;
+        const GOODS_GET_MAX_POS_X: f32 = 3.9;
+        const GOODS_GET_MIN_POS_Z: f32 = 1.514;
+        const GOODS_GET_MAX_POS_Z: f32 = 4.63;
+
         // 收集结果
         let mut collected = Vec::new();
         let mut to_remove = Vec::new();
@@ -278,12 +285,24 @@ impl PhysicsWorld {
             if let Some(body) = self.rigid_bodies.get(handle.rigid_body_handle) {
                 let pos = body.translation();
 
-                // 检测掉落
-                if pos.y < -5.0 {
-                    to_remove.push(coin_id);
+                let mut should_remove = false;
+                let mut to_reward = false;
 
-                    // 检测是否进入收集区
-                    if pos.z > self.config.reward_line_z && pos.x.abs() < 1.5 {
+                if pos.y < GOODS_DESTROY_MIN_POS_Y {
+                    should_remove = true;
+                } else if pos.y < GOODS_GET_MIN_POS_Y
+                    && pos.x > GOODS_GET_MIN_POS_X
+                    && pos.x < GOODS_GET_MAX_POS_X
+                    && pos.z > GOODS_GET_MIN_POS_Z
+                    && pos.z < GOODS_GET_MAX_POS_Z
+                {
+                    should_remove = true;
+                    to_reward = true;
+                }
+
+                if should_remove {
+                    to_remove.push(coin_id);
+                    if to_reward {
                         collected.push((coin_id, handle.owner.clone()));
                     }
                 }
@@ -347,6 +366,11 @@ impl PhysicsWorld {
             .map(|b| b.translation().z)
             .unwrap_or(0.0)
     }
+
+    /// 获取推板当前速度（Z 轴，带方向）
+    pub fn get_push_velocity(&self) -> f32 {
+        self.config.push_speed * self.push_dir
+    }
 }
 
 /// 物理步进结果
@@ -370,7 +394,7 @@ mod tests {
             reward_line_z: -0.5,
             push_min_z: -8.8,
             push_max_z: -6.0,
-            push_speed: 1.5,
+            push_speed: 0.2,
             snapshot_rate: 30.0,
         }
     }
@@ -475,7 +499,7 @@ mod tests {
             reward_line_z: -0.5,
             push_min_z: -8.8,
             push_max_z: -6.0,
-            push_speed: 1.5,
+            push_speed: 0.2,
             snapshot_rate: 30.0,
         };
         let mut world = PhysicsWorld::new(config);
@@ -514,7 +538,7 @@ mod tests {
             reward_line_z: -0.5,
             push_min_z: -8.8,
             push_max_z: -6.0,
-            push_speed: 1.5,
+            push_speed: 0.2,
             snapshot_rate: 30.0,
         };
         let mut world = PhysicsWorld::new(config);

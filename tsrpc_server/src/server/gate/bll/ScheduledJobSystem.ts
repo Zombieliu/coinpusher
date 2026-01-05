@@ -6,7 +6,7 @@ import * as https from "https";
 import { URL } from "url";
 
 type JobStatus = 'pending' | 'running' | 'done' | 'failed';
-type JobType = 'announcement' | 'reward' | 'webhook';
+type JobType = 'announcement' | 'reward' | 'webhook' | 'leaderboard_reward';
 
 export interface JobLogEntry {
     result: 'success' | 'failed';
@@ -176,8 +176,12 @@ export class ScheduledJobSystem {
                 return this.runAnnouncementJob(job);
             case 'reward':
                 return this.runRewardJob(job.payload);
+            case 'leaderboard_reward':
+                return this.runLeaderboardRewardJob(job.payload);
             case 'webhook':
                 return this.runWebhookJob(job.payload);
+            case 'fx_refresh':
+                return this.runFxRefreshJob(job.payload);
             default:
                 throw new Error('unknown_job_type');
         }
@@ -285,6 +289,30 @@ export class ScheduledJobSystem {
         }
     }
 
+    private static async runLeaderboardRewardJob(payload: any): Promise<JobExecuteResult> {
+        const { type, category, topN = 100 } = payload || {};
+        if (!type || !category) {
+            throw new Error('invalid_leaderboard_payload');
+        }
+        const { LeaderboardSystemV2 } = await import('./LeaderboardSystemV2');
+        const rewards = await LeaderboardSystemV2.distributeRewardsWithRecord(
+            type,
+            category,
+            topN
+        );
+        return {
+            logMeta: {
+                details: {
+                    type,
+                    category,
+                    topN,
+                    rewarded: rewards.filter(r => !r.skipped).length,
+                    skipped: rewards.filter(r => r.skipped).length
+                }
+            }
+        };
+    }
+
     private static async runWebhookJob(payload: any): Promise<JobExecuteResult> {
         const url = payload.url;
         if (!url) {
@@ -314,6 +342,20 @@ export class ScheduledJobSystem {
             throw error;
         }
         return { logMeta };
+    }
+
+    private static async runFxRefreshJob(payload: any): Promise<JobExecuteResult> {
+        const base = payload?.base || process.env.FX_BASE || 'USD';
+        const symbols: string[] = (payload?.symbols || process.env.FX_SYMBOLS || 'USD,CNY,EUR').split(',').map((s: string) => s.trim()).filter(Boolean);
+        const fxRates = await (await import('../utils/FxService')).FxService.fetchLatest(base, symbols);
+        if (fxRates && Object.keys(fxRates).length) {
+            const { PaymentSystem } = await import('./PaymentSystem');
+            PaymentSystem.setFxRates(fxRates, base);
+            return { logMeta: { details: `FX refreshed base=${base}` } };
+        }
+        const err: JobError = new Error('fx_refresh_failed') as JobError;
+        err.logMeta = { details: `base=${base}` };
+        throw err;
     }
 
     private static truncatePreview(value: string, limit = 400) {

@@ -47,7 +47,7 @@ export class AchievementPanel extends UIView {
 
     private _initUI() {
         if (this.lbAchievements) {
-            this.lbAchievements.string = '成就系统开发中...\n\n敬请期待！';
+            this.lbAchievements.string = 'Achievements are under construction...\n\nStay tuned!';
         }
     }
 

@@ -3,7 +3,7 @@
  */
 
 import { MongoClient } from 'mongodb';
-import { getMongoDbName, getMongoUri, prettyPrintEnv } from './test-env';
+import { getMongoDbName, getMongoUri, prettyPrintEnv } from './test-env.ts';
 
 // bcrypt hash for 'admin123'
 const ADMIN_PASSWORD_HASH = '$2a$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yUP1KUOYTa';

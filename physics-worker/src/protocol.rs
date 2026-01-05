@@ -106,7 +106,7 @@ impl Default for RoomConfig {
             reward_line_z: -0.5,
             push_min_z: -8.8,
             push_max_z: -6.0,
-            push_speed: 1.5,
+            push_speed: 0.2,
             snapshot_rate: 30.0,
         }
     }
@@ -123,6 +123,8 @@ pub enum ToNode {
         tick: u64,
         /// 推板 Z 位置
         push_z: f32,
+        /// 推板 Z 轴速度（带方向）
+        push_velocity: f32,
         /// 硬币状态列表
         coins: Vec<CoinState>,
         /// 房间事件（收集、奖励等）
@@ -135,6 +137,8 @@ pub enum ToNode {
         tick: u64,
         /// 推板 Z 位置
         push_z: f32,
+        /// 推板 Z 轴速度（带方向）
+        push_velocity: f32,
         /// 新增的硬币
         #[serde(skip_serializing_if = "Vec::is_empty", default)]
         added: Vec<CoinState>,

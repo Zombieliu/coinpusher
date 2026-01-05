@@ -154,12 +154,12 @@ export class SnapshotValidator {
      * 🔒 启用快照验证的环境检查
      */
     static isSignatureEnabled(): boolean {
-        // 生产环境强制启用
-        if (process.env.NODE_ENV === 'production') {
-            return true;
+        const envValue = process.env.ENABLE_SNAPSHOT_SIGNATURE;
+        if (envValue !== undefined) {
+            return envValue.toLowerCase() === 'true';
         }
 
-        // 开发环境可通过环境变量控制
-        return process.env.ENABLE_SNAPSHOT_SIGNATURE === 'true';
+        // 默认：生产环境启用，其他环境关闭
+        return process.env.NODE_ENV === 'production';
     }
 }

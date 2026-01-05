@@ -6,6 +6,9 @@ export interface MsgSyncPhysics {
     /** 推板 Z 轴位置 */
     pushZ: number;
 
+    /** 推板 Z 轴速度（带方向） */
+    pushSpeed: number;
+
     /** 有变化的金币列表（增量更新） - 只包含新增或状态变化的硬币 */
     coins: {
         id: number;

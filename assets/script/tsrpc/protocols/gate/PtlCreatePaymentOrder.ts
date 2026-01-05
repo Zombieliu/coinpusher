@@ -1,4 +1,4 @@
-import { PaymentChannel, PaymentOrder } from '../../../server/gate/bll/PaymentSystem';
+import { PaymentChannel, PaymentOrder } from '../../types/payment';
 
 export interface ReqCreatePaymentOrder {
     userId: string;

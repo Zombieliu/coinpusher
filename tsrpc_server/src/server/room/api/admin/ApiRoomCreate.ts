@@ -11,7 +11,7 @@ import { Config } from "../../../../module/config/Config";
 import { Room } from "../../../../module/room/Room";
 import { sr } from "../../../../ServerRoom";
 import { ReqRoomCreate, ResRoomCreate } from "../../../../tsrpc/protocols/room/admin/PtlRoomCreate";
-import { getRustRoomClient } from "../../RustRoomClient";
+import { getRustRoomClient, PlayerId } from "../../RustRoomClient";
 import { ApiTimer, recordApiError } from "../../../utils/MetricsCollector";
 
 const ENDPOINT = 'room/admin/RoomCreate';
@@ -60,12 +60,13 @@ export async function ApiRoomCreate(call: ApiCall<ReqRoomCreate, ResRoomCreate>)
             coin_radius: 0.5,
             coin_height: 0.1,
             reward_line_z: -0.5,
-            push_min_z: -8.8,
-            push_max_z: -6.0,
-            push_speed: 1.5
+            push_min_z: -7.0,
+            push_max_z: -6.2,
+            push_speed: 0.8
         };
 
         rustClient.createRoom(roomId, roomConfig);
+        spawnInitialCoins(rustClient, roomId);
         rm.logger.log(`Created Rust room: ${roomId}`);
         // ========================================
 
@@ -79,4 +80,15 @@ export async function ApiRoomCreate(call: ApiCall<ReqRoomCreate, ResRoomCreate>)
     } finally {
         timer.end(success ? 'success' : 'error');
     }
+}
+
+const SYSTEM_PLAYER_ID: PlayerId = 'system';
+const INITIAL_COIN_POSITIONS: number[] = [-2.5, -1.25, 0, 1.25, 2.5];
+
+function spawnInitialCoins(rustClient: ReturnType<typeof getRustRoomClient>, roomId: string) {
+    rustClient.playerJoin(roomId, SYSTEM_PLAYER_ID);
+    for (const x of INITIAL_COIN_POSITIONS) {
+        rustClient.playerDropCoin(roomId, SYSTEM_PLAYER_ID, x);
+    }
+    rustClient.playerLeave(roomId, SYSTEM_PLAYER_ID);
 }

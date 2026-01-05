@@ -10,6 +10,9 @@
 
 import { UserDB } from '../data/UserDB';
 import { TaskReward } from './TaskSystem';
+import { MongoDBService } from '../db/MongoDBService';
+import { DragonflyDBService } from '../db/DragonflyDBService';
+import crypto from 'crypto';
 
 /** 成就类型 */
 export enum AchievementCategory {
@@ -285,29 +288,75 @@ export class AchievementSystem {
         }
     ];
 
-    /**
-     * 内存存储（生产环境应使用MongoDB）
-     */
+    /** 内存缓存 + Mongo 持久化 */
     private static userAchievementsMap = new Map<string, UserAchievement[]>();
+    private static readonly COLLECTION = 'user_achievements';
+    private static throttle = new Map<string, { count: number; resetAt: number }>();
+
+    private static isEnabled(userId?: string): boolean {
+        const flag = process.env.FEATURE_ACHIEVEMENT_ENABLED;
+        if (flag === '0' || flag === 'false') return false;
+        const pct = Number(process.env.FEATURE_ACHIEVEMENT_PCT || '100');
+        if (!userId) return pct >= 100;
+        const hash = crypto.createHash('md5').update(userId).digest();
+        return hash[0] < pct * 2.55;
+    }
+
+    private static passThrottle(key: string, action: string, limit = 20, windowMs = 2000): boolean {
+        const now = Date.now();
+        const rec = this.throttle.get(key);
+        if (!rec || rec.resetAt < now) {
+            this.throttle.set(key, { count: 1, resetAt: now + windowMs });
+            return true;
+        }
+        if (rec.count >= limit) return false;
+        rec.count += 1;
+        return true;
+    }
+
+    private static async allowRate(key: string, action: string, limit: number, windowMs: number) {
+        const name = `ach:${action}`;
+        if (DragonflyDBService.ready()) {
+            try {
+                const res = await DragonflyDBService.tryAcquireWindow(name, key, limit, windowMs);
+                return res.allowed;
+            } catch {
+                // fallback
+            }
+        }
+        return this.passThrottle(key, action, limit, windowMs);
+    }
+
+    static async ensureIndexes() {
+        const col = MongoDBService.getCollection<UserAchievement>(this.COLLECTION);
+        await col.createIndex({ userId: 1, achievementId: 1 }, { unique: true });
+    }
 
     /**
      * 获取用户成就列表
      */
-    static getUserAchievements(userId: string): UserAchievement[] {
+    static async getUserAchievements(userId: string): Promise<UserAchievement[]> {
         let achievements = this.userAchievementsMap.get(userId);
+        if (achievements) return achievements;
 
-        if (!achievements) {
-            // 初始化用户成就
+        const collection = MongoDBService.getCollection<UserAchievement>(this.COLLECTION);
+        const docs = await collection.find({ userId }).toArray();
+
+        if (!docs || docs.length === 0) {
             achievements = this.ACHIEVEMENTS.map(config => ({
+                userId,
                 achievementId: config.achievementId,
                 category: config.category,
                 status: AchievementStatus.Locked,
                 currentProgress: 0,
                 goalValue: config.goalValue
             }));
-            this.userAchievementsMap.set(userId, achievements);
+            await collection.insertMany(achievements as any[]);
+        } else {
+            achievements = docs as UserAchievement[];
         }
 
+        this.userAchievementsMap.set(userId, achievements);
         return achievements;
     }
 
@@ -320,7 +369,9 @@ export class AchievementSystem {
         progress: number,
         absolute: boolean = true
     ): Promise<UserAchievement | null> {
-        const achievements = this.getUserAchievements(userId);
+        if (!this.isEnabled(userId)) return null;
+        if (!await this.allowRate(`${userId}|progress`, 'ach_progress', 50, 2000)) return null;
+        const achievements = await this.getUserAchievements(userId);
         const achievement = achievements.find(a => a.achievementId === achievementId);
 
         if (!achievement) {
@@ -353,19 +404,33 @@ export class AchievementSystem {
             return achievement;
         }
 
-        return null;
+        // 持久化
+        this.userAchievementsMap.set(userId, achievements);
+        const collection = MongoDBService.getCollection<UserAchievement>(this.COLLECTION);
+        await collection.updateOne(
+            { userId, achievementId },
+            { $set: achievement },
+            { upsert: true }
+        );
+
+        return achievement;
     }
 
     /**
      * 领取成就奖励
      */
-    static async claimAchievementReward(userId: string, achievementId: string): Promise<{
+    static async claimAchievementReward(userId: string, achievementId: string, ctx?: { ip?: string; deviceId?: string }): Promise<{
         success: boolean;
         reward?: TaskReward;
         title?: string;
         error?: string;
     }> {
-        const achievements = this.getUserAchievements(userId);
+        if (!this.isEnabled(userId)) return { success: false, error: 'feature_disabled' };
+        const key = `${userId}|${ctx?.ip || 'noip'}|${ctx?.deviceId || 'nodev'}`;
+        if (!await this.allowRate(key, 'ach_claim', 10, 5000)) {
+            return { success: false, error: 'too_many_requests' };
+        }
+        const achievements = await this.getUserAchievements(userId);
         const achievement = achievements.find(a => a.achievementId === achievementId);
 
         if (!achievement) {
@@ -406,6 +471,15 @@ export class AchievementSystem {
 
         console.log(`[AchievementSystem] 用户 ${userId} 领取成就奖励：${config.name}`);
 
+        // 持久化
+        this.userAchievementsMap.set(userId, achievements);
+        const collection = MongoDBService.getCollection<UserAchievement>(this.COLLECTION);
+        await collection.updateOne(
+            { userId, achievementId },
+            { $set: achievement },
+            { upsert: true }
+        );
+
         return {
             success: true,
             reward: config.reward,
@@ -416,25 +490,25 @@ export class AchievementSystem {
     /**
      * 根据类型获取成就
      */
-    static getAchievementsByCategory(
+    static async getAchievementsByCategory(
         userId: string,
         category: AchievementCategory
-    ): UserAchievement[] {
-        const achievements = this.getUserAchievements(userId);
+    ): Promise<UserAchievement[]> {
+        const achievements = await this.getUserAchievements(userId);
         return achievements.filter(a => a.category === category);
     }
 
     /**
      * 获取成就统计
      */
-    static getAchievementStats(userId: string): {
+    static async getAchievementStats(userId: string): Promise<{
         total: number;
         unlocked: number;
         claimed: number;
         inProgress: number;
         completion: number;
-    } {
-        const achievements = this.getUserAchievements(userId);
+    }> {
+        const achievements = await this.getUserAchievements(userId);
 
         const unlocked = achievements.filter(a =>
             a.status === AchievementStatus.Unlocked ||
@@ -461,8 +535,8 @@ export class AchievementSystem {
     /**
      * 获取可见的成就列表（过滤隐藏成就）
      */
-    static getVisibleAchievements(userId: string): UserAchievement[] {
-        const achievements = this.getUserAchievements(userId);
+    static async getVisibleAchievements(userId: string): Promise<UserAchievement[]> {
+        const achievements = await this.getUserAchievements(userId);
         const visibleIds = this.ACHIEVEMENTS
             .filter(a => !a.hidden || achievements.find(ua => ua.achievementId === a.achievementId && ua.status !== AchievementStatus.Locked))
             .map(a => a.achievementId);

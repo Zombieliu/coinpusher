@@ -1,5 +1,5 @@
 import { MongoClient, ObjectId } from 'mongodb';
-import { getMongoUri, getMongoDbName, prettyPrintEnv } from './test-env';
+import { getMongoUri, getMongoDbName, prettyPrintEnv } from './test-env.ts';
 
 const SEED_TAG = 'admin-demo-seed';
 const ADMIN_PASSWORD_HASH = '$2a$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yUP1KUOYTa'; // admin123

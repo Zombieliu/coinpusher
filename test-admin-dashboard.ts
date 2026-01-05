@@ -2,7 +2,7 @@
  * 测试管理后台是否正常工作
  */
 
-import { getGateHttpUrl } from './test-env';
+import { getGateHttpUrl } from './test-env.ts';
 
 async function testAdminDashboard() {
     console.log('🧪 测试管理后台修复\n');

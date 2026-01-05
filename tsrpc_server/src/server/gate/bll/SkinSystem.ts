@@ -111,6 +111,39 @@ export class SkinSystem {
         return { success: true };
     }
 
+    /**
+     * 移除已拥有的皮肤（用于退款回退）
+     */
+    static async removeSkin(userId: string, skinId: string): Promise<{ success: boolean; error?: string }> {
+        const collection = MongoDBService.getCollection<UserSkin>('user_skins');
+        const data = await this.getUserSkins(userId);
+
+        if (!data.ownedSkins.includes(skinId)) {
+            return { success: false, error: '未拥有该皮肤' };
+        }
+
+        // 保护默认皮肤
+        if (skinId === 'machine_default') {
+            return { success: false, error: '默认皮肤不可移除' };
+        }
+
+        // 清除装备
+        const skin = this.SKINS.find(s => s.skinId === skinId);
+        if (!skin) {
+            return { success: false, error: '皮肤不存在' };
+        }
+
+        await collection.updateOne(
+            { userId },
+            {
+                $pull: { ownedSkins: skinId },
+                $unset: { [`equippedSkins.${skin.type}`]: "" }
+            }
+        );
+
+        return { success: true };
+    }
+
     static getAllSkins(): Skin[] {
         return this.SKINS;
     }

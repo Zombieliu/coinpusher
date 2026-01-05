@@ -24,6 +24,12 @@ export const GameConfig = {
     PUSH_MIN_POS_Z: -8.8,
     /** 推动台最大 Z 位置 */
     PUSH_MAX_POS_Z: -6,
+    /** 推台可视模型相对物理推台 X 偏移（基于 prefab 实测） */
+    PUSH_VISUAL_OFFSET_X: 0,
+    /** 推台可视模型相对物理推台 Y 偏移：pushModel(0.4) - pushBox(1.038) */
+    PUSH_VISUAL_OFFSET_Y: -0.638,
+    /** 推台可视模型相对物理推台 Z 偏移：pushModel(-13.93) - pushBox(-7.438) */
+    PUSH_VISUAL_OFFSET_Z: -4,
     /** 推动台初始 X 位置 */
     PUSH_INIT_POS_X: 0,
     /** 推动台初始 Y 位置 */
@@ -46,6 +52,10 @@ export const GameConfig = {
     GOLD_ON_STAND_POS_MAX_X: 3.5,
     /** 初始金币数量 */
     INIT_GOLD_NUM: 100,
+
+    // ========== 调试开关 ==========
+    /** 物理快照日志开关，默认关闭避免刷屏 */
+    PHYSICS_LOG_VERBOSE: false,
 
     // ========== 金币检查配置 ==========
     /** 金币检查最大帧数 */

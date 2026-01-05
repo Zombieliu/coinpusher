@@ -115,6 +115,11 @@ export class PhysicsWorld {
         this.pushPlatformBody.setNextKinematicTranslation({ x: curPos.x, y: curPos.y, z: newZ });
     }
 
+    /** 当前推板速度（Z轴，带方向） */
+    getPushVelocity(): number {
+        return this.PUSH_SPEED * this._pushDir;
+    }
+
     /** 生成金币 */
     dropCoin(x: number, z: number = -6.0): number {
         const coinId = this._coinIdCounter++;

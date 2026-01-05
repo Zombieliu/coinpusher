@@ -1,4 +1,6 @@
 import { strict as assert } from 'assert';
+import fs from 'fs';
+import path from 'path';
 import {
     DragonflyClientManager,
     SlidingWindowLimiter,
@@ -7,6 +9,8 @@ import {
 } from '../src/server/utils/DragonflyRateLimiter';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const benchConcurrency = Number(process.env.RATE_LIMIT_BENCH_CONCURRENCY || '1000');
+const metricsFile = path.resolve(__dirname, '../test-results/dragonfly.json');
 
 describe('DragonflyDB Rate Limiters', function () {
     // @ts-ignore: Mocha context
@@ -15,22 +19,41 @@ describe('DragonflyDB Rate Limiters', function () {
     let client: any;
 
     before(async () => {
+        if (process.env.SKIP_EXTERNAL === '1') {
+            // 跳过外部依赖
+            // @ts-ignore
+            return this.skip();
+        }
+
+        const host = process.env.DRAGONFLY_HOST || 'localhost';
+        const port = parseInt(process.env.DRAGONFLY_PORT || '6379', 10);
+
         // 初始化 DragonflyDB 连接
-        client = DragonflyClientManager.initialize({
-            host: process.env.DRAGONFLY_HOST || 'localhost',
-            port: parseInt(process.env.DRAGONFLY_PORT || '6379', 10)
-        });
+        client = DragonflyClientManager.initialize({ host, port });
 
         // 等待连接就绪
         await sleep(100);
 
         // 健康检查
-        const health = await DragonflyClientManager.healthCheck();
+        const health = await DragonflyClientManager.healthCheck().catch(() => ({ connected: false }));
+        if (!health.connected) {
+            // @ts-ignore
+            this.skip();
+            return;
+        }
         assert.ok(health.connected, 'DragonflyDB should be connected');
         console.log(`    ✅ Connected to DragonflyDB (latency: ${health.latency}ms, version: ${health.version})`);
     });
 
     after(async () => {
+        // 先清理，再断开，避免断开后 flushdb 抛 "Connection is closed"
+        if (client) {
+            try {
+                await client.flushdb();
+            } catch (err) {
+                console.warn('⚠️  flushdb skipped:', (err as Error).message);
+            }
+        }
         await DragonflyClientManager.disconnect();
     });
 
@@ -182,7 +205,7 @@ describe('DragonflyDB Rate Limiters', function () {
     describe('Performance', () => {
         it('should handle high concurrency', async () => {
             const limiter = new SlidingWindowLimiter(client, 'perf', 10000, 60000);
-            const concurrency = 1000;
+            const concurrency = benchConcurrency;
 
             const start = Date.now();
             const promises = [];
@@ -197,8 +220,16 @@ describe('DragonflyDB Rate Limiters', function () {
             console.log(`    ⚡ ${concurrency} concurrent requests: ${duration}ms`);
             console.log(`    📊 Throughput: ${(concurrency / (duration / 1000)).toFixed(0)} req/s`);
 
-            // 1000个请求应该在2秒内完成（平均<2ms/req）
-            assert.ok(duration < 2000, `Performance should be < 2s (actual: ${duration}ms)`);
+            const maxDuration = Math.max(2000, Math.ceil(concurrency * 2)); // 简单动态上限
+            // 并发请求应在可接受时间内完成
+            assert.ok(duration < maxDuration, `Performance should be < ${maxDuration}ms (actual: ${duration}ms)`);
+
+            // 写入部分指标，低延迟测试里补全 percentiles
+            fs.mkdirSync(path.dirname(metricsFile), { recursive: true });
+            fs.writeFileSync(
+                metricsFile,
+                JSON.stringify({ concurrency, durationMs: duration, throughput: concurrency / (duration / 1000) }, null, 2)
+            );
         });
 
         it('should have low latency', async () => {
@@ -223,6 +254,26 @@ describe('DragonflyDB Rate Limiters', function () {
 
             // P95应该小于10ms
             assert.ok(p95 < 10, `P95 latency should be < 10ms (actual: ${p95}ms)`);
+
+            // 追加并持久化指标
+            try {
+                const base = fs.existsSync(metricsFile) ? JSON.parse(fs.readFileSync(metricsFile, 'utf-8')) : {};
+                fs.writeFileSync(
+                    metricsFile,
+                    JSON.stringify(
+                        {
+                            ...base,
+                            p50,
+                            p95,
+                            p99
+                        },
+                        null,
+                        2
+                    )
+                );
+            } catch (err) {
+                console.warn('⚠️  Failed to write dragonfly metrics file', err);
+            }
         });
     });
 

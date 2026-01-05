@@ -22,7 +22,9 @@ import { EcsInitializeSystem, Initialize } from './game/initialize/Initialize';
 import { UIConfigData } from './game/common/config/GameUIConfig';
 import { CoinPusher } from './game/coinpusher/CoinPusher';
 import { EcsCoinPusherSystem } from './game/coinpusher/CoinPusher';
+import { GameConfig } from './game/coinpusher/model/GameConfig';
 import { InitializeEvent } from './game/initialize/InitializeEvent';
+import { paymentService } from './game/network/PaymentService';
 
 
 const { ccclass, property } = _decorator;
@@ -32,10 +34,21 @@ export class Main extends Root {
     private sceneLoaded = false;
 
     start() {
-        // 清除上一个版本的本地存储数据，数据结构有变化，避免报错
+        // 清除上一个版本的本地存储数据，数据结构有变化，避免报错（仅在调试模式）
         console.log("[Main] run() - Initializing game...");
-        oops.storage.clear();
+        if (DEBUG) {
+            oops.storage.clear();
+        }
         NetworkManager.instance.init();
+        // 处理来自 Stripe 回调的场景（成功 / 取消页面）
+        void paymentService.handleReturnFromUrl();
+
+        // 暴露关键单例到全局，便于在浏览器控制台诊断（仅开发环境）
+        if (DEBUG && typeof window !== 'undefined') {
+            (window as any).smc = smc;
+            (window as any).oops = oops;
+        }
+
         const seed = Date.now().toString();
         console.log(`[Main] Initializing global RNG with seed: ${seed}`);
         new SeedRandom(seed);
@@ -72,6 +85,10 @@ export class Main extends Root {
         const sceneLoaded = await this.loadGameScene();
         if (sceneLoaded && smc.coinPusher.GameView && smc.coinPusher.GameState) {
             smc.coinPusher.startGame();
+
+            // 场景加载完成后再次广播金币，防止登录阶段的 GOLD_CHANGED 在界面挂载前被错过
+            const currentGold = smc.coinPusher.CoinModel?.totalGold ?? 0;
+            oops.message.dispatchEvent(GameConfig.EVENT_LIST.GOLD_CHANGED, currentGold);
         } else {
             console.warn('[Main] CoinPusher components not ready after scene load');
         }
@@ -94,12 +111,13 @@ export class Main extends Root {
         }
 
         console.log("[Main] ========== Loading game scene prefab ==========");
-        console.log("[Main] Prefab path: gui/prefab/coinpusher/game");
+        const prefabPath = "prefab/ui/game/game";
+        console.log("[Main] Prefab path:", prefabPath);
 
         try {
             // 使用 OOPS Framework 的 ViewUtil.createPrefabNodeAsync 加载并实例化预制体
             console.log("[Main] Calling ViewUtil.createPrefabNodeAsync...");
-            const sceneNode = await ViewUtil.createPrefabNodeAsync("gui/prefab/coinpusher/game");
+            const sceneNode = await ViewUtil.createPrefabNodeAsync(prefabPath);
             console.log("[Main] ViewUtil.createPrefabNodeAsync returned:", !!sceneNode);
 
             if (!sceneNode) {

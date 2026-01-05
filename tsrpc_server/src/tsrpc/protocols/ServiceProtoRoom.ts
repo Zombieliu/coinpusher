@@ -513,6 +513,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
+                    "id": 3,
+                    "name": "pushSpeed",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
                     "id": 1,
                     "name": "coins",
                     "type": {
@@ -599,7 +606,7 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
-                    "id": 3,
+                    "id": 4,
                     "name": "removed",
                     "type": {
                         "type": "Array",

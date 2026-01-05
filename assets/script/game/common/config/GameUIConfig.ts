@@ -45,49 +45,49 @@ export var UIConfigData: { [key: number]: UIConfig } = {
     [UIID.Loading]: { layer: LayerType.UI, prefab: "loading/prefab/loading", bundle: "resources" },
     [UIID.Alert]: { layer: LayerType.Dialog, prefab: "common/prefab/alert", mask: true },
     [UIID.Confirm]: { layer: LayerType.Dialog, prefab: "common/prefab/confirm", mask: true },
-    [UIID.Demo]: { layer: LayerType.UI, prefab: "gui/prefab/demo" },
-    [UIID.Demo_Role_Info]: { layer: LayerType.UI, prefab: "gui/prefab/role_info" },
+    // Legacy DEMO 页面目前未使用，临时映射到新的 game prefab，避免加载旧 gui 资源
+    [UIID.Demo]: { layer: LayerType.UI, prefab: "prefab/ui/game/game" },
+    [UIID.Demo_Role_Info]: { layer: LayerType.UI, prefab: "prefab/ui/game/gamePanel" },
 
     // ========== 推金币游戏 UI 配置 ==========
-    // 使用现有的 UI Prefab 路径（旧版本路径）
     [UIID.Login]: {
         layer: LayerType.UI,
-        prefab: "gui/gate/game_login",  // 暂时使用 game 场景作为入口
+        prefab: "prefab/ui/game/game_login",
         bundle: "resources"
     },
     [UIID.Game]: {
         layer: LayerType.UI,
-        prefab: "gui/prefab/coinpusher/game",  // 使用旧版 gamePanel
+        prefab: "prefab/ui/game/gamePanel",
         bundle: "resources"
     },
-    [UIID.Setting]: {
-        layer: LayerType.Dialog,
-        prefab: "prefab/ui/setting/settingPanel",  // 使用旧版 settingPanel
-        mask: true
-    },
-    [UIID.OfflineReward]: {
-        layer: LayerType.PopUp,
-        prefab: "prefab/ui/offlineReward/offlineRewardPanel",  // 使用旧版 offlineRewardPanel
-        mask: true
-    },
-    [UIID.Achievement]: {
-        layer: LayerType.PopUp,
-        prefab: "prefab/ui/achievement/achievementPanel",
-        mask: true
-    },
-    [UIID.Checkin]: {
-        layer: LayerType.PopUp,
-        prefab: "prefab/ui/checkin/checkinPanel",
-        mask: true
-    },
-    [UIID.Inventory]: {
-        layer: LayerType.PopUp,
-        prefab: "prefab/ui/inventory/inventoryPanel",
-        mask: true
-    },
-    [UIID.Jackpot]: {
-        layer: LayerType.PopUp,
-        prefab: "prefab/ui/jackpot/jackpotPanel",
-        mask: true
-    },
+    // [UIID.Setting]: {
+    //     layer: LayerType.Dialog,
+    //     prefab: "prefab/ui/setting/settingPanel",  // 使用旧版 settingPanel
+    //     mask: true
+    // },
+    // [UIID.OfflineReward]: {
+    //     layer: LayerType.PopUp,
+    //     prefab: "prefab/ui/offlineReward/offlineRewardPanel",  // 使用旧版 offlineRewardPanel
+    //     mask: true
+    // },
+    // [UIID.Achievement]: {
+    //     layer: LayerType.PopUp,
+    //     prefab: "prefab/ui/achievement/achievementPanel",
+    //     mask: true
+    // },
+    // [UIID.Checkin]: {
+    //     layer: LayerType.PopUp,
+    //     prefab: "prefab/ui/checkin/checkinPanel",
+    //     mask: true
+    // },
+    // [UIID.Inventory]: {
+    //     layer: LayerType.PopUp,
+    //     prefab: "prefab/ui/inventory/inventoryPanel",
+    //     mask: true
+    // },
+    // [UIID.Jackpot]: {
+    //     layer: LayerType.PopUp,
+    //     prefab: "prefab/ui/jackpot/jackpotPanel",
+    //     mask: true
+    // },
 }

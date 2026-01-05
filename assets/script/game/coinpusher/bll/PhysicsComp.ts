@@ -15,21 +15,30 @@
  */
 
 import { Node, Vec3, Quat, instantiate, Prefab, NodePool, RigidBody } from "cc";
+import { oops } from "../../../../../extensions/oops-plugin-framework/assets/core/Oops";
 import { ecs } from "../../../../../extensions/oops-plugin-framework/assets/libs/ecs/ECS";
 import { RoomService } from "../../network/RoomService";
+import { GameConfig } from "../model/GameConfig";
 
-console.log("[DEBUG] PhysicsComp.ts loaded, about to register");
+if (GameConfig.PHYSICS_LOG_VERBOSE) {
+    console.log("[DEBUG] PhysicsComp.ts loaded, about to register");
+}
 @ecs.register("PhysicsComp")
 export class PhysicsComp extends ecs.Comp {
     // ========== 场景节点引用 ==========
-    /** 推动台节点 */
+    /** 推动台碰撞节点（用于物理） */
     pushNode: Node | null = null;
+
+    /** 推动台可见模型节点（用于表现） */
+    pushVisualNode: Node | null = null;
 
     /** 金币父节点 */
     coinParent: Node | null = null;
 
     /** 金币预制体 */
     coinPrefab: Prefab | null = null;
+    /** 预制体加载 Promise（避免重复加载） */
+    private _coinPrefabPromise: Promise<Prefab | null> | null = null;
 
     // ========== 网络服务 ==========
     /** Room 服务（用于获取快照和时间同步） */
@@ -45,6 +54,12 @@ export class PhysicsComp extends ecs.Comp {
     /** 金币对象池（性能优化） */
     private _coinPool: NodePool = new NodePool();
 
+    /** 记录最近一次输出的金币统计，避免日志刷屏 */
+    private _lastLoggedCoinCount = -1;
+    private _lastCoinLogTick = -1;
+    /** 是否输出调试日志 */
+    private _logEnabled = GameConfig.PHYSICS_LOG_VERBOSE ?? false;
+
     // ========== 插值参数 ==========
     /** 渲染延迟（tick数） - 保持2个快照的缓冲，确保插值平滑 */
     private readonly INTERPOLATION_DELAY = 2;
@@ -56,16 +71,47 @@ export class PhysicsComp extends ecs.Comp {
     private _tempVec3 = new Vec3();
     private _tempQuat = new Quat();
 
+    // ========== 推台初始缓存 ==========
+    private _pushBaseCaptured = false;
+    private _pushNodeBaseZ = 0;
+    private _pushVisualBaseZ = 0;
+    private _pushVisualOffset = new Vec3();
+    private _tempWorldPosA = new Vec3();
+    private _tempWorldPosB = new Vec3();
+    private _cachedPushNode: Node | null = null;
+    private _cachedVisualNode: Node | null = null;
+
+    // 网络卡顿/无快照兜底
+    private _noSnapshotAccum = 0;
+    private _fallbackLocalActive = false;
+
+    // 网络卡顿/无快照兜底
+    private _noSnapshotAccum = 0;
+    private _fallbackLocalActive = false;
+
     // ========== 生命周期 ==========
 
     reset() {
+        console.warn('[PhysicsComp] reset called, clearing node references');
         this.pushNode = null;
+        this.pushVisualNode = null;
         this.coinParent = null;
         this.coinPrefab = null;
+        this._coinPrefabPromise = null;
         this.roomService = null;
         this._coinNodes.clear();
         this._predictedCoins.clear();
         this._coinPool.clear();
+        this._pushBaseCaptured = false;
+        this._pushNodeBaseZ = 0;
+        this._pushVisualBaseZ = 0;
+        this._pushVisualOffset.set(0, 0, 0);
+        this._tempWorldPosA.set(0, 0, 0);
+        this._tempWorldPosB.set(0, 0, 0);
+        this._cachedPushNode = null;
+        this._cachedVisualNode = null;
+        this._localModeInitialized = false;
+        this._localPushConfigured = false;
     }
 
     // ========== 核心更新循环 ==========
@@ -84,12 +130,38 @@ export class PhysicsComp extends ecs.Comp {
 
         if (!this.coinParent || !this.pushNode) return;
 
-        // 如果没有金币预制体，跳过渲染
+        // 如果没有金币预制体，尝试触发加载并等待
         if (!this.coinPrefab) {
+            if (!this._coinPrefabPromise) {
+                this.ensureCoinPrefab();
+            }
+            if (GameConfig.PHYSICS_LOG_VERBOSE) {
+                console.log('[PhysicsComp] coinPrefab not ready, skip frame');
+            }
             return;
         }
 
         const snapshots = this.roomService.snapshots;
+        // 若持续未收到快照，启动兜底本地模式动画 + 静态金币
+        if (!snapshots.length) {
+            this._noSnapshotAccum += dt;
+            if (this._noSnapshotAccum > 1.0) {
+                if (!this._fallbackLocalActive) {
+                    console.warn('[PhysicsComp] No snapshots for 1s, enabling fallback local visuals');
+                    this._fallbackLocalActive = true;
+                    this._createInitialCoinsLocal();
+                    this._localModeInitialized = true;
+                }
+                this._animateLocalPush(dt);
+            }
+            return;
+        } else {
+            if (this._fallbackLocalActive) {
+                console.log('[PhysicsComp] Snapshots resumed, disabling fallback local visuals');
+                this._fallbackLocalActive = false;
+            }
+            this._noSnapshotAccum = 0;
+        }
 
         // 处理首帧快照：如果只有一个快照，直接渲染（不插值）
         if (snapshots.length === 1) {
@@ -134,8 +206,7 @@ export class PhysicsComp extends ecs.Comp {
 
         // 渲染推板
         const pushZ = snapshot.data?.pushZ ?? snapshot.data?.push_z ?? 0;
-        const pos = this.pushNode.position;
-        this.pushNode.setPosition(pos.x, pos.y, pushZ);
+        this._syncPushNodeZ(pushZ);
 
         // 渲染金币
         const coins = snapshot.data?.coins || [];
@@ -152,6 +223,8 @@ export class PhysicsComp extends ecs.Comp {
                 this._coinNodes.delete(id);
             }
         });
+
+        this._logCoinSnapshot("[render]", snapshot.serverTick ?? -1, coins.length, removed.length);
     }
 
     /**
@@ -209,8 +282,7 @@ export class PhysicsComp extends ecs.Comp {
         // 线性插值 Z 轴
         const currentZ = prevZ + (nextZ - prevZ) * alpha;
 
-        const pos = this.pushNode.position;
-        this.pushNode.setPosition(pos.x, pos.y, currentZ);
+        this._syncPushNodeZ(currentZ);
     }
 
     /**
@@ -253,6 +325,8 @@ export class PhysicsComp extends ecs.Comp {
             });
         }
 
+        this._logCoinSnapshot("[interpolate]", next.serverTick ?? -1, next.data.coins.length, next.data.removed?.length ?? 0);
+
         // 3. 清理未被服务器确认的预测金币（超时）
         // 注意：由于增量更新，我们不再根据"不在 coins 列表"来删除，而是等待 removed 通知
         // 但预测金币如果长时间未被确认，仍需清理（防止内存泄漏）
@@ -283,6 +357,24 @@ export class PhysicsComp extends ecs.Comp {
         this._updateOrCreateCoin(coinId, this._tempVec3, this._tempQuat);
     }
 
+    /** 记录快照中的金币统计信息，便于排查“看不到金币” */
+    private _logCoinSnapshot(source: string, tick: number, coinCount: number, removedCount: number) {
+        if (!this._logEnabled) return;
+        const shouldLog =
+            this._lastCoinLogTick !== tick ||
+            this._lastLoggedCoinCount !== coinCount;
+
+        if (!shouldLog) {
+            return;
+        }
+
+        console.log(
+            `[PhysicsComp] ${source} tick=${tick} coins=${coinCount} removed=${removedCount} activeNodes=${this._coinNodes.size}`
+        );
+        this._lastCoinLogTick = tick;
+        this._lastLoggedCoinCount = coinCount;
+    }
+
     /**
      * 更新或创建金币节点
      */
@@ -299,10 +391,28 @@ export class PhysicsComp extends ecs.Comp {
                 node = this._coinPool.get()!;
             } else {
                 node = instantiate(this.coinPrefab!);
+                // 服务器同步的金币只负责渲染，不需要本地物理，否则会被重力拖走
+                const rigidBody = node.getComponent(RigidBody);
+                if (rigidBody) {
+                    rigidBody.enabled = false;
+                    node.removeComponent(RigidBody);
+                }
             }
 
             node.parent = this.coinParent;
+            node.active = true;
             this._coinNodes.set(coinId, node);
+            console.log(`[PhysicsComp] Created coin node ${coinId}, activeNodes=${this._coinNodes.size}`);
+        } else {
+            // 从对象池取出的节点可能被置为 inactive，这里确保重新启用
+            node.active = true;
+            node.parent = this.coinParent;
+
+            const rigidBody = node.getComponent(RigidBody);
+            if (rigidBody) {
+                rigidBody.enabled = false;
+                node.removeComponent(RigidBody);
+            }
         }
 
         // 更新位置和旋转
@@ -342,15 +452,16 @@ export class PhysicsComp extends ecs.Comp {
             node = instantiate(this.coinPrefab);
         }
 
-        // 设置位置
-        node.setPosition(pos);
+        // 先挂到父节点，再按世界坐标放置，避免父节点偏移导致位置错误
+        node.parent = this.coinParent;
+        node.setWorldPosition(pos);
 
         // 设置旋转（如果有）
         if (eul) {
             node.setRotationFromEuler(eul.x, eul.y, eul.z);
         }
 
-        node.parent = this.coinParent;
+        node.layer = this.coinParent.layer;
 
         // 生成临时ID存储
         const tempId = Date.now() + Math.random();
@@ -375,9 +486,9 @@ export class PhysicsComp extends ecs.Comp {
             node = instantiate(this.coinPrefab);
         }
 
-        // 设置初始位置（从高处掉落）
-        node.setPosition(x, 10.0, -6.0);
+        // 设置初始位置（从高处掉落，使用世界坐标避免父节点偏移）
         node.parent = this.coinParent;
+        node.setWorldPosition(x, 10.0, -6.0);
 
         this._predictedCoins.set(coinId, node);
 
@@ -387,6 +498,11 @@ export class PhysicsComp extends ecs.Comp {
     // ========== 本地模式（无服务器） ==========
 
     private _localModeInitialized = false;
+    private _localPushConfigured = false;
+    private _localPushDir = 1;
+    private _localPushSpeed = 3;
+    private _localPushZMin = -6;
+    private _localPushZMax = -2;
 
     /**
      * 本地模式更新（用于无服务器测试）
@@ -402,7 +518,10 @@ export class PhysicsComp extends ecs.Comp {
             return;
         }
         if (!this.coinPrefab) {
-            // console.log('[PhysicsComp] ⏳ Waiting for coinPrefab to load...');
+            // 主动触发加载，等待加载完成
+            if (!this._coinPrefabPromise) {
+                this.ensureCoinPrefab();
+            }
             return;
         }
 
@@ -418,8 +537,33 @@ export class PhysicsComp extends ecs.Comp {
             console.log('[PhysicsComp] ✅ Local mode initialized with initial coins');
         }
 
-        // 这里可以添加本地推手动画等逻辑
-        // 暂时保持静态
+        this._animateLocalPush(dt);
+    }
+
+    // ========== 资源加载 ==========
+
+    /** 确保金币 prefab 已加载（防止重复并发加载） */
+    async ensureCoinPrefab(): Promise<Prefab | null> {
+        if (this.coinPrefab) return this.coinPrefab;
+        if (this._coinPrefabPromise) return this._coinPrefabPromise;
+        this._coinPrefabPromise = this._loadCoinPrefab();
+        return this._coinPrefabPromise;
+    }
+
+    private async _loadCoinPrefab(): Promise<Prefab | null> {
+        try {
+            console.log('[PhysicsComp] Loading coin prefab...');
+            const prefab = await oops.res.loadAsync('prefab/model/coin', Prefab) as Prefab;
+            this.coinPrefab = prefab;
+            // 通知其他组件（GamePanel 等）prefab 已就绪
+            oops.message.dispatchEvent('COIN_PREFAB_READY');
+            console.log('[PhysicsComp] ✅ Coin prefab loaded');
+            return prefab;
+        } catch (error) {
+            console.error('[PhysicsComp] ❌ Failed to load coin prefab:', error);
+            this._coinPrefabPromise = null;
+            return null;
+        }
     }
 
     /**
@@ -485,6 +629,32 @@ export class PhysicsComp extends ecs.Comp {
         this._coinNodes.set(tempId, node);
     }
 
+    private _animateLocalPush(dt: number) {
+        if (!this.pushNode) return;
+
+        this._ensurePushBaseCache();
+
+        if (!this._localPushConfigured) {
+            const currentZ = this.pushNode.position.z;
+            const travel = 2.5;
+            this._localPushZMin = currentZ - travel;
+            this._localPushZMax = currentZ + travel;
+            this._localPushConfigured = true;
+        }
+
+        let nextZ = this.pushNode.position.z + this._localPushSpeed * dt * this._localPushDir;
+        if (nextZ >= this._localPushZMax) {
+            nextZ = this._localPushZMax;
+            this._localPushDir = -1;
+        }
+        else if (nextZ <= this._localPushZMin) {
+            nextZ = this._localPushZMin;
+            this._localPushDir = 1;
+        }
+
+        this._syncPushNodeZ(nextZ);
+    }
+
     // ========== 清理 ==========
 
     onDestroy() {
@@ -493,5 +663,73 @@ export class PhysicsComp extends ecs.Comp {
         this._predictedCoins.forEach(node => node.destroy());
         this._predictedCoins.clear();
         this._coinPool.clear();
+        this._coinPrefabPromise = null;
+        this.coinPrefab = null;
+    }
+
+    /**
+     * 捕获推台初始位置，便于同步可视节点
+     */
+    private _ensurePushBaseCache() {
+        if (!this.pushNode) return;
+
+        const pushNodeChanged = this._cachedPushNode !== this.pushNode;
+        const visualNodeChanged = this._cachedVisualNode !== this.pushVisualNode;
+
+        if (!this._pushBaseCaptured || pushNodeChanged || visualNodeChanged) {
+            this._cachedPushNode = this.pushNode;
+            this._cachedVisualNode = this.pushVisualNode;
+            this._pushNodeBaseZ = this.pushNode.position.z;
+
+            if (this.pushVisualNode) {
+                this.pushNode.getWorldPosition(this._tempWorldPosA);
+                this.pushVisualNode.getWorldPosition(this._tempWorldPosB);
+                Vec3.subtract(this._pushVisualOffset, this._tempWorldPosB, this._tempWorldPosA);
+                console.log(
+                    `[PhysicsComp] captured push visual offset (world) = (${this._pushVisualOffset.x.toFixed(3)}, ${this._pushVisualOffset.y.toFixed(3)}, ${this._pushVisualOffset.z.toFixed(3)})`
+                );
+
+                if (GameConfig.PUSH_VISUAL_OFFSET_X !== undefined) this._pushVisualOffset.x = GameConfig.PUSH_VISUAL_OFFSET_X;
+                if (GameConfig.PUSH_VISUAL_OFFSET_Y !== undefined) this._pushVisualOffset.y = GameConfig.PUSH_VISUAL_OFFSET_Y;
+                if (GameConfig.PUSH_VISUAL_OFFSET_Z !== undefined) this._pushVisualOffset.z = GameConfig.PUSH_VISUAL_OFFSET_Z;
+
+                Vec3.add(this._tempWorldPosB, this._tempWorldPosA, this._pushVisualOffset);
+                this.pushVisualNode.setWorldPosition(this._tempWorldPosB);
+                this._pushVisualBaseZ = this._tempWorldPosB.z;
+                console.log(
+                    `[PhysicsComp] pushModel aligned to (${this._tempWorldPosB.x.toFixed(3)}, ${this._tempWorldPosB.y.toFixed(3)}, ${this._tempWorldPosB.z.toFixed(3)})`
+                );
+            } else {
+                this._pushVisualBaseZ = this._pushNodeBaseZ + (GameConfig.PUSH_VISUAL_OFFSET_Z ?? 0);
+                this._pushVisualOffset.set(
+                    GameConfig.PUSH_VISUAL_OFFSET_X ?? 0,
+                    GameConfig.PUSH_VISUAL_OFFSET_Y ?? 0,
+                    GameConfig.PUSH_VISUAL_OFFSET_Z ?? 0
+                );
+            }
+
+            this._pushBaseCaptured = true;
+
+            // 新节点时重新计算本地推台动画范围
+            this._localPushConfigured = false;
+        }
+    }
+
+    /**
+     * 同步推台及可视节点的 Z 轴位移
+     */
+    private _syncPushNodeZ(targetZ: number) {
+        if (!this.pushNode) return;
+
+        this._ensurePushBaseCache();
+
+        const pos = this.pushNode.position;
+        this.pushNode.setPosition(pos.x, pos.y, targetZ);
+
+        if (this.pushVisualNode) {
+            this.pushNode.getWorldPosition(this._tempWorldPosA);
+            Vec3.add(this._tempWorldPosB, this._tempWorldPosA, this._pushVisualOffset);
+            this.pushVisualNode.setWorldPosition(this._tempWorldPosB);
+        }
     }
 }

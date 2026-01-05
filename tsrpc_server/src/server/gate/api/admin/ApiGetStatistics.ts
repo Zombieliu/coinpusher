@@ -64,19 +64,19 @@ export async function ApiGetStatistics(
             totalMatches
         ] = await Promise.all([
             ordersCollection.aggregate([
-                { $match: { status: 'paid' } },
+                { $match: { status: { $in: ['paid', 'delivered', 'refunded'] } } },
                 { $group: { _id: null, total: { $sum: '$amount' } } }
             ]).toArray(),
             ordersCollection.aggregate([
                 {
                     $match: {
-                        status: 'paid',
+                        status: { $in: ['paid', 'delivered', 'refunded'] },
                         paidAt: { $gte: todayTimestamp }
                     }
                 },
                 { $group: { _id: null, total: { $sum: '$amount' } } }
             ]).toArray(),
-            ordersCollection.distinct('userId', { status: 'paid' }),
+            ordersCollection.distinct('userId', { status: { $in: ['paid', 'delivered', 'refunded'] } }),
             MongoDBService.getCollection('matches').countDocuments({})
         ]);
         const totalRevenue = totalRevenueResult[0]?.total || 0;

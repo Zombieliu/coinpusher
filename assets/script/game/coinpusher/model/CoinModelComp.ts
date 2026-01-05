@@ -17,6 +17,7 @@
 
 import { Node } from "cc";
 import { ecs } from "../../../../../extensions/oops-plugin-framework/assets/libs/ecs/ECS";
+import { GameConfig } from "./GameConfig";
 
 @ecs.register("CoinModelComp")
 export class CoinModelComp extends ecs.Comp {

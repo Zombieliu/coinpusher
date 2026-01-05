@@ -1,6 +1,5 @@
 import { CoinPusher } from "./coinpusher/CoinPusher";
 import { Initialize } from "./initialize/Initialize";
-
 // 导入所有 ECS 组件，确保它们被加载，从而触发 @ecs.register 装饰器
 
 // Model Layer

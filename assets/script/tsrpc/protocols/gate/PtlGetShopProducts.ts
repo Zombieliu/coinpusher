@@ -1,4 +1,4 @@
-import { ProductConfig } from '../../../server/gate/bll/ShopSystem';
+import { ProductConfig } from '../../types/shop';
 
 export interface ReqGetShopProducts {
     userId: string;

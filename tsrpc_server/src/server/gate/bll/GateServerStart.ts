@@ -40,6 +40,9 @@ export class GateServerStartSystem extends ecs.ComblockSystem implements ecs.IEn
         const { MongoDBService } = await import('../db/MongoDBService');
         const { DragonflyDBService } = await import('../db/DragonflyDBService');
         const { Config } = await import('../../../module/config/Config');
+        const { PaymentSystem } = await import('./PaymentSystem');
+        // 校验关键配置
+        PaymentSystem.validateStripeConfig();
         // 优先使用环境变量 MONGO_URI，如果没有则使用 Config.mongodb
         const mongoUri = process.env.MONGO_URI || `mongodb://${Config.mongodb}/`;
         const dbName = process.env.DB_NAME || 'coinpusher_game';
@@ -63,46 +66,75 @@ export class GateServerStartSystem extends ecs.ComblockSystem implements ecs.IEn
         const adminApiPath = path.resolve(__dirname, '../api/admin');
         server.logger.log(`正在加载Admin APIs: ${adminApiPath}`);
 
-        // 使用glob模式手动加载admin目录下的所有API
+        // 递归扫描 admin 目录，支持子目录
         const fs = require('fs');
-        // 在生产环境中是 .js 文件，开发环境是 .ts 文件
         const isProduction = process.env.NODE_ENV === 'production';
         const fileExtension = isProduction ? '.js' : '.ts';
-        const adminFiles = fs.readdirSync(adminApiPath).filter((f: string) => f.startsWith('Api') && f.endsWith(fileExtension));
+
+        function collectApiFiles(dir: string, acc: string[] = []) {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            for (const ent of entries) {
+                const full = path.join(dir, ent.name);
+                if (ent.isDirectory()) {
+                    collectApiFiles(full, acc);
+                } else if (
+                    ent.isFile() &&
+                    ent.name.startsWith('Api') &&
+                    ent.name.endsWith(fileExtension) &&
+                    !ent.name.toLowerCase().includes('.example')
+                ) {
+                    acc.push(full);
+                }
+            }
+            return acc;
+        }
+
+        const adminFiles: string[] = collectApiFiles(adminApiPath);
         server.logger.log(`发现 ${adminFiles.length} 个Admin API文件 (${fileExtension})`);
 
         let loadedCount = 0;
         let failedCount = 0;
+        let compileFailCount = 0;
+        let namingWarnCount = 0;
 
-        for (const file of adminFiles) {
-            const apiName = file.replace(fileExtension, '').replace('Api', '');
-            const apiPath = `admin/${apiName}`;
-            const modulePath = path.join(adminApiPath, file);
+        for (const filePath of adminFiles) {
+            const rel = path.relative(adminApiPath, filePath);
+            const parsed = path.parse(rel);
+            const apiNameRaw = parsed.name;
+            const apiName = apiNameRaw.replace(/^Api/, '');
+            const apiPath = `admin/${parsed.dir ? parsed.dir.replace(/\\/g, '/') + '/' : ''}${apiName}`;
+
+            // 命名校验：文件应以 Api 开头且后续为 PascalCase
+            if (!/^Api[A-Z][A-Za-z0-9]+$/.test(apiNameRaw)) {
+                namingWarnCount++;
+                server.logger.warn(`  ⚠️ 命名不规范，期望 ApiPascalCase: ${rel}`);
+            }
 
             try {
-                // 尝试加载API模块
-                const apiModule = require(modulePath);
-                const apiFunc = apiModule[`Api${apiName}`];
+                const apiModule = require(filePath);
+                const exportName = `Api${apiName}`;
+                const apiFunc = apiModule[exportName];
                 if (apiFunc && typeof apiFunc === 'function') {
                     server.implementApi(apiPath as any, apiFunc);
                     loadedCount++;
-                    // 只记录成功的API到日志
-                    if (loadedCount <= 3 || apiPath === 'admin/AdminLogin') {
-                        server.logger.log(`  ✓ ${apiPath}`);
-                    }
+                    server.logger.log(`  ✓ ${apiPath}`);
                 } else {
                     failedCount++;
+                    server.logger.warn(`  ⚠️ 未找到导出函数 ${exportName} 于 ${apiPath}`);
                 }
             } catch (err: any) {
                 failedCount++;
-                // TypeScript编译错误不影响其他API，仅记录到日志
-                if (err.message && !err.message.includes('Unable to compile TypeScript')) {
-                    server.logger.error(`  ✗ ${apiPath}: ${err.message}`);
+                const msg = err?.message || String(err);
+                if (msg.includes('Unable to compile TypeScript')) {
+                    compileFailCount++;
+                    server.logger.error(`  ✗ ${apiPath}: TS 编译失败 (${msg.split('\\n')[0]})`);
+                } else {
+                    server.logger.error(`  ✗ ${apiPath}: ${msg}`);
                 }
             }
         }
 
-        server.logger.log(chalk.green(`Admin APIs: ${loadedCount} 加载成功, ${failedCount} 跳过`));
+        server.logger.log(chalk.green(`Admin APIs: ${loadedCount} 加载成功, ${failedCount} 跳过, ${compileFailCount} TS编译失败, ${namingWarnCount} 命名警告`));
 
         // 初始化管理员系统
         const { AdminUserSystem } = await import('./AdminUserSystem');
@@ -113,6 +145,18 @@ export class GateServerStartSystem extends ecs.ComblockSystem implements ecs.IEn
         const { AuditLogSystem } = await import('./AuditLogSystem');
         await AuditLogSystem.initialize(MongoDBService.getDb());
         server.logger.log(chalk.green(`[审计日志系统] 已初始化`));
+
+        // 建索引（社交/任务/成就）
+        const { SocialSystem } = await import('./SocialSystem');
+        const { TaskSystem } = await import('./TaskSystem');
+        const { AchievementSystem } = await import('./AchievementSystem');
+        const { LeaderboardSystemV2 } = await import('./LeaderboardSystemV2');
+        LeaderboardSystemV2.loadRewardConfig();
+        await SocialSystem.ensureIndexes();
+        await TaskSystem.ensureIndexes();
+        await AchievementSystem.ensureIndexes();
+        await LeaderboardSystemV2.ensureIndexes();
+        server.logger.log(chalk.green(`[索引] Social/Task/Achievement/Leaderboard 索引检查完成`));
 
         // 初始化监控系统
         const { MonitoringSystem } = await import('./MonitoringSystem');

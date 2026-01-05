@@ -389,6 +389,19 @@ export async function fetchRefunds(params: {
   return callAPI('admin/GetRefunds', params)
 }
 
+export async function fetchReconcileFlags(params: {
+  page?: number
+  limit?: number
+  type?: string
+  resolved?: boolean
+}) {
+  return callAPI('admin/GetReconcileFlags', params)
+}
+
+export async function resolveReconcileFlag(params: { flagId: string; action: 'confirm' | 'close'; note?: string }) {
+  return callAPI('admin/ResolveReconcileFlag', params)
+}
+
 /**
  * 处理退款
  */

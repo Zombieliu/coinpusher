@@ -75,11 +75,11 @@ services:
     container_name: coinpusher-gate
     restart: unless-stopped
     ports:
-      - "${GATE_PORT:-3000}:3000"
+      - "${GATE_PORT:-32000}:3000"
       - "${MONITORING_PORT:-9090}:9090"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      GATE_PORT: ${GATE_PORT:-3000}
+      GATE_PORT: ${GATE_PORT:-32000}
       MONITORING_PORT: ${MONITORING_PORT:-9090}
       MONGO_URI: mongodb://${MONGODB_USER:-coinpusher_app}:${MONGODB_PASSWORD:-REPLACE_WITH_STRONG_PASSWORD}@mongodb:27017/coinpusher_game?authSource=admin
       DB_NAME: coinpusher_game
@@ -116,11 +116,11 @@ services:
     container_name: coinpusher-match
     restart: unless-stopped
     ports:
-      - "${MATCH_PORT:-3002}:3002"
+      - "${MATCH_PORT:-3001}:3001"
       - "${MATCH_MONITORING_PORT:-9091}:9091"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      MATCH_PORT: ${MATCH_PORT:-3002}
+      MATCH_PORT: ${MATCH_PORT:-3001}
       MONITORING_PORT: ${MATCH_MONITORING_PORT:-9091}
       MONGO_URI: mongodb://${MONGODB_USER:-coinpusher_app}:${MONGODB_PASSWORD:-REPLACE_WITH_STRONG_PASSWORD}@mongodb:27017/coinpusher_game?authSource=admin
       DB_NAME: coinpusher_game
@@ -155,11 +155,11 @@ services:
     container_name: coinpusher-room
     restart: unless-stopped
     ports:
-      - "${ROOM_PORT:-3001}:3001"
+      - "${ROOM_PORT:-3002}:3002"
       - "${ROOM_MONITORING_PORT:-9092}:9092"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      ROOM_PORT: ${ROOM_PORT:-3001}
+      ROOM_PORT: ${ROOM_PORT:-3002}
       MONITORING_PORT: ${ROOM_MONITORING_PORT:-9092}
       MONGO_URI: mongodb://${MONGODB_USER:-coinpusher_app}:${MONGODB_PASSWORD:-REPLACE_WITH_STRONG_PASSWORD}@mongodb:27017/coinpusher_game?authSource=admin
       DB_NAME: coinpusher_game

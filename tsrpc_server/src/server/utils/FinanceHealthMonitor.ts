@@ -32,9 +32,19 @@ export class FinanceHealthMonitor {
 
     private static async runChecks() {
         try {
+            // 若 Mongo 尚未连接则静默跳过本轮
+            let orders, refunds;
+            try {
+                orders = MongoDBService.getCollection<PaymentOrder>('payment_orders');
+                refunds = MongoDBService.getCollection<any>('refund_requests');
+            } catch (err: any) {
+                if (String(err?.message || err).includes('Not connected')) {
+                    return;
+                }
+                throw err;
+            }
+
             const now = Date.now();
-            const orders = MongoDBService.getCollection<PaymentOrder>('payment_orders');
-            const refunds = MongoDBService.getCollection<any>('refund_requests');
 
             const pendingRefunds = await refunds.countDocuments({ status: 'pending' });
             if (pendingRefunds >= Number(process.env.FINANCE_ALERT_PENDING_REFUNDS || 10)) {

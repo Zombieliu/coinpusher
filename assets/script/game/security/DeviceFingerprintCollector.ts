@@ -42,6 +42,7 @@ export interface DeviceFingerprintData {
     // ===== Cocos特有信息 =====
     cocosVersion: string;
     renderMode: string;          // WebGL, Canvas
+    clientVersion?: string;      // 可选：构建号/自定义版本
 
     // ===== 时间戳 =====
     timestamp: number;
@@ -87,7 +88,7 @@ export class DeviceFingerprintCollector {
             plugins: this.getPlugins(),
 
             // Cocos信息
-            cocosVersion: '', // TODO: 从cc获取
+            cocosVersion: this.getCocosVersion(),
             renderMode: this.getRenderMode(),
 
             timestamp: Date.now()
@@ -120,6 +121,33 @@ export class DeviceFingerprintCollector {
 
         console.log('[DeviceFingerprint] Collection complete:', fingerprint);
         return fingerprint;
+    }
+
+    /**
+     * 获取（或生成并缓存）设备指纹 ID
+     * - 优先使用 localStorage 缓存，避免重复计算
+     * - 如未生成则收集指纹并缓存 ID 与精简指纹
+     */
+    static async getFingerprintId(): Promise<{ fingerprintId: string; fingerprint?: DeviceFingerprintData }> {
+        const cacheId = localStorage.getItem('fingerprintId');
+        const cacheMeta = localStorage.getItem('fingerprintMeta');
+        if (cacheId) {
+            return { fingerprintId: cacheId, fingerprint: cacheMeta ? JSON.parse(cacheMeta) : undefined };
+        }
+
+        const fp = await this.collect();
+        const fingerprintId = this.generateDeviceId(fp);
+
+        try {
+            localStorage.setItem('fingerprintId', fingerprintId);
+            // 只存放精简信息，避免过大
+            const { canvasFingerprint, webGLFingerprint, audioFingerprint, fontFingerprint, ...rest } = fp;
+            localStorage.setItem('fingerprintMeta', JSON.stringify(rest));
+        } catch (err) {
+            console.warn('[DeviceFingerprint] Failed to cache fingerprint:', err);
+        }
+
+        return { fingerprintId, fingerprint: fp };
     }
 
     /**
@@ -193,6 +221,24 @@ export class DeviceFingerprintCollector {
                 const analyser = context.createAnalyser();
                 const gainNode = context.createGain();
                 const scriptProcessor = context.createScriptProcessor(4096, 1, 1);
+                let finished = false;
+                let timeoutId: any;
+
+                const cleanupAndFinish = (result: string) => {
+                    if (finished) return;
+                    finished = true;
+                    try { oscillator.stop(); } catch {}
+                    try { scriptProcessor.disconnect(); } catch {}
+                    try { analyser.disconnect(); } catch {}
+                    try { gainNode.disconnect(); } catch {}
+                    if (context && typeof context.state === 'string' && context.state !== 'closed') {
+                        context.close().catch(() => {});
+                    }
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                    }
+                    resolve(result);
+                };
 
                 gainNode.gain.value = 0; // 静音
                 oscillator.type = 'triangle';
@@ -206,21 +252,14 @@ export class DeviceFingerprintCollector {
                     const fingerprint = Array.from(output.slice(0, 30))
                         .map(v => v.toFixed(10))
                         .join(',');
-
-                    oscillator.stop();
-                    scriptProcessor.disconnect();
-                    context.close();
-
-                    resolve(this.simpleHash(fingerprint));
+                    cleanupAndFinish(this.simpleHash(fingerprint));
                 };
 
                 oscillator.start(0);
 
                 // 超时保护
-                setTimeout(() => {
-                    oscillator.stop();
-                    context.close();
-                    resolve('audio-timeout');
+                timeoutId = setTimeout(() => {
+                    cleanupAndFinish('audio-timeout');
                 }, 1000);
             } catch (err) {
                 resolve('audio-error');
@@ -318,6 +357,15 @@ export class DeviceFingerprintCollector {
             return 'desktop-webgl';
         }
         return 'unknown';
+    }
+
+    private static getCocosVersion(): string {
+        // 适配 Cocos Creator 3.x
+        const globalAny: any = globalThis as any;
+        return globalAny?.cc?.ENGINE_VERSION
+            || globalAny?.CC_ENGINE_VERSION
+            || globalAny?.cc?.game?.config?.cocosVersion
+            || 'unknown';
     }
 
     /**

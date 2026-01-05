@@ -1,6 +1,6 @@
 import { WsClient } from 'tsrpc-browser';
 import { ServiceProtoGate } from './tsrpc_server/src/tsrpc/protocols/ServiceProtoGate';
-import { getGateWsUrl } from './test-env';
+import { getGateWsUrl } from './test-env.ts';
 
 async function testLogin() {
     // 创建客户端

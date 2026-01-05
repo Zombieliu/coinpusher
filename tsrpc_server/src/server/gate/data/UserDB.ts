@@ -80,9 +80,23 @@ export class UserDB {
             this.isInitialized = true;
 
             // 创建索引 (可选，但推荐)
-            await this.usersCollection.createIndex({ username: 1 }, { unique: true });
-            await this.usersCollection.createIndex({ userId: 1 }, { unique: true });
-            console.log('[UserDB] Indexes created for users collection.');
+            const createSafeIndex = async (keys: Record<string, 1 | -1>, options?: any) => {
+                try {
+                    await this.usersCollection.createIndex(keys, options);
+                } catch (e: any) {
+                    // 86: IndexKeySpecsConflict, 11000: duplicate key / already exists
+                    const code = e?.code;
+                    if (code === 86 || code === 11000) {
+                        console.warn('[UserDB] Index already exists, skip:', keys);
+                        return;
+                    }
+                    throw e;
+                }
+            };
+
+            await createSafeIndex({ username: 1 }, { unique: true });
+            await createSafeIndex({ userId: 1 }, { unique: true });
+            console.log('[UserDB] Indexes ensured for users collection.');
 
         } catch (error) {
             console.error('[UserDB] Failed to connect to MongoDB:', error);

@@ -20,7 +20,13 @@ import { serviceProto as ServiceProtoGate, ServiceType as ServiceTypeGate } from
 import { signInternalRequest } from '../utils/SecurityUtils';
 import { SnapshotValidator, SignedSnapshot } from '../utils/SnapshotValidator';
 
-const rustIntegrationEnabled = (process.env.RUST_ROOM_ENABLED || '').toLowerCase() === 'true';
+const rustIntegrationEnabled = (() => {
+    const raw = process.env.RUST_ROOM_ENABLED;
+    if (raw === undefined) {
+        return true;
+    }
+    return raw.toLowerCase() === 'true';
+})();
 
 // ========== 协议定义（和 Rust 对应） ==========
 
@@ -52,8 +58,8 @@ export type FromNode =
 
 // Rust → Node
 export type ToNode =
-    | { type: 'Snapshot'; room_id: RoomId; tick: number; push_z: number; coins: CoinState[]; events: RoomEvent[]; timestamp?: number; signature?: string }
-    | { type: 'DeltaSnapshot'; room_id: RoomId; tick: number; push_z: number; added: CoinState[]; updated: CoinState[]; removed: CoinId[]; events: RoomEvent[]; timestamp?: number; signature?: string }
+    | { type: 'Snapshot'; room_id: RoomId; tick: number; push_z: number; push_velocity: number; coins: CoinState[]; events: RoomEvent[]; timestamp?: number; signature?: string }
+    | { type: 'DeltaSnapshot'; room_id: RoomId; tick: number; push_z: number; push_velocity: number; added: CoinState[]; updated: CoinState[]; removed: CoinId[]; events: RoomEvent[]; timestamp?: number; signature?: string }
     | { type: 'NeedDeductGold'; room_id: RoomId; player_id: PlayerId; tx_id: TransactionId; amount: number }
     | { type: 'RoomClosed'; room_id: RoomId; reason: string };
 
@@ -73,6 +79,7 @@ export class RustRoomClient extends EventEmitter {
     private client: net.Socket | null = null;
     private connected: boolean = false;
     private reconnectTimer: NodeJS.Timeout | null = null;
+    private autoReconnect: boolean = true;
 
     // 接收缓冲区
     private receiveBuffer: Buffer = Buffer.alloc(0);
@@ -83,6 +90,7 @@ export class RustRoomClient extends EventEmitter {
 
     // 是否使用 MessagePack（默认true）
     private useMessagePack: boolean = true;
+    private pendingMessages: FromNode[] = [];
 
     constructor(
         private host: string = '127.0.0.1',
@@ -108,6 +116,7 @@ export class RustRoomClient extends EventEmitter {
             console.log('[RustRoomClient] ✅ Connected to Rust Room Service');
             this.connected = true;
             this.emit('connected');
+            this.flushPendingMessages();
 
             // 清除重连定时器
             if (this.reconnectTimer) {
@@ -132,7 +141,7 @@ export class RustRoomClient extends EventEmitter {
             this.emit('disconnected');
 
             // 自动重连（5秒后）
-            if (!this.reconnectTimer) {
+            if (this.autoReconnect && !this.reconnectTimer) {
                 this.reconnectTimer = setTimeout(() => {
                     console.log('[RustRoomClient] Attempting reconnect...');
                     this.connect();
@@ -158,12 +167,22 @@ export class RustRoomClient extends EventEmitter {
         this.connected = false;
     }
 
+    /** 停止自动重连（测试或关闭时调用） */
+    disableReconnect(): void {
+        this.autoReconnect = false;
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+    }
+
     /**
      * 发送消息到 Rust（支持 MessagePack）
      */
     send(msg: FromNode): boolean {
         if (!this.connected || !this.client) {
-            console.error('[RustRoomClient] Cannot send: not connected');
+            console.warn(`[RustRoomClient] Not connected, queue message: ${msg.type}`);
+            this.pendingMessages.push(msg);
             return false;
         }
 
@@ -194,6 +213,19 @@ export class RustRoomClient extends EventEmitter {
         } catch (err) {
             console.error('[RustRoomClient] Send error:', err);
             return false;
+        }
+    }
+
+    private flushPendingMessages(): void {
+        if (!this.connected || !this.client || this.pendingMessages.length === 0) {
+            return;
+        }
+
+        const queue = [...this.pendingMessages];
+        this.pendingMessages.length = 0;
+
+        for (const msg of queue) {
+            this.send(msg);
         }
     }
 
@@ -264,8 +296,9 @@ export class RustRoomClient extends EventEmitter {
                     room_id: msgArray[1],
                     tick: msgArray[2],
                     push_z: msgArray[3],
-                    coins: msgArray[4] || [],
-                    events: msgArray[5] || []
+                    push_velocity: msgArray[4],
+                    coins: msgArray[5] || [],
+                    events: msgArray[6] || []
                 };
 
             case 'DeltaSnapshot':
@@ -274,10 +307,11 @@ export class RustRoomClient extends EventEmitter {
                     room_id: msgArray[1],
                     tick: msgArray[2],
                     push_z: msgArray[3],
-                    added: msgArray[4] || [],
-                    updated: msgArray[5] || [],
-                    removed: msgArray[6] || [],
-                    events: msgArray[7] || []
+                    push_velocity: msgArray[4],
+                    added: msgArray[5] || [],
+                    updated: msgArray[6] || [],
+                    removed: msgArray[7] || [],
+                    events: msgArray[8] || []
                 };
 
             case 'NeedDeductGold':
@@ -338,20 +372,36 @@ export class RustRoomClient extends EventEmitter {
             this.coinStates.set(roomId, coins);
         }
 
+        console.log(
+            `[RustRoomClient] DeltaSnapshot stats room=${roomId} tick=${delta.tick} added=${delta.added.length} updated=${delta.updated.length} removed=${delta.removed.length}`
+        );
+
         // 添加新硬币
-        for (const coin of delta.added) {
-            coins.set(coin.id, coin);
+        for (const raw of delta.added) {
+            const coin = normalizeCoinState(raw);
+            if (coin) {
+                coins.set(coin.id, coin);
+            } else {
+                console.warn('[RustRoomClient] Failed to normalize added coin state:', raw);
+            }
         }
 
         // 更新已有硬币
-        for (const coin of delta.updated) {
-            coins.set(coin.id, coin);
+        for (const raw of delta.updated) {
+            const coin = normalizeCoinState(raw);
+            if (coin) {
+                coins.set(coin.id, coin);
+            } else {
+                console.warn('[RustRoomClient] Failed to normalize updated coin state:', raw);
+            }
         }
 
         // 移除硬币
         for (const coinId of delta.removed) {
             coins.delete(coinId);
         }
+
+        console.log(`[RustRoomClient] Room ${roomId} coin cache size=${coins.size}`);
 
         return Array.from(coins.values());
     }
@@ -399,6 +449,105 @@ export class RustRoomClient extends EventEmitter {
     }
 }
 
+function isMapLike(value: any): value is Map<string, any> {
+    return value && typeof value === 'object' && typeof value.get === 'function' && value.constructor?.name === 'Map';
+}
+
+function getField(source: any, key: string) {
+    if (!source) {
+        return undefined;
+    }
+    if (isMapLike(source)) {
+        return source.get(key);
+    }
+    return source[key];
+}
+
+function toPlainObject(source: any) {
+    if (!source) {
+        return source;
+    }
+    if (isMapLike(source)) {
+        const obj: Record<string, any> = {};
+        source.forEach((value: any, key: string) => {
+            obj[key] = value;
+        });
+        return obj;
+    }
+    return source;
+}
+
+function normalizeVector(raw: any) {
+    if (raw == null) {
+        return { x: 0, y: 0, z: 0 };
+    }
+
+    if (Array.isArray(raw)) {
+        const [x = 0, y = 0, z = 0] = raw;
+        return { x: Number(x), y: Number(y), z: Number(z) };
+    }
+
+    return {
+        x: Number(getField(raw, 'x') ?? 0),
+        y: Number(getField(raw, 'y') ?? 0),
+        z: Number(getField(raw, 'z') ?? 0)
+    };
+}
+
+function normalizeRotation(raw: any) {
+    if (raw == null) {
+        return { x: 0, y: 0, z: 0, w: 1 };
+    }
+
+    if (Array.isArray(raw)) {
+        const [x = 0, y = 0, z = 0, w = 1] = raw;
+        return { x: Number(x), y: Number(y), z: Number(z), w: Number(w) };
+    }
+
+    return {
+        x: Number(getField(raw, 'x') ?? 0),
+        y: Number(getField(raw, 'y') ?? 0),
+        z: Number(getField(raw, 'z') ?? 0),
+        w: Number(getField(raw, 'w') ?? 1)
+    };
+}
+
+function normalizeCoinState(raw: any): CoinState | null {
+    if (!raw) {
+        return null;
+    }
+
+    let id: any;
+    let positionRaw: any;
+    let rotationRaw: any;
+
+    if (Array.isArray(raw)) {
+        [id, positionRaw, rotationRaw] = raw;
+    } else {
+        id = getField(raw, 'id') ?? getField(raw, 'coin_id');
+        positionRaw = getField(raw, 'p') ?? getField(raw, 'position');
+        rotationRaw = getField(raw, 'r') ?? getField(raw, 'rotation');
+    }
+
+    if (id === undefined || id === null) {
+        console.warn('[RustRoomClient] normalizeCoinState missing id. raw=', toPlainObject(raw));
+        return null;
+    }
+
+    if (!positionRaw || !rotationRaw) {
+        console.warn(
+            '[RustRoomClient] normalizeCoinState missing position or rotation',
+            { raw: toPlainObject(raw), positionRaw: toPlainObject(positionRaw), rotationRaw: toPlainObject(rotationRaw) }
+        );
+    }
+
+    return {
+        id: Number(id),
+        p: normalizeVector(positionRaw),
+        r: normalizeRotation(rotationRaw)
+    };
+}
+
 // ========== 单例导出 ==========
 
 let rustRoomClient: (RustRoomClient | DummyRustRoomClient) | null = null;
@@ -431,7 +580,8 @@ export function getRustRoomClient(): RustRoomClient | DummyRustRoomClient {
             rustRoomClient.connect();
         } else {
             const host = process.env.RUST_ROOM_HOST || '127.0.0.1';
-            const port = parseInt(process.env.RUST_ROOM_PORT || '9000');
+            // 宿主默认连接容器映射端口 39000；容器内部可显式设置 9000
+            const port = parseInt(process.env.RUST_ROOM_PORT || '39000');
 
             console.log(`[RustRoomClient] Integration enabled. Connecting target: ${host}:${port}`);
 
@@ -464,13 +614,17 @@ export function getRustRoomClient(): RustRoomClient | DummyRustRoomClient {
  * 处理 Rust 完整快照 - 广播给客户端
  */
 async function handleRustSnapshot(msg: Extract<ToNode, { type: 'Snapshot' }>) {
+    const normalizedCoins = msg.coins
+        .map(normalizeCoinState)
+        .filter((coin): coin is CoinState => !!coin);
+
     // 🔒 验证快照签名（如果启用）
     if (SnapshotValidator.isSignatureEnabled()) {
         const snapshot: SignedSnapshot = {
             tick: msg.tick,
             roomId: msg.room_id,
             pushZ: msg.push_z,
-            coins: msg.coins,
+            coins: normalizedCoins,
             events: msg.events,
             timestamp: msg.timestamp || Date.now(),
             signature: msg.signature
@@ -485,7 +639,7 @@ async function handleRustSnapshot(msg: Extract<ToNode, { type: 'Snapshot' }>) {
     }
 
     // 动态导入以避免循环依赖
-    const { sr } = require('../../../ServerRoom');
+    const { sr } = require('../../ServerRoom');
 
     const room = sr.ServerRoomModel.rooms.get(msg.room_id);
     if (!room) {
@@ -497,7 +651,8 @@ async function handleRustSnapshot(msg: Extract<ToNode, { type: 'Snapshot' }>) {
     const clientSnapshot = {
         serverTick: msg.tick,
         pushZ: msg.push_z,
-        coins: msg.coins.map(coin => ({
+        pushSpeed: msg.push_velocity,
+        coins: normalizedCoins.map(coin => ({
             id: coin.id,
             p: coin.p,
             r: coin.r
@@ -507,6 +662,10 @@ async function handleRustSnapshot(msg: Extract<ToNode, { type: 'Snapshot' }>) {
             .filter(e => e.kind === 'CoinCollected')
             .flatMap((e: any) => e.coin_ids)
     };
+
+    console.log(
+        `[RustRoomClient] Broadcasting full snapshot -> room=${msg.room_id}, tick=${msg.tick}, coins=${clientSnapshot.coins.length}, removed=${clientSnapshot.removed.length}`
+    );
 
     // 广播给房间内所有客户端
     room.broadcastMsg('game/SyncPhysics', clientSnapshot);
@@ -557,7 +716,7 @@ async function handleRustDeltaSnapshot(msg: Extract<ToNode, { type: 'DeltaSnapsh
     }
 
     // 动态导入以避免循环依赖
-    const { sr } = require('../../../ServerRoom');
+    const { sr } = require('../../ServerRoom');
 
     const room = sr.ServerRoomModel.rooms.get(msg.room_id);
     if (!room) {
@@ -573,6 +732,7 @@ async function handleRustDeltaSnapshot(msg: Extract<ToNode, { type: 'DeltaSnapsh
     const clientSnapshot = {
         serverTick: msg.tick,
         pushZ: msg.push_z,
+        pushSpeed: msg.push_velocity,
         coins: allCoins.map(coin => ({
             id: coin.id,
             p: coin.p,
@@ -586,6 +746,10 @@ async function handleRustDeltaSnapshot(msg: Extract<ToNode, { type: 'DeltaSnapsh
                 .flatMap((e: any) => e.coin_ids)
         ]
     };
+
+    console.log(
+        `[RustRoomClient] Broadcasting delta snapshot -> room=${msg.room_id}, tick=${msg.tick}, coins=${clientSnapshot.coins.length}, removed=${clientSnapshot.removed.length}`
+    );
 
     // 广播给房间内所有客户端
     room.broadcastMsg('game/SyncPhysics', clientSnapshot);

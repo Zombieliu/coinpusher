@@ -54,7 +54,7 @@ export class LeaderboardSystemV2 {
     /**
      * 排行榜奖励配置（日榜/周榜/月榜通用）
      */
-    private static readonly LEADERBOARD_REWARDS: LeaderboardReward[] = [
+    private static LEADERBOARD_REWARDS: LeaderboardReward[] = [
         { minRank: 1, maxRank: 1, gold: 5000, tickets: 50, title: '冠军' },
         { minRank: 2, maxRank: 2, gold: 3000, tickets: 30, title: '亚军' },
         { minRank: 3, maxRank: 3, gold: 2000, tickets: 20, title: '季军' },
@@ -62,6 +62,24 @@ export class LeaderboardSystemV2 {
         { minRank: 11, maxRank: 50, gold: 500, tickets: 5 },
         { minRank: 51, maxRank: 100, gold: 200, tickets: 2 }
     ];
+
+    /**
+     * 读取奖励配置：优先使用 LEADERBOARD_REWARD_CONFIG 路径或 JSON 字符串
+     */
+    static loadRewardConfig() {
+        try {
+            const path = process.env.LEADERBOARD_REWARD_CONFIG;
+            if (path && require('fs').existsSync(path)) {
+                const data = JSON.parse(require('fs').readFileSync(path, 'utf-8'));
+                if (Array.isArray(data)) this.LEADERBOARD_REWARDS = data;
+            } else if (process.env.LEADERBOARD_REWARD_JSON) {
+                const data = JSON.parse(process.env.LEADERBOARD_REWARD_JSON);
+                if (Array.isArray(data)) this.LEADERBOARD_REWARDS = data;
+            }
+        } catch (err) {
+            console.warn('[LeaderboardV2] ⚠️ 奖励配置读取失败，使用默认值', (err as Error).message);
+        }
+    }
 
     /**
      * 用户名缓存（userId -> username）
@@ -119,10 +137,13 @@ export class LeaderboardSystemV2 {
     static async getLeaderboard(
         type: LeaderboardType,
         category: LeaderboardCategory,
-        limit: number = 100
+        limit: number = 100,
+        offset: number = 0
     ): Promise<LeaderboardEntry[]> {
         const key = this.getLeaderboardKey(type, category);
-        const results = await DragonflyDBService.getLeaderboard(key, 0, limit - 1);
+        const start = Math.max(0, offset);
+        const end = Math.max(start, start + limit - 1);
+        const results = await DragonflyDBService.getLeaderboard(key, start, end);
 
         // 获取用户名
         const entries: LeaderboardEntry[] = [];
@@ -379,4 +400,117 @@ export class LeaderboardSystemV2 {
 
         console.log('[LeaderboardV2] ✅ 清理完成');
     }
+
+    /**
+     * 分页获取排行榜（含总数）
+     */
+    static async getLeaderboardPage(
+        type: LeaderboardType,
+        category: LeaderboardCategory,
+        page: number = 1,
+        pageSize: number = 20
+    ): Promise<{
+        entries: LeaderboardEntry[];
+        total: number;
+        page: number;
+        pageSize: number;
+    }> {
+        const safePage = Math.max(1, page);
+        const safeSize = Math.min(Math.max(1, pageSize), 200);
+        const offset = (safePage - 1) * safeSize;
+        const [entries, total] = await Promise.all([
+            this.getLeaderboard(type, category, safeSize, offset),
+            this.getLeaderboardSize(type, category)
+        ]);
+        return { entries, total, page: safePage, pageSize: safeSize };
+    }
+
+    /**
+     * 获取排行榜总量
+     */
+    static async getLeaderboardSize(
+        type: LeaderboardType,
+        category: LeaderboardCategory
+    ): Promise<number> {
+        const key = this.getLeaderboardKey(type, category);
+        return DragonflyDBService.getLeaderboardSize(key);
+    }
+
+    /**
+     * 发放奖励并记录，防重复
+     */
+    static async distributeRewardsWithRecord(
+        type: LeaderboardType,
+        category: LeaderboardCategory,
+        topN: number = 100
+    ): Promise<Array<{ userId: string; rank: number; reward: LeaderboardReward; skipped?: boolean }>> {
+        await this.ensureIndexes();
+        const period = this.getCurrentPeriod(type);
+        const leaderboard = await this.getLeaderboard(type, category, topN);
+        const col = MongoDBService.getCollection<LeaderboardRewardRecord>('leaderboard_rewards');
+        const results: Array<{ userId: string; rank: number; reward: LeaderboardReward; skipped?: boolean }> = [];
+
+        for (const entry of leaderboard) {
+            const reward = this.getRewardForRank(entry.rank);
+            if (!reward) continue;
+
+            // 防重复发放：period+type+category+userId 唯一
+            try {
+                await col.insertOne({
+                    period,
+                    type,
+                    category,
+                    userId: entry.userId,
+                    username: entry.username,
+                    rank: entry.rank,
+                    reward,
+                    issuedAt: Date.now()
+                });
+            } catch (err: any) {
+                if (err?.code === 11000) {
+                    results.push({ userId: entry.userId, rank: entry.rank, reward, skipped: true });
+                    continue;
+                }
+                throw err;
+            }
+
+            const user = await UserDB.getUserById(entry.userId);
+            if (user) {
+                await UserDB.updateUser(entry.userId, {
+                    gold: user.gold + (reward.gold || 0)
+                });
+                if (reward.tickets) {
+                    await UserDB.addTickets(entry.userId, reward.tickets);
+                }
+            }
+
+            results.push({ userId: entry.userId, rank: entry.rank, reward, skipped: false });
+            console.log(`[LeaderboardV2] 发放奖励给 ${entry.username}（#${entry.rank}）: ${reward.gold} 金币 + ${reward.tickets} 彩票`);
+        }
+
+        return results;
+    }
+
+    /**
+     * 确保索引存在
+     */
+    static async ensureIndexes() {
+        const col = MongoDBService.getCollection<LeaderboardRewardRecord>('leaderboard_rewards');
+        await col.createIndex(
+            { period: 1, type: 1, category: 1, userId: 1 },
+            { unique: true, name: 'uniq_period_type_category_user' }
+        );
+    }
+}
+
+export interface LeaderboardRewardRecord {
+    _id?: any;
+    period: string;
+    type: LeaderboardType;
+    category: LeaderboardCategory;
+    userId: string;
+    username: string;
+    rank: number;
+    reward: LeaderboardReward;
+    issuedAt: number;
 }

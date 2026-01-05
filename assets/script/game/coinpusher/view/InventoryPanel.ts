@@ -47,7 +47,7 @@ export class InventoryPanel extends UIView {
 
     private _initUI() {
         if (this.lbInventory) {
-            this.lbInventory.string = '背包系统开发中...\n\n敬请期待！';
+            this.lbInventory.string = 'Inventory system is under construction...\n\nStay tuned!';
         }
     }
 

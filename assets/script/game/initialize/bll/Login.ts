@@ -64,7 +64,7 @@ export class LoginSystem extends ecs.ComblockSystem implements ecs.IEntityEnterS
             this.register(e);
         }
         else {
-            oops.gui.toast("当前区在维护中");
+            oops.gui.toast("Server is under maintenance");
             e.remove(LoginComp);
         }
     }

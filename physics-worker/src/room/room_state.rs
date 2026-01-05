@@ -38,7 +38,7 @@ pub struct RoomState {
 
 impl RoomState {
     pub fn new(id: String, config: RoomConfig) -> Self {
-        Self {
+        let state = Self {
             id,
             physics: PhysicsWorld::new(config.clone()),
             config,
@@ -48,7 +48,17 @@ impl RoomState {
             last_snapshot: HashMap::new(),
             delta_snapshot_count: 0,
             accumulated_time: 0.0,
-        }
+        };
+
+        tracing::info!(
+            "Room {} created with push_speed={:.3}, min_z={:.2}, max_z={:.2}",
+            state.id,
+            state.config.push_speed,
+            state.config.push_min_z,
+            state.config.push_max_z
+        );
+
+        state
     }
 
     /// 推入事件到队列

@@ -76,7 +76,7 @@ export class MoveToSystem extends ecs.ComblockSystem<ecs.Entity> implements ecs.
         let mtv = e.get(VariableMoveToComponent);
         let end: Vec3;
 
-        console.assert(move.speed > 0, "移动速度必须要大于零");
+        console.assert(move.speed > 0, "Move speed must be greater than zero");
 
         if (move.target instanceof Node) {
             end = move.ns == Node.NodeSpace.WORLD ? move.target.worldPosition : move.target.position;

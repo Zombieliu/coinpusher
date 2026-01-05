@@ -1,24 +1,200 @@
 
-> tsrpc@1.0.0 test
-> mocha integration/quicktest.test.ts --silent
+> tsrpc@1.0.0 test:external
+> cross-env SKIP_EXTERNAL=0 node -r ts-node/register ./test/run.ts
 
-[33mWarning: Cannot find any files matching pattern "integration/quicktest.test.ts"[39m
+TSRPC HTTP Client : http://127.0.0.1:3000
 
-TSError: ⨯ Unable to compile TypeScript:
-test/benchmark.test.ts(4,5): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
 
-    at createTSError (/Users/henryliu/cocos/numeron-world/oops-moba/tsrpc_server/node_modules/ts-node/src/index.ts:859:12)
-    at reportTSError (/Users/henryliu/cocos/numeron-world/oops-moba/tsrpc_server/node_modules/ts-node/src/index.ts:863:19)
-    at getOutput (/Users/henryliu/cocos/numeron-world/oops-moba/tsrpc_server/node_modules/ts-node/src/index.ts:1077:36)
-    at Object.compile (/Users/henryliu/cocos/numeron-world/oops-moba/tsrpc_server/node_modules/ts-node/src/index.ts:1433:41)
-    at Module.m._compile (/Users/henryliu/cocos/numeron-world/oops-moba/tsrpc_server/node_modules/ts-node/src/index.ts:1617:30)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1295:10)
-    at Object.require.extensions.<computed> [as .ts] (/Users/henryliu/cocos/numeron-world/oops-moba/tsrpc_server/node_modules/ts-node/src/index.ts:1621:12)
-    at Module.load (node:internal/modules/cjs/loader:1091:32)
-    at Function.Module._load (node:internal/modules/cjs/loader:938:12)
-    at Module.require (node:internal/modules/cjs/loader:1115:19)
-    at require (node:internal/modules/helpers:130:18)
-    at Object.exports.requireOrImport (/Users/henryliu/cocos/numeron-world/oops-moba/tsrpc_server/node_modules/mocha/lib/nodejs/esm-utils.js:60:20)
-    at async Object.exports.loadFilesAsync (/Users/henryliu/cocos/numeron-world/oops-moba/tsrpc_server/node_modules/mocha/lib/nodejs/esm-utils.js:103:20)
-    at async singleRun (/Users/henryliu/cocos/numeron-world/oops-moba/tsrpc_server/node_modules/mocha/lib/cli/run-helpers.js:125:3)
-    at async Object.exports.handler (/Users/henryliu/cocos/numeron-world/oops-moba/tsrpc_server/node_modules/mocha/lib/cli/run.js:374:5)
+  DragonflyDB Rate Limiters
+[DragonflyDB] Connected
+    ✅ Connected to DragonflyDB (latency: 2ms, version: df-v1.35.1)
+    SlidingWindowLimiter
+      ✔ should allow requests within limit
+      ✔ should deny requests over limit
+      ✔ should reset after window expires (606ms)
+      ✔ should handle multiple users independently
+    TokenBucketLimiter
+      ✔ should allow burst traffic
+      ✔ should refill tokens over time (1114ms)
+    LeakyBucketLimiter
+      ✔ should enforce constant rate
+      ✔ should leak requests at constant rate (257ms)
+    Performance
+    ⚡ 1000 concurrent requests: 380ms
+    📊 Throughput: 2632 req/s
+      ✔ should handle high concurrency (381ms)
+    ⚡ P50 latency: 1ms
+    ⚡ P95 latency: 2ms
+    ⚡ P99 latency: 3ms
+      ✔ should have low latency (95ms)
+    Health Check
+    🔍 Health: connected=true, latency=0ms, version=df-v1.35.1
+      ✔ should report healthy connection
+    Error Handling
+      ✔ should handle invalid parameters gracefully
+
+  Logger
+[32m[2026-01-03T22:14:21.184Z] INFO [0m Logger initialized {"service":"test-service","serviceName":"test-service","minLevel":"DEBUG"}
+[36m[2026-01-03T22:14:21.186Z] DEBUG[0m Debug message
+[32m[2026-01-03T22:14:21.186Z] INFO [0m Info message
+[33m[2026-01-03T22:14:21.186Z] WARN [0m Warning message
+[31m[2026-01-03T22:14:21.186Z] ERROR[0m Error message
+    ✔ should log at different levels
+[32m[2026-01-03T22:14:21.186Z] INFO [0m Logger initialized {"service":"test-service","serviceName":"test-service","minLevel":"DEBUG"}
+[32m[2026-01-03T22:14:21.186Z] INFO [0m User action {"service":"test-service","userId":"user123","action":"login"}
+    ✔ should log with context
+[32m[2026-01-03T22:14:21.187Z] INFO [0m Logger initialized {"service":"test-service","serviceName":"test-service","minLevel":"DEBUG"}
+[31m[2026-01-03T22:14:21.187Z] ERROR[0m Something failed {"service":"test-service","operation":"test"}
+  {
+  "name": "Error",
+  "message": "Test error"
+}
+Error: Test error
+    at Context.<anonymous> (/Users/henryliu/cocos/numeron-world/oops-coinpusher/tsrpc_server/test/Logger.test.ts:28:23)
+    at callFn (/Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runnable.js:366:21)
+    at Test.Runnable.run (/Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runnable.js:354:5)
+    at Runner.runTest (/Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runner.js:678:10)
+    at /Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runner.js:801:12
+    at next (/Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runner.js:593:14)
+    at /Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runner.js:603:7
+    at next (/Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runner.js:486:14)
+    at cbHookRun (/Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runner.js:551:7)
+    at done (/Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runnable.js:310:5)
+    ✔ should log errors
+[32m[2026-01-03T22:14:21.189Z] INFO [0m Logger initialized {"service":"test-service","serviceName":"test-service","minLevel":"DEBUG"}
+[32m[2026-01-03T22:14:21.190Z] INFO [0m Child logger message {"service":"test-service","userId":"user456"}
+[31m[2026-01-03T22:14:21.190Z] ERROR[0m Child error {"service":"test-service","userId":"user456"}
+  {
+  "name": "Error",
+  "message": "Child error"
+}
+Error: Child error
+    at Context.<anonymous> (/Users/henryliu/cocos/numeron-world/oops-coinpusher/tsrpc_server/test/Logger.test.ts:35:52)
+    at callFn (/Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runnable.js:366:21)
+    at Test.Runnable.run (/Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runnable.js:354:5)
+    at Runner.runTest (/Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runner.js:678:10)
+    at /Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runner.js:801:12
+    at next (/Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runner.js:593:14)
+    at /Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runner.js:603:7
+    at next (/Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runner.js:486:14)
+    at cbHookRun (/Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runner.js:551:7)
+    at done (/Users/henryliu/cocos/numeron-world/oops-coinpusher/node_modules/.pnpm/mocha@9.2.2/node_modules/mocha/lib/runnable.js:310:5)
+    ✔ should create child logger with context
+[32m[2026-01-03T22:14:21.190Z] INFO [0m Logger initialized {"service":"test-service","serviceName":"test-service","minLevel":"DEBUG"}
+[33m[2026-01-03T22:14:21.190Z] WARN [0m Should show
+[31m[2026-01-03T22:14:21.190Z] ERROR[0m Should show
+    ✔ should filter logs by level
+
+  RustRoomClient 集成测试
+[RustRoomClient] Connecting to 127.0.0.1:39000...
+[RustRoomClient] ✅ Connected to Rust Room Service
+✅ 连接成功
+    ✔ 应该能够连接到 Rust Room Service
+[RustRoomClient] → Sent: CreateRoom (211 bytes, MsgPack)
+[RustRoomClient] ← Received: DeltaSnapshot
+✅ 收到DeltaSnapshot tick=1
+    ✔ 应该能够创建房间
+[RustRoomClient] → Sent: PlayerJoin (67 bytes, MsgPack)
+    ✔ 应该能够通知玩家加入
+[RustRoomClient] → Sent: PlayerDropCoin (95 bytes, MsgPack)
+[RustRoomClient] ← Received: DeltaSnapshot
+✅ 硬币已生成 (DeltaSnapshot): ID=n/a, pos=n/a
+    ✔ 应该能够投币
+[RustRoomClient] ← Received: DeltaSnapshot
+  DeltaSnapshot 1/5: tick=3, delta(+26 ~0 -0), pushZ=-8.78
+[RustRoomClient] ← Received: DeltaSnapshot
+  DeltaSnapshot 2/5: tick=4, delta(+26 ~0 -0), pushZ=-8.77
+[RustRoomClient] ← Received: DeltaSnapshot
+  DeltaSnapshot 3/5: tick=5, delta(+26 ~0 -0), pushZ=-8.77
+[RustRoomClient] ← Received: DeltaSnapshot
+  DeltaSnapshot 4/5: tick=6, delta(+26 ~0 -0), pushZ=-8.76
+[RustRoomClient] ← Received: DeltaSnapshot
+  DeltaSnapshot 5/5: tick=7, delta(+1 ~0 -0), pushZ=-8.75
+    ✔ 应该能够接收多个快照 (163ms)
+[RustRoomClient] → Sent: PlayerDropCoin (87 bytes, MsgPack)
+[RustRoomClient] → Sent: PlayerDropCoin (87 bytes, MsgPack)
+[RustRoomClient] → Sent: PlayerDropCoin (87 bytes, MsgPack)
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: DeltaSnapshot
+[RustRoomClient] ← Received: Snapshot
+✅ 多个硬币已生成: 29个
+    ✔ 应该能够投多个硬币 (794ms)
+[RustRoomClient] → Sent: PlayerLeave (68 bytes, MsgPack)
+    ✔ 应该能够通知玩家离开
+[RustRoomClient] → Sent: DestroyRoom (50 bytes, MsgPack)
+    ✔ 应该能够销毁房间
+[RustRoomClient] → Sent: DestroyRoom (50 bytes, MsgPack)
+
+  Gate API (无网络调用)
+    ✔ CreatePaymentOrder 返回成功结果
+    ✔ CreatePaymentOrder 触发限流
+    ✔ ConfirmStripePayment 返回 order
+
+  Physics Performance Benchmark
+Generating 500 coins...
+Simulating 500 coins for 300 frames (10 seconds of game time)...
+---------------------------------------------------
+Entity Count: 500 dynamic bodies
+Average Step Time: 6.955 ms
+Max Step Time:     24.995 ms
+Projected FPS:     143.8
+---------------------------------------------------
+🟢 PERFORMANCE: Excellent. Capable of 60 FPS.
+    ✔ Stress Test: 500 Coins (2096ms)
+
+  PaymentSystem 基础单测（内存桩）
+    ✔ createOrder 应返回带支付链接的订单并写入存储
+    ✔ confirmStripePayment 应更新为已支付并返回订单
+    ✔ handleStripeWebhook 应调用 confirmStripePayment 并记录事件
+
+  Persistence (mocked MongoDBService)
+[TaskSystem] 刷新用户 u1 的 daily 任务
+[TaskSystem] 用户 u1 完成任务：daily_drop_10
+[TaskSystem] 用户 u1 领取任务奖励：daily_drop_10
+    ✔ TaskSystem should persist daily tasks and claim reward
+[TaskSystem] 用户 u2 签到成功！连续1天
+    ✔ Checkin should persist to user_checkins
+[AchievementSystem] 🏆 用户 u3 解锁成就：初次尝试
+[AchievementSystem] 用户 u3 领取成就奖励：初次尝试
+    ✔ AchievementSystem should persist unlock and claim (mocked)
+[SocialSystem] u4 向 u5 发送好友申请
+    ✔ SocialSystem should persist friend request
+
+  PhysicsWorld Simulation
+Initializing Rapier...
+Rapier initialized.
+    ✔ should initialize correctly
+Initial Platform Z: -8.800000190734863
+New Platform Z: -7.299994468688965
+    ✔ Push platform should move
+Coin spawned at Y: 10
+Coin fell to Y: 8.874999046325684
+    ✔ Coin should fall under gravity
+    ✔ Coin should be collected when out of bounds
+
+
+  40 passing (6s)
+
+[DragonflyDB] Connected
+Teardown: Dragonfly flushed.

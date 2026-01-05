@@ -1,4 +1,4 @@
-import { RefundRequest } from "../../../../server/gate/bll/PaymentSystem";
+import { RefundRequest } from "../../../types/payment";
 
 export interface ReqGetRefunds {
     __ssoToken?: string;

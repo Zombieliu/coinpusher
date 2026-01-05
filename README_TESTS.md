@@ -41,6 +41,10 @@ oops-moba/
 
 ## 🚀 快速使用指南
 
+### 外部依赖端口（Docker 默认映射）
+- DragonflyDB: `127.0.0.1:6379`（容器 `oops-coinpusher-dragonfly`）
+- Rust Room Service: `127.0.0.1:39000` → 容器内部 `9000`（容器 `oops-coinpusher-physics`）
+
 ### 日常开发：快速验证
 
 ```bash
@@ -61,6 +65,13 @@ oops-moba/
 ### 提交前：完整测试
 
 ```bash
+# 仅内置用例
+npm run --prefix tsrpc_server test:internal
+# 含外部依赖（Dragonfly + Room Service 已启动）
+npm run --prefix tsrpc_server test:external
+# 构建 Mongo 索引（friend_requests / user_tasks / user_checkins / user_achievements 等）
+cd tsrpc_server && npx ts-node scripts/ensure-mongo-indexes.ts
+# 整套端到端
 ./test-e2e.sh
 ```
 
@@ -76,6 +87,21 @@ oops-moba/
 **覆盖：** Rust + Node + TCP
 
 ---
+
+### 外部依赖与权限提示
+- DragonflyDB：默认监听 `127.0.0.1:6379`（或 docker 内部地址），集成测试需要能访问该端口。
+- Room Service：默认监听 `127.0.0.1:39000` → 容器内 `9000`，需开放本机 TCP 访问。
+- 若在受限环境（如沙箱）看到 `connect EPERM 127.0.0.1:6379/39000`，请在允许本地 TCP 的上下文下运行，或以 docker 网络内执行 `npm run --prefix tsrpc_server test:external`。
+- 测试环境会自动生成默认 `INTERNAL_SECRET_KEY`；**生产或预发务必设置强随机值**，避免误用测试密钥。
+
+### 测试工件产出（CI 建议）
+- 保留最新测试日志：`test-results/unit-tests.log`、`test-results/integration-tests.log`。
+- CI 示例：
+  ```bash
+  npm run --prefix tsrpc_server test:internal | tee test-results/unit-tests.log
+  npm run --prefix tsrpc_server test:external | tee test-results/integration-tests.log
+  ```
+  然后将 `test-results/*.log` 上传为构件，便于回溯。 
 
 ### 性能优化后：基准测试
 

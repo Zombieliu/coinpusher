@@ -101,7 +101,14 @@ impl RoomManager {
 
             // 收集硬币状态
             let coins = room.physics.collect_coin_states();
+            tracing::info!(
+                "Room {} tick {} collected {} coins",
+                room_id,
+                room.tick,
+                coins.len()
+            );
             let push_z = room.physics.get_push_z();
+            let push_velocity = room.physics.get_push_velocity();
 
             // 决定发送完整快照还是增量快照
             if room.should_send_full_snapshot() {
@@ -110,6 +117,7 @@ impl RoomManager {
                     room_id: room_id.clone(),
                     tick: room.tick,
                     push_z,
+                    push_velocity,
                     coins: coins.clone(),
                     events: room_events,
                 });
@@ -126,6 +134,7 @@ impl RoomManager {
                     room_id: room_id.clone(),
                     tick: room.tick,
                     push_z,
+                    push_velocity,
                     added,
                     updated,
                     removed,
@@ -165,7 +174,7 @@ mod tests {
             reward_line_z: -0.5,
             push_min_z: -8.8,
             push_max_z: -6.0,
-            push_speed: 1.5,
+            push_speed: 0.2,
             snapshot_rate: 30.0,
         }
     }

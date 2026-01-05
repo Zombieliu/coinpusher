@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { fetchStatistics } from '@/lib/api'
+import { fetchStatistics, fetchFinancialStats } from '@/lib/api'
 import { formatNumber } from '@/lib/utils'
 import { Users, DollarSign, Activity, TrendingUp, ArrowUp, ArrowDown } from 'lucide-react'
 import { useTranslation } from '@/components/providers/i18n-provider'
@@ -40,6 +40,7 @@ export default function DashboardPage() {
   })
   const [loading, setLoading] = useState(true)
   const [revenueData, setRevenueData] = useState<Array<{ date: string; revenue: number }>>([])
+  const [currencySummary, setCurrencySummary] = useState<Array<{ currency: string; revenue: number; orders: number }>>([])
   const { t } = useTranslation('dashboard')
 
   const loadStats = useCallback(async () => {
@@ -64,18 +65,22 @@ export default function DashboardPage() {
     setLoading(false)
   }, [])
 
-  const loadChartData = useCallback(() => {
-    const data = []
-    const today = new Date()
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today)
-      date.setDate(date.getDate() - i)
-      data.push({
-        date: `${date.getMonth() + 1}/${date.getDate()}`,
-        revenue: Math.floor(Math.random() * 10000) + 5000,
-      })
+  const loadChartData = useCallback(async () => {
+    try {
+      const end = Date.now()
+      const start = end - 7 * 24 * 60 * 60 * 1000
+      const res = await fetchFinancialStats({ startDate: start, endDate: end })
+      if (res.isSucc && res.res?.dailyRevenue) {
+        const data = res.res.dailyRevenue.map((d: any) => ({
+          date: d.date?.slice(5) || '',
+          revenue: d.revenue || 0,
+        }))
+        setRevenueData(data)
+        setCurrencySummary(res.res.byCurrency || [])
+      }
+    } catch (err) {
+      console.error(err)
     }
-    setRevenueData(data)
   }, [])
 
   useEffect(() => {
@@ -178,6 +183,20 @@ export default function DashboardPage() {
           )
         })}
       </div>
+
+      {currencySummary.length > 1 && (
+        <div className="grid gap-4 md:grid-cols-3">
+          {currencySummary.map((c) => (
+            <div key={c.currency} className="bg-white rounded-lg shadow p-4">
+              <div className="text-sm text-gray-500 flex justify-between">
+                <span>{t('stats.cards.totalRevenue')} ({c.currency})</span>
+                <span>{t('stats.cards.orders')}: {c.orders}</span>
+              </div>
+              <div className="text-2xl font-bold mt-2">{c.revenue.toFixed(2)}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <div className="bg-white rounded-lg shadow p-6">

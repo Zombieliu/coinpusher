@@ -178,7 +178,9 @@
     "__prefab": {
       "__id__": 8
     },
-    "_material": null,
+    "_material": {
+      "__uuid__": "36c226df-093b-4a3f-bc4d-1d5be12b1d3b"
+    },
     "_isTrigger": false,
     "_center": {
       "__type__": "cc.Vec3",

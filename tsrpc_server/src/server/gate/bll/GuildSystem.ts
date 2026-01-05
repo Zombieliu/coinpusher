@@ -14,6 +14,7 @@
 import { MongoDBService } from '../db/MongoDBService';
 import { DragonflyDBService } from '../db/DragonflyDBService';
 import { UserDB } from '../data/UserDB';
+import crypto from 'crypto';
 
 /** 公会职位 */
 export enum GuildRole {
@@ -79,6 +80,43 @@ export class GuildSystem {
     private static readonly CREATE_COST = 5000;              // 创建公会费用
     private static readonly BASE_MAX_MEMBERS = 30;           // 基础成员上限
     private static readonly MAX_OFFICERS = 5;                // 最大副会长数
+    private static readonly throttle = new Map<string, { count: number; resetAt: number }>(); // 简易风控
+
+    /** 灰度 / 开关 */
+    private static isEnabled(userId?: string): boolean {
+        const flag = process.env.FEATURE_GUILD_ENABLED;
+        if (flag === '0' || flag === 'false') return false;
+        const pct = Number(process.env.FEATURE_GUILD_PCT || '100');
+        if (!userId) return pct >= 100;
+        const hash = crypto.createHash('md5').update(userId).digest();
+        const val = hash[0]; // 0-255
+        return val < pct * 2.55;
+    }
+
+    /** 简易节流：windowMs 内最多 limit 次 */
+    private static passThrottle(key: string, limit = 5, windowMs = 2000): boolean {
+        const now = Date.now();
+        const rec = this.throttle.get(key);
+        if (!rec || rec.resetAt < now) {
+            this.throttle.set(key, { count: 1, resetAt: now + windowMs });
+            return true;
+        }
+        if (rec.count >= limit) return false;
+        rec.count += 1;
+        return true;
+    }
+
+    private static async allowRate(rateKey: string, action: string, limit: number, windowMs: number) {
+        if (DragonflyDBService.ready()) {
+            try {
+                const res = await DragonflyDBService.tryAcquireWindow(`guild:${action}`, rateKey, limit, windowMs);
+                return res.allowed;
+            } catch {
+                // fallback to local
+            }
+        }
+        return this.passThrottle(`${rateKey}:${action}`, limit, windowMs);
+    }
 
     /**
      * 公会等级经验曲线
@@ -98,12 +136,18 @@ export class GuildSystem {
         userId: string,
         name: string,
         tag: string,
-        description: string = ''
+        description: string = '',
+        ctx?: { ip?: string; deviceId?: string }
     ): Promise<{
         success: boolean;
         error?: string;
         guildId?: string;
     }> {
+        if (!this.isEnabled(userId)) return { success: false, error: 'feature_disabled' };
+        const key = `${userId}|${ctx?.ip || 'noip'}|${ctx?.deviceId || 'nodev'}|${tag || 'notag'}`;
+        if (!await this.allowRate(key, 'create_guild', 2, 5000)) {
+            return { success: false, error: 'too_many_requests' };
+        }
         // 验证参数
         if (name.length < 2 || name.length > 20) {
             return { success: false, error: '公会名称长度必须在2-20字符之间' };
@@ -191,12 +235,18 @@ export class GuildSystem {
     static async applyToGuild(
         userId: string,
         guildId: string,
-        message?: string
+        message?: string,
+        ctx?: { ip?: string; deviceId?: string }
     ): Promise<{
         success: boolean;
         error?: string;
         applicationId?: string;
     }> {
+        if (!this.isEnabled(userId)) return { success: false, error: 'feature_disabled' };
+        const key = `${userId}|${ctx?.ip || 'noip'}|${ctx?.deviceId || 'nodev'}|${guildId}`;
+        if (!await this.allowRate(key, 'apply_guild', 5, 3000)) {
+            return { success: false, error: 'too_many_requests' };
+        }
         // 检查是否已加入公会
         const userGuild = await this.getUserGuild(userId);
         if (userGuild) {

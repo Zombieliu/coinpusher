@@ -12,6 +12,7 @@ import { CCViewVM } from "../../../../../extensions/oops-plugin-framework/assets
 import { GameEvent } from "../../common/config/GameEvent";
 import { UIID } from "../../common/config/GameUIConfig";
 import { smc } from "../../common/ecs/SingletonModuleComp";
+import { AutoLoginService } from "../service/AutoLoginService";
 import { Initialize } from "../Initialize";
 
 const { ccclass, property } = _decorator;
@@ -72,13 +73,13 @@ export class LoadingViewComp extends CCViewVM<Initialize> {
     private async loadRes() {
         this.data.progress = 0;
         await this.loadCustom();
-        this.loadGameRes();
+        await this.loadGameRes();
     }
 
     /** 加载游戏本地JSON数据（自定义内容） */
     private loadCustom() {
         // 加载游戏本地JSON数据的多语言提示文本
-        this.data.prompt = oops.language.getLangByID("loading_load_json");
+        this.data.prompt = "Loading config...";
 
         return new Promise(async (resolve, reject) => {
             await JsonUtil.loadDir();
@@ -87,42 +88,96 @@ export class LoadingViewComp extends CCViewVM<Initialize> {
     }
 
     /** 加载初始游戏内容资源 */
-    private loadGameRes() {
-        // 加载初始游戏内容资源的多语言提示文本
-        this.data.prompt = oops.language.getLangByID("loading_load_game");
+    private async loadGameRes() {
+        const gameLabel = "Loading game assets";
+        const groups: Array<{ path: string; label: string; type: "dir" | "asset"; }> = [
+            { path: "prefab/ui/game", label: `${gameLabel} (Game UI)`, type: "dir" },
+            { path: "prefab/ui/offlineReward", label: `${gameLabel} (Offline UI)`, type: "dir" },
+            { path: "prefab/ui/setting", label: `${gameLabel} (Setting UI)`, type: "dir" },
+            { path: "prefab/model/coin", label: `${gameLabel} (Coin Prefab)`, type: "asset" },
+            { path: "prefab/model/numFont", label: `${gameLabel} (Number Font)`, type: "dir" },
+        ];
 
-        // 仅加载实际用到的 UI 资源，避免缺失的3D模型导致报错
-        oops.res.loadDir("gui", this.onProgressCallback.bind(this), this.onCompleteCallback.bind(this));
+        const weight = 1 / (groups.length || 1);
+        for (let i = 0; i < groups.length; i++) {
+            const group = groups[i];
+            this.data.prompt = group.label;
+            const start = i * weight;
+            if (group.type === "asset") {
+                await this.loadAssetWithProgress(group.path, start, weight);
+            }
+            else {
+                await this.loadDirWithProgress(group.path, start, weight);
+            }
+        }
+
+        try {
+            this.data.prompt = oops.language.getLangByID("loading_load_player");
+            // 确保网络模块存在
+            if (!smc.net) {
+                const { CommonNet } = await import("../../common/SingletonModuleComp");
+                smc.net = new CommonNet();
+            }
+            const autoLogin = new AutoLoginService();
+            await autoLogin.run((msg) => {
+                if (this.data) {
+                    this.data.prompt = msg;
+                }
+            });
+        }
+        catch (error: any) {
+            console.error("[LoadingViewComp] Failed to auto login", error);
+            await this.openLoginScreen(`Login failed: ${error?.message ?? error}`);
+        }
     }
 
-    /** 加载进度事件 */
-    private onProgressCallback(finished: number, total: number, item: any) {
+    private loadDirWithProgress(path: string, start: number, weight: number) {
+        return new Promise<void>((resolve, reject) => {
+            oops.res.loadDir(path, (finished: number, total: number) => {
+                const local = total > 0 ? finished / total : 1;
+                this.updateProgress(start + local * weight);
+            }, (err: Error | null) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                this.updateProgress(start + weight);
+                resolve();
+            });
+        });
+    }
+
+    private loadAssetWithProgress(path: string, start: number, weight: number) {
+        return new Promise<void>((resolve, reject) => {
+            oops.res.load(path, (err: Error | null) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                this.updateProgress(start + weight);
+                resolve();
+            });
+        });
+    }
+
+    private updateProgress(value: number) {
         if (!this.data) {
-            // 视图已销毁或尚未初始化
             return;
         }
 
-        this.data.finished = finished;
-        this.data.total = total;
-
-        var progress = finished / total;
-        if (progress > this.progress) {
-            this.progress = progress;
-            this.data.progress = (progress * 100).toFixed(2);
-        }
+        const clamped = Math.min(1, Math.max(0, value));
+        this.data.finished = Math.floor(clamped * 100);
+        this.data.total = 100;
+        this.data.progress = (clamped * 100).toFixed(2);
     }
 
-    /** 加载完成事件 */
-    private onCompleteCallback() {
-        if (!this.data) {
-            return;
+    private async openLoginScreen(message?: string) {
+        if (this.data && message) {
+            this.data.prompt = message;
         }
-
-        // 获取用户信息的多语言提示文本
-        this.data.prompt = oops.language.getLangByID("loading_load_player");
-
-        // 推金币游戏：直接触发登录成功事件，等待登录逻辑处理
-        console.log("[LoadingViewComp] Resource loading complete, dispatching login success");
-        oops.message.dispatchEvent(GameEvent.LoginSuccess);
+        await oops.gui.open(UIID.Login);
+        if (this.ent) {
+            this.ent.remove(LoadingViewComp);
+        }
     }
 }

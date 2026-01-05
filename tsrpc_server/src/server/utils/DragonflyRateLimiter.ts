@@ -120,9 +120,12 @@ export class SlidingWindowLimiter extends BaseDragonflyLimiter {
         const now = Date.now();
         const windowStart = now - this.windowMs;
 
+        const seqKey = `${key}:seq`;
+
         // Lua脚本保证原子性
         const script = `
             local key = KEYS[1]
+            local seq_key = KEYS[2]
             local now = tonumber(ARGV[1])
             local window_start = tonumber(ARGV[2])
             local max_requests = tonumber(ARGV[3])
@@ -143,9 +146,13 @@ export class SlidingWindowLimiter extends BaseDragonflyLimiter {
             end
 
             if current < max_requests then
-                -- 允许请求，记录时间戳
-                redis.call('ZADD', key, now, now)
+                -- 允许请求，记录时间戳，member 需要唯一以避免同毫秒覆盖
+                redis.call('SET', seq_key, 0, 'NX')  -- 确保序列键存在，避免 Dragonfly undeclared key 报错
+                local seq = redis.call('INCR', seq_key)
+                local member = tostring(now) .. ':' .. tostring(seq)
+                redis.call('ZADD', key, now, member)
                 redis.call('EXPIRE', key, ttl_seconds)
+                redis.call('EXPIRE', seq_key, ttl_seconds)
                 return {1, current + 1, max_requests, max_requests - current - 1, reset_at}
             else
                 -- 拒绝请求
@@ -157,8 +164,9 @@ export class SlidingWindowLimiter extends BaseDragonflyLimiter {
 
         const result = await this.client.eval(
             script,
-            1,
+            2,
             key,
+            seqKey,
             now.toString(),
             windowStart.toString(),
             this.maxRequests.toString(),
@@ -386,8 +394,8 @@ export class LeakyBucketLimiter extends BaseDragonflyLimiter {
             local leaked = (elapsed / 1000) * leak_rate
             water = math.max(0, water - leaked)
 
-            -- 尝试加水
-            if water < capacity then
+            -- 尝试加水（先判断加1是否会超出容量）
+            if (water + 1) <= capacity then
                 water = water + 1
                 redis.call('HSET', key, 'water', water)
                 redis.call('HSET', key, 'last_leak', now)

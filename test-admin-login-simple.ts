@@ -1,4 +1,4 @@
-import { getGateHttpUrl } from './test-env';
+import { getGateHttpUrl } from './test-env.ts';
 
 async function testLogin() {
     const serverUrl = getGateHttpUrl();

@@ -448,6 +448,29 @@ export class VIPSystem {
     }
 
     /**
+     * 回退 VIP 时长（尽力而为，最低回退到当前时间）
+     */
+    static async revokeVIP(userId: string, durationDays: number): Promise<void> {
+        try {
+            const collection = MongoDBService.getCollection<VIPData>('vip_data');
+            const vipData = await this.getVIPInfo(userId);
+            if (!vipData.vipExpireAt || vipData.vipExpireAt <= 0) return;
+
+            const now = Date.now();
+            const delta = durationDays * 24 * 60 * 60 * 1000;
+            const newExpire = Math.max(now, vipData.vipExpireAt - delta);
+
+            await collection.updateOne(
+                { userId },
+                { $set: { vipExpireAt: newExpire } }
+            );
+            await DragonflyDBService.del(`vip:${userId}`);
+        } catch (error) {
+            console.error('[VIPSystem] revokeVIP error:', error);
+        }
+    }
+
+    /**
      * 更新累计充值（充值时调用）
      */
     static async updateTotalRecharge(userId: string, amount: number): Promise<void> {

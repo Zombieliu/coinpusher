@@ -68,9 +68,9 @@ export class CheckinPanel extends UIView {
     private _updateUI() {
         if (this.lbStatus) {
             if (this._canCheckin) {
-                this.lbStatus.string = `点击签到\n领取 ${GameConfig.CHECKIN_REWARD_GOLD} 金币！`;
+                this.lbStatus.string = `Tap to check-in\nGet ${GameConfig.CHECKIN_REWARD_GOLD} coins!`;
             } else {
-                this.lbStatus.string = '今日已签到\n明天再来吧！';
+                this.lbStatus.string = 'Checked in today\nCome back tomorrow!';
             }
         }
 
@@ -85,7 +85,7 @@ export class CheckinPanel extends UIView {
      */
     public onBtnCheckin() {
         if (!this._canCheckin) {
-            oops.gui.toast('今日已签到！');
+            oops.gui.toast('Already checked in today!');
             return;
         }
 
@@ -102,7 +102,7 @@ export class CheckinPanel extends UIView {
             oops.audio.playEffect(GameConfig.AUDIO_PATH.COUNTDOWN);
         } else {
             console.error('[CheckinPanel] CoinPusher entity not available');
-            oops.gui.toast('游戏未初始化');
+            oops.gui.toast('Game not initialized');
             return;
         }
 
@@ -114,7 +114,7 @@ export class CheckinPanel extends UIView {
         this._canCheckin = false;
         this._updateUI();
 
-        oops.gui.toast(`签到成功！获得 ${rewardGold} 金币`);
+        oops.gui.toast(`Check-in success! +${rewardGold} coins`);
     }
 
     /**

@@ -1,5 +1,5 @@
 import { MongoClient } from 'mongodb';
-import { getMongoUri, getMongoDbName, prettyPrintEnv } from './test-env';
+import { getMongoUri, getMongoDbName, prettyPrintEnv } from './test-env.ts';
 
 async function checkCompleteness() {
     const client = new MongoClient(getMongoUri());

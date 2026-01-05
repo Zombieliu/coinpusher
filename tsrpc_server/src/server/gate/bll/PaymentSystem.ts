@@ -21,8 +21,10 @@ import { DragonflyDBService } from '../db/DragonflyDBService';
 import { ShopSystem, ProductConfig, CurrencyType } from './ShopSystem';
 import { UserDB } from '../data/UserDB';
 import crypto from 'crypto';
+import Stripe from 'stripe';
 import { FinanceSecurityGuard } from './FinanceSecurityGuard';
-import { AdminRole } from './AdminUserSystem';
+import { AdminRole, AdminUserSystem } from './AdminUserSystem';
+import { FxService } from '../utils/FxService';
 
 /** 支付渠道 */
 export enum PaymentChannel {
@@ -32,6 +34,11 @@ export enum PaymentChannel {
     Stripe = 'stripe',          // Stripe
     Sui = 'sui'                 // Sui链支付
 }
+
+const ERR_CHANNEL_DISABLED = 'channel_disabled';
+const ERR_CHANNEL_UNIMPLEMENTED = 'channel_unimplemented';
+const ERR_PRODUCT_NOT_FOUND = 'product_not_found';
+const ERR_GOLD_PRODUCT = 'gold_product_no_payment';
 
 /** 订单状态 */
 export enum OrderStatus {
@@ -103,6 +110,53 @@ export interface RefundRequest {
 }
 
 export class PaymentSystem {
+    /** Stripe 客户端（懒加载） */
+    private static stripeClient: Stripe | null = null;
+    /** Stripe Webhook 签名秘钥 */
+    private static stripeWebhookSecret: string | null = process.env.STRIPE_WEBHOOK_SECRET || null;
+    /** 汇率缓存（简单内存）；默认汇率可在启动时刷新 */
+    private static fxRates: Record<string, number> = { USD: 1, CNY: 7.1, EUR: 0.92 }; // 2026-01 的近似值，建议启动时刷新
+    private static fxBase = 'USD';
+    /** 渠道开关 */
+    private static isChannelEnabled(channel: PaymentChannel): boolean {
+        const envName = `PAYMENT_${channel.toUpperCase()}_ENABLED`;
+        const val = process.env[envName];
+        if (val === '0' || val === 'false') return false;
+        if (channel === PaymentChannel.Stripe) return true; // 默认开启 Stripe
+        // 其他渠道默认关闭，需显式打开
+        return val === '1' || val === 'true';
+    }
+
+    /** 更新汇率（外部可调用） */
+    static setFxRates(rates: Record<string, number>, base: string = 'USD') {
+        this.fxRates = rates;
+        this.fxBase = base.toUpperCase();
+    }
+    /** 启动时校验配置 */
+    static validateStripeConfig() {
+        if (!this.isChannelEnabled(PaymentChannel.Stripe)) {
+            console.warn('[PaymentSystem] Stripe 已关闭（PAYMENT_STRIPE_ENABLED=0），跳过配置校验');
+            return;
+        }
+        if (!process.env.STRIPE_SECRET_KEY) {
+            throw new Error('STRIPE_SECRET_KEY 未配置，Stripe 功能不可用');
+        }
+        if (!process.env.STRIPE_WEBHOOK_SECRET) {
+            console.warn('[PaymentSystem] STRIPE_WEBHOOK_SECRET 未配置，Webhook 签名将无法校验');
+        }
+        // 启动时刷新汇率（最好带缓存/容错）
+        const base = process.env.FX_BASE || 'USD';
+        const symbols = (process.env.FX_SYMBOLS || 'USD,CNY,EUR').split(',').map(s => s.trim()).filter(Boolean);
+        FxService.fetchLatest(base, symbols).then(rates => {
+            if (rates && Object.keys(rates).length) {
+                PaymentSystem.setFxRates(rates, base);
+                console.log(`[PaymentSystem] FX rates updated: base=${base}`, rates);
+            } else {
+                console.warn('[PaymentSystem] FX rates fetch failed，继续使用默认汇率');
+            }
+        });
+    }
+
     /**
      * 创建支付订单
      */
@@ -115,15 +169,24 @@ export class PaymentSystem {
         error?: string;
         order?: PaymentOrder;
     }> {
+        // 渠道开关
+        if (!this.isChannelEnabled(channel)) {
+            return { success: false, error: ERR_CHANNEL_DISABLED };
+        }
         // 获取商品信息
         const product = ShopSystem.getProduct(productId);
         if (!product) {
-            return { success: false, error: '商品不存在' };
+            return { success: false, error: ERR_PRODUCT_NOT_FOUND };
         }
 
-        // 检查货币类型
+        // 金币按汇率折算为 USD，默认 1 USD = 100 Gold，可通过 GOLD_PER_USD 覆盖
+        let priceAmount = product.price;
+        let priceCurrency = this.convertCurrency(product.currency);
         if (product.currency === CurrencyType.Gold) {
-            return { success: false, error: '该商品使用金币购买，无需支付' };
+            const goldPerUsd = Number(process.env.GOLD_PER_USD || '100');
+            const usdAmount = priceAmount / goldPerUsd;
+            priceAmount = Math.max(usdAmount, 0.01); // Stripe 最小 0.5 USD，先保底0.01，后续可再校验
+            priceCurrency = 'USD';
         }
 
         // 生成订单号
@@ -135,8 +198,8 @@ export class PaymentSystem {
             userId,
             productId,
             productName: product.name,
-            amount: product.price,
-            currency: this.convertCurrency(product.currency),
+            amount: priceAmount,
+            currency: priceCurrency,
             channel,
             status: OrderStatus.Pending,
             createdAt: Date.now()
@@ -214,14 +277,10 @@ export class PaymentSystem {
      * 微信支付（示例）
      */
     private static async initiateWechatPay(order: PaymentOrder): Promise<any> {
-        // TODO: 对接微信支付API
-        // 1. 调用微信统一下单接口
-        // 2. 返回支付参数
-        return {
-            success: true,
-            channelOrderId: `wx_${Date.now()}`,
-            paymentUrl: `weixin://wxpay/bizpayurl?...`
-        };
+        if (!this.isChannelEnabled(PaymentChannel.Wechat)) {
+            return { success: false, error: ERR_CHANNEL_DISABLED };
+        }
+        return { success: false, error: ERR_CHANNEL_UNIMPLEMENTED };
     }
 
     /**
@@ -269,10 +328,64 @@ export class PaymentSystem {
     }
 
     private static async refundStripe(orderId: string, amount: number) {
-        return {
-            success: true,
-            transactionId: `stripe_ref_${orderId}_${amount}`
-        };
+        const stripe = this.getStripeClient();
+        if (!stripe) {
+            return { success: false, error: 'Stripe 未配置' };
+        }
+
+        const collection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
+        const order = await collection.findOne({ orderId });
+        if (!order || !order.channelOrderId) {
+            return { success: false, error: '订单不存在或缺少支付流水' };
+        }
+
+        try {
+            const refund = await stripe.refunds.create({
+                payment_intent: order.channelOrderId,
+                amount: Math.round(amount * 100)
+            });
+
+            // 回退发货（尽力而为，资源不足时记录警告但不阻断退款）
+            await this.reverseOrderRewards(order);
+
+            await collection.updateOne(
+                { orderId },
+                {
+                    $set: {
+                        status: OrderStatus.Refunded,
+                        refundedAt: Date.now(),
+                        channelOrderId: order.channelOrderId,
+                        metadata: {
+                            ...(order.metadata || {}),
+                            lastRefundId: refund.id
+                        }
+                    }
+                }
+            );
+
+            await this.logStripeEvent('refund.created', {
+                orderId,
+                refundId: refund.id,
+                intentId: order.channelOrderId
+            });
+
+            await AdminUserSystem.logAdminAction('system', 'payment_stripe_refund', {
+                orderId,
+                userId: order.userId,
+                amount,
+                currency: order.currency,
+                refundId: refund.id,
+                intentId: order.channelOrderId
+            });
+
+            return {
+                success: true,
+                transactionId: refund.id
+            };
+        } catch (err: any) {
+            console.error('[PaymentSystem] Stripe 退款失败:', err?.message || err);
+            return { success: false, error: 'Stripe 退款失败' };
+        }
     }
 
     private static async refundSui(orderId: string, amount: number) {
@@ -286,35 +399,381 @@ export class PaymentSystem {
      * 支付宝支付（示例）
      */
     private static async initiateAlipay(order: PaymentOrder): Promise<any> {
-        // TODO: 对接支付宝API
-        return {
-            success: true,
-            channelOrderId: `ali_${Date.now()}`,
-            paymentUrl: `https://openapi.alipay.com/gateway.do?...`
-        };
+        if (!this.isChannelEnabled(PaymentChannel.Alipay)) {
+            return { success: false, error: ERR_CHANNEL_DISABLED };
+        }
+        return { success: false, error: ERR_CHANNEL_UNIMPLEMENTED };
     }
 
     /**
      * PayPal支付（示例）
      */
     private static async initiatePayPal(order: PaymentOrder): Promise<any> {
-        // TODO: 对接PayPal API
-        return {
-            success: true,
-            channelOrderId: `paypal_${Date.now()}`,
-            paymentUrl: `https://www.paypal.com/checkoutnow?token=...`
-        };
+        if (!this.isChannelEnabled(PaymentChannel.PayPal)) {
+            return { success: false, error: ERR_CHANNEL_DISABLED };
+        }
+        return { success: false, error: ERR_CHANNEL_UNIMPLEMENTED };
     }
 
     /**
      * Stripe支付（示例）
      */
     private static async initiateStripe(order: PaymentOrder): Promise<any> {
-        // TODO: 对接Stripe API
+        const stripe = this.getStripeClient();
+        if (!stripe) {
+            return { success: false, error: 'Stripe 未配置，请设置 STRIPE_SECRET_KEY' };
+        }
+
+        // 以分为单位
+        const amountInMinorUnit = Math.round(order.amount * 100);
+
+        // 构造回调 URL（占位符 {CHECKOUT_SESSION_ID} 会被 Stripe 替换）
+        const { successUrl, cancelUrl } = this.buildStripeUrls(order);
+
+        try {
+            const session = await stripe.checkout.sessions.create({
+                mode: 'payment',
+                payment_method_types: ['card'],
+                client_reference_id: order.orderId,
+                success_url: successUrl,
+                cancel_url: cancelUrl,
+                metadata: {
+                    orderId: order.orderId,
+                    userId: order.userId,
+                    productId: order.productId
+                },
+                line_items: [
+                    {
+                        quantity: 1,
+                        price_data: {
+                            currency: order.currency.toLowerCase(),
+                            unit_amount: amountInMinorUnit,
+                            product_data: {
+                                name: order.productName
+                            }
+                        }
+                    }
+                ]
+            });
+
+            if (!session.url) {
+                return { success: false, error: 'Stripe 会话创建失败，缺少支付链接' };
+            }
+
+            return {
+                success: true,
+                channelOrderId: session.id,
+                paymentUrl: session.url
+            };
+        } catch (error: any) {
+            console.error('[PaymentSystem] 创建 Stripe 会话失败:', error?.message || error);
+            return { success: false, error: 'Stripe 创建支付失败' };
+        }
+    }
+
+    /**
+     * 客户端支付成功后，服务器侧确认 Stripe 会话并发货
+     */
+    static async confirmStripePayment(sessionId: string, orderId?: string): Promise<{
+        success: boolean;
+        error?: string;
+        order?: PaymentOrder;
+    }> {
+        const stripe = this.getStripeClient();
+        if (!stripe) {
+            return { success: false, error: 'Stripe 未配置，请设置 STRIPE_SECRET_KEY' };
+        }
+
+        try {
+            const session = await stripe.checkout.sessions.retrieve(sessionId, {
+                expand: ['payment_intent']
+            });
+
+            const targetOrderId =
+                session.metadata?.orderId ||
+                session.client_reference_id ||
+                orderId;
+
+            if (!targetOrderId) {
+                return { success: false, error: '订单号缺失' };
+            }
+
+            const collection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
+            const order = await collection.findOne({ orderId: targetOrderId });
+
+            if (!order) {
+                return { success: false, error: '订单不存在' };
+            }
+
+            // 判断支付状态
+            const isPaid =
+                session.payment_status === 'paid' ||
+                session.status === 'complete';
+
+            const channelIntentId = typeof session.payment_intent === 'string'
+                ? session.payment_intent
+                : (session.payment_intent?.id || session.id);
+
+            if (!isPaid) {
+                return { success: false, error: '支付未完成', order };
+            }
+
+            // 校验金额（若 Stripe 返回了金额）
+            const amountTotal = session.amount_total ?? (session.payment_intent && typeof (session.payment_intent as any).amount_received === 'number'
+                ? (session.payment_intent as any).amount_received
+                : undefined);
+
+            const expected = Math.round(order.amount * 100);
+            if (amountTotal !== undefined && Math.abs(amountTotal - expected) > 1) {
+                return { success: false, error: '支付金额不匹配', order };
+            }
+
+            // 如果已处理过，直接返回
+            if (order.status === OrderStatus.Delivered || order.status === OrderStatus.Paid) {
+                return { success: true, order };
+            }
+
+            // 更新订单状态并发货
+            await collection.updateOne(
+                { orderId: targetOrderId },
+                {
+                    $set: {
+                        status: OrderStatus.Paid,
+                        paidAt: Date.now(),
+                        channelOrderId: channelIntentId
+                    }
+                }
+            );
+
+            const updatedOrder = {
+                ...order,
+                status: OrderStatus.Paid,
+                paidAt: Date.now(),
+                channelOrderId: channelIntentId
+            };
+
+            await this.deliverOrder(updatedOrder);
+
+            const finalOrder = await collection.findOne({ orderId: targetOrderId });
+
+            return { success: true, order: finalOrder || updatedOrder };
+        } catch (error: any) {
+            console.error('[PaymentSystem] 确认 Stripe 支付失败:', error?.message || error);
+            return { success: false, error: 'Stripe 确认支付失败' };
+        }
+    }
+
+    /**
+     * 确认 PaymentIntent（用于 webhook 场景）
+     */
+    static async confirmStripeIntent(intentId: string): Promise<{ success: boolean; error?: string; order?: PaymentOrder }> {
+        const stripe = this.getStripeClient();
+        if (!stripe) {
+            return { success: false, error: 'Stripe 未配置，请设置 STRIPE_SECRET_KEY' };
+        }
+
+        try {
+            const intent = await stripe.paymentIntents.retrieve(intentId, { expand: ['latest_charge'] });
+            const targetOrderId = (intent.metadata as any)?.orderId || intent.client_reference_id;
+            if (!targetOrderId) {
+                return { success: false, error: '订单号缺失' };
+            }
+
+            const collection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
+            const order = await collection.findOne({ orderId: targetOrderId });
+            if (!order) {
+                return { success: false, error: '订单不存在' };
+            }
+
+            const amountReceived = intent.amount_received ?? intent.amount ?? 0;
+            const expected = Math.round(order.amount * 100);
+            if (amountReceived && Math.abs(amountReceived - expected) > 1) {
+                return { success: false, error: '支付金额不匹配', order };
+            }
+
+            if (order.status === OrderStatus.Delivered || order.status === OrderStatus.Paid) {
+                return { success: true, order };
+            }
+
+            const channelIntentId = intent.id;
+            await collection.updateOne(
+                { orderId: targetOrderId },
+                {
+                    $set: {
+                        status: OrderStatus.Paid,
+                        paidAt: Date.now(),
+                        channelOrderId: channelIntentId
+                    }
+                }
+            );
+
+            const updatedOrder = {
+                ...order,
+                status: OrderStatus.Paid,
+                paidAt: Date.now(),
+                channelOrderId: channelIntentId
+            };
+
+            await this.deliverOrder(updatedOrder);
+            const finalOrder = await collection.findOne({ orderId: targetOrderId });
+
+            await this.logStripeEvent('payment_intent.succeeded', {
+                orderId: targetOrderId,
+                intentId: channelIntentId,
+                verified: true
+            });
+
+            await AdminUserSystem.logAdminAction('system', 'payment_stripe_succeeded', {
+                orderId: targetOrderId,
+                userId: order.userId,
+                amount: order.amount,
+                currency: order.currency,
+                intentId: channelIntentId
+            });
+
+            return { success: true, order: finalOrder || updatedOrder };
+        } catch (err: any) {
+            console.error('[PaymentSystem] 确认 PaymentIntent 失败:', err?.message || err);
+            return { success: false, error: 'Stripe 确认支付失败' };
+        }
+    }
+
+    /**
+     * 创建 Stripe 客户端（惰性）
+     */
+    private static getStripeClient(): Stripe | null {
+        if (this.stripeClient) {
+            return this.stripeClient;
+        }
+        const secretKey = process.env.STRIPE_SECRET_KEY;
+        if (!secretKey) {
+            console.warn('[PaymentSystem] STRIPE_SECRET_KEY 未配置，无法使用 Stripe');
+            return null;
+        }
+        this.stripeClient = new Stripe(secretKey, {
+            apiVersion: '2023-10-16'
+        });
+        return this.stripeClient;
+    }
+
+    /**
+     * 处理 Stripe Webhook 事件
+     */
+    static async handleStripeWebhook(rawBody: string, signature?: string): Promise<{ success: boolean; error?: string }> {
+        const stripe = this.getStripeClient();
+        if (!stripe) {
+            return { success: false, error: 'Stripe 未配置' };
+        }
+
+        let event: Stripe.Event;
+        let verified = false;
+
+        if (rawBody && signature && this.stripeWebhookSecret) {
+            try {
+                event = stripe.webhooks.constructEvent(rawBody, signature, this.stripeWebhookSecret);
+                verified = true;
+            } catch (err: any) {
+                console.error('[PaymentSystem] Stripe webhook 签名校验失败:', err?.message || err);
+                return { success: false, error: '签名校验失败' };
+            }
+        } else {
+            try {
+                event = JSON.parse(rawBody);
+            } catch (err: any) {
+                return { success: false, error: '无效的 webhook payload' };
+            }
+        }
+
+        const type = event.type;
+        const eventId = event.id;
+
+        // 幂等：若事件已处理则直接返回
+        if (eventId) {
+            const processed = await this.isStripeEventProcessed(eventId);
+            if (processed) {
+                return { success: true };
+            }
+        }
+
+        if (type === 'checkout.session.completed') {
+            const session = event.data.object as Stripe.Checkout.Session;
+            const sessionId = session.id;
+            const res = await this.confirmStripePayment(sessionId, session.metadata?.orderId);
+            await this.logStripeEvent(type, { sessionId, orderId: session.metadata?.orderId, verified, eventId });
+            return res;
+        }
+
+        if (type === 'payment_intent.succeeded') {
+            const intent = event.data.object as Stripe.PaymentIntent;
+            const res = await this.confirmStripeIntent(intent.id);
+            await this.logStripeEvent(type, { intentId: intent.id, orderId: intent.metadata?.orderId, verified, eventId });
+            return res;
+        }
+
+        if (type === 'charge.refunded' || type === 'charge.refund.updated') {
+            const charge: any = event.data.object;
+            const intentId = charge.payment_intent;
+            const refundId = charge?.refunds?.data?.[0]?.id;
+            if (intentId) {
+                await this.markOrderRefundedByIntent(intentId, refundId);
+            }
+            await this.logStripeEvent(type, { chargeId: charge.id, intentId, refundId, verified, eventId });
+            return { success: true };
+        }
+
+        await this.logStripeEvent(type, { verified, eventId });
+        return { success: true };
+    }
+
+    private static async isStripeEventProcessed(eventId: string): Promise<boolean> {
+        const collection = MongoDBService.getCollection('payment_events');
+        const exists = await collection.findOne({ eventId });
+        return !!exists;
+    }
+
+    private static async markOrderRefundedByIntent(intentId: string, refundId?: string) {
+        const collection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
+        const order = await collection.findOne({ channelOrderId: intentId });
+        if (!order) return;
+
+        await this.reverseOrderRewards(order);
+
+        await collection.updateOne(
+            { orderId: order.orderId },
+            {
+                $set: {
+                    status: OrderStatus.Refunded,
+                    refundedAt: Date.now(),
+                    metadata: {
+                        ...(order.metadata || {}),
+                        lastRefundId: refundId || order.metadata?.lastRefundId
+                    }
+                }
+            }
+        );
+    }
+
+    /**
+     * 构建 Stripe 成功 / 取消回调 URL
+     */
+    private static buildStripeUrls(order: PaymentOrder): { successUrl: string; cancelUrl: string } {
+        // 使用根路径 + query，避免 Stripe 禁止 fragment，同时静态服也能返回 index.html
+        const defaultBase = 'http://localhost:7457/';
+        const defaultSuccess = `${defaultBase}?orderId={ORDER_ID}&sessionId={CHECKOUT_SESSION_ID}&userId={USER_ID}&stripe-success=1`;
+        const defaultCancel = `${defaultBase}?orderId={ORDER_ID}&userId={USER_ID}&stripe-cancel=1`;
+
+        const successTemplate = process.env.STRIPE_SUCCESS_URL || defaultSuccess;
+        const cancelTemplate = process.env.STRIPE_CANCEL_URL || defaultCancel;
+
         return {
-            success: true,
-            channelOrderId: `stripe_${Date.now()}`,
-            paymentUrl: `https://checkout.stripe.com/pay/...`
+            successUrl: successTemplate
+                .replace('{ORDER_ID}', encodeURIComponent(order.orderId))
+                .replace('{USER_ID}', encodeURIComponent(order.userId))
+                // Stripe 会自动替换该占位符
+                .replace('{CHECKOUT_SESSION_ID}', '{CHECKOUT_SESSION_ID}'),
+            cancelUrl: cancelTemplate
+                .replace('{ORDER_ID}', encodeURIComponent(order.orderId))
+                .replace('{USER_ID}', encodeURIComponent(order.userId))
         };
     }
 
@@ -322,12 +781,10 @@ export class PaymentSystem {
      * Sui链支付（示例）
      */
     private static async initiateSuiPay(order: PaymentOrder): Promise<any> {
-        // TODO: 对接Sui链支付
-        return {
-            success: true,
-            channelOrderId: `sui_${Date.now()}`,
-            paymentUrl: `sui://pay?amount=${order.amount}&...`
-        };
+        if (!this.isChannelEnabled(PaymentChannel.Sui)) {
+            return { success: false, error: ERR_CHANNEL_DISABLED };
+        }
+        return { success: false, error: ERR_CHANNEL_UNIMPLEMENTED };
     }
 
     /**
@@ -447,7 +904,186 @@ export class PaymentSystem {
             const totalTickets = content.ticketAmount + (content.bonusTickets || 0);
             await UserDB.addTickets(order.userId, totalTickets);
         }
+    }
 
+    /**
+     * 尝试回退发货（用于退款/争议）
+     * 金币/彩票可回退；道具尝试扣除；皮肤、VIP 等不可逆奖励仅记录警告。
+     */
+    private static async reverseOrderRewards(order: PaymentOrder): Promise<void> {
+        const product = ShopSystem.getProduct(order.productId);
+        if (!product) {
+            console.error(`[PaymentSystem] 回退失败，商品不存在：${order.productId}`);
+            return;
+        }
+        const content = product.content;
+
+        // 回退金币
+        if (content.goldAmount) {
+            const totalGold = content.goldAmount + (content.bonusGold || 0);
+            const res = await UserDB.deductGold(order.userId, totalGold);
+            if (!res.success) {
+                console.warn(`[PaymentSystem] 回退金币失败，余额不足 user=${order.userId} need=${totalGold} current=${res.currentGold}`);
+            }
+        }
+
+        // 回退彩票
+        if (content.ticketAmount) {
+            const totalTickets = content.ticketAmount + (content.bonusTickets || 0);
+            const ok = await UserDB.consumeTickets(order.userId, totalTickets);
+            if (!ok) {
+                console.warn(`[PaymentSystem] 回退彩票失败，余额不足 user=${order.userId} need=${totalTickets}`);
+            }
+        }
+
+        // 回退道具（尽力而为）
+        if (content.items && content.items.length > 0) {
+            const { ItemSystem } = await import('./ItemSystem');
+            for (const item of content.items) {
+                const res = await ItemSystem.consumeItem(order.userId, item.itemId, item.quantity);
+                if (!res.success) {
+                    // 若消费失败，尝试全量清零，避免留下可疑道具
+                    const zero = await ItemSystem.consumeItem(order.userId, item.itemId, Number.MAX_SAFE_INTEGER);
+                    console.warn(`[PaymentSystem] 回退道具失败 user=${order.userId} item=${item.itemId} qty=${item.quantity}: ${res.error}; force-clear=${zero.success}`);
+                }
+            }
+        }
+
+        // 皮肤 / VIP / 赛季通行证 暂不回退，记录日志
+        if (content.skinId || (content.skins && content.skins.length > 0) || content.vipLevel || content.vipDays || content.vipDuration || content.seasonId) {
+            console.warn(`[PaymentSystem] 存在不可逆奖励（皮肤/VIP/Season），未自动回退 order=${order.orderId}`);
+        }
+    }
+
+    /**
+     * 从 Stripe Intent 补单（用于对账缺失订单）
+     */
+    static async recoverOrderFromStripeIntent(intent: Stripe.PaymentIntent): Promise<{ success: boolean; error?: string; order?: PaymentOrder }> {
+        const meta: any = intent.metadata || {};
+        const userId = meta.userId;
+        const productId = meta.productId;
+        if (!userId || !productId) {
+            return { success: false, error: '缺少 userId 或 productId 元数据，无法补单' };
+        }
+
+        const product = ShopSystem.getProduct(productId);
+        if (!product) {
+            return { success: false, error: '商品不存在' };
+        }
+
+        const amountMinor = intent.amount_received ?? intent.amount ?? 0;
+        const amount = amountMinor / 100;
+        if (Math.abs(amount - product.price) > 0.01) {
+            return { success: false, error: '金额与商品价格不匹配，终止补单' };
+        }
+
+        const orderId = meta.orderId || `recover_${intent.id}`;
+        const collection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
+        const existing = await collection.findOne({ orderId });
+        if (existing) {
+            return { success: true, order: existing };
+        }
+
+        const order: PaymentOrder = {
+            orderId,
+            userId,
+            productId,
+            productName: product.name,
+            amount,
+            currency: (intent.currency || this.convertCurrency(product.currency)).toUpperCase(),
+            channel: PaymentChannel.Stripe,
+            channelOrderId: intent.id,
+            status: OrderStatus.Paid,
+            createdAt: Date.now(),
+            paidAt: intent.created ? intent.created * 1000 : Date.now()
+        };
+
+        await collection.insertOne(order);
+
+        // 发货并更新为 Delivered
+        await this.deliverOrder(order);
+        const finalOrder = await collection.findOne({ orderId });
+
+        await this.logStripeEvent('recovered.intent', { intentId: intent.id, orderId });
+        await AdminUserSystem.logAdminAction('system', 'payment_stripe_recover', {
+            orderId,
+            userId,
+            amount,
+            currency: order.currency,
+            intentId: intent.id
+        });
+
+        return { success: true, order: finalOrder || order };
+    }
+
+    /**
+     * 尝试回退发货（用于退款/争议）
+     * 仅对金币、彩票做回退；物品/皮肤类暂不回退（记录警告）
+     */
+    private static async reverseOrderRewards(order: PaymentOrder): Promise<void> {
+        const product = ShopSystem.getProduct(order.productId);
+        if (!product) {
+            console.error(`[PaymentSystem] 回退失败，商品不存在：${order.productId}`);
+            return;
+        }
+        const content = product.content;
+
+        // 回退金币
+        if (content.goldAmount) {
+            const totalGold = content.goldAmount + (content.bonusGold || 0);
+            const res = await UserDB.deductGold(order.userId, totalGold);
+            if (!res.success) {
+                console.warn(`[PaymentSystem] 回退金币失败，余额不足 user=${order.userId} need=${totalGold} current=${res.currentGold}`);
+            }
+        }
+
+        // 回退彩票
+        if (content.ticketAmount) {
+            const totalTickets = content.ticketAmount + (content.bonusTickets || 0);
+            const ok = await UserDB.consumeTickets(order.userId, totalTickets);
+            if (!ok) {
+                console.warn(`[PaymentSystem] 回退彩票失败，余额不足 user=${order.userId} need=${totalTickets}`);
+            }
+        }
+
+        // 回退皮肤（仅当拥有时移除）
+        if (content.skins && content.skins.length > 0) {
+            const { SkinSystem } = await import('./SkinSystem');
+            for (const skinId of content.skins) {
+                const res = await SkinSystem.removeSkin(order.userId, skinId);
+                if (!res.success) {
+                    console.warn(`[PaymentSystem] 回退皮肤失败 user=${order.userId} skin=${skinId}: ${res.error}`);
+                }
+            }
+        }
+        if (content.skinId) {
+            const { SkinSystem } = await import('./SkinSystem');
+            const res = await SkinSystem.removeSkin(order.userId, content.skinId);
+            if (!res.success) {
+                console.warn(`[PaymentSystem] 回退皮肤失败 user=${order.userId} skin=${content.skinId}: ${res.error}`);
+            }
+        }
+
+        // 回退 VIP 天数
+        if (content.vipDays || content.vipDuration) {
+            const days = content.vipDays || content.vipDuration || 0;
+            const { VIPSystem } = await import('./VIPSystem');
+            await VIPSystem.revokeVIP(order.userId, days);
+        }
+
+        // 回退赛季通行证及已领取奖励（仅金币/彩票可回退）
+        if (content.seasonId) {
+            const { SeasonSystem, BattlePassType } = await import('./SeasonSystem');
+            SeasonSystem.revokePremiumPass(order.userId);
+            // 撤销已领取的高级奖励
+            const data = SeasonSystem.getClaimableRewards(order.userId); // reuse to get unlocked levels
+            // 粗略回退：对已领取的 premium 奖励做撤销（金币/票）
+            // 实际领取记录在 getUserSeasonData 的 claimedPremiumRewards
+            const seasonData: any = (SeasonSystem as any).getUserSeasonData(order.userId);
+            for (const lvl of seasonData.claimedPremiumRewards.slice()) {
+                await SeasonSystem.revokeClaimedReward(order.userId, lvl, BattlePassType.Premium);
+            }
+        }
     }
 
     /**
@@ -665,9 +1301,21 @@ export class PaymentSystem {
     }
 
     /**
+     * 金额折算到基准货币
+     */
+    private static convertToBase(amount: number, currency: string, base: string): number {
+        const cur = currency.toUpperCase();
+        const b = base.toUpperCase();
+        if (cur === b) return amount;
+        const rateCur = this.fxRates[cur] ?? 1;
+        const rateBase = this.fxRates[b] ?? 1;
+        return amount * (rateCur / rateBase);
+    }
+
+    /**
      * 获取支付统计
      */
-    static async getPaymentStats(userId?: string): Promise<{
+    static async getPaymentStats(userId?: string, base: string = this.fxBase): Promise<{
         totalOrders: number;
         totalRevenue: number;
         successRate: number;
@@ -677,31 +1325,20 @@ export class PaymentSystem {
 
         const query: any = userId ? { userId } : {};
 
-        const totalOrders = await collection.countDocuments(query);
-        const successOrders = await collection.countDocuments({
-            ...query,
-            status: { $in: [OrderStatus.Paid, OrderStatus.Delivered] }
-        });
+        const orders = await collection.find(query).toArray();
+        const paidOrders = orders.filter(o => [OrderStatus.Paid, OrderStatus.Delivered].includes(o.status));
 
-        const pipeline = [
-            { $match: { ...query, status: { $in: [OrderStatus.Paid, OrderStatus.Delivered] } } },
-            {
-                $group: {
-                    _id: null,
-                    totalRevenue: { $sum: '$amount' },
-                    avgOrderValue: { $avg: '$amount' }
-                }
-            }
-        ];
+        const totalOrders = orders.length;
+        const successOrders = paidOrders.length;
 
-        const result = await collection.aggregate(pipeline).toArray();
-        const stats = result[0] || { totalRevenue: 0, avgOrderValue: 0 };
+        const totalRevenue = paidOrders.reduce((sum, o) => sum + this.convertToBase(o.amount, o.currency, base), 0);
+        const avgOrderValue = paidOrders.length ? totalRevenue / paidOrders.length : 0;
 
         return {
             totalOrders,
-            totalRevenue: stats.totalRevenue,
+            totalRevenue,
             successRate: totalOrders > 0 ? (successOrders / totalOrders) * 100 : 0,
-            avgOrderValue: stats.avgOrderValue
+            avgOrderValue
         };
     }
 
@@ -877,6 +1514,7 @@ export class PaymentSystem {
         totalOrders: number;
         avgOrderValue: number;
         topSpenders: { userId: string; total: number }[];
+        byCurrency?: { currency: string; revenue: number; orders: number }[];
     }> {
         const collection = MongoDBService.getCollection<PaymentOrder>('payment_orders');
         
@@ -924,10 +1562,23 @@ export class PaymentSystem {
             { $limit: 10 }
         ];
 
-        const [dailyResult, totalResult, topSpendersResult] = await Promise.all([
+        const currencyPipeline = [
+            { $match: match },
+            {
+                $group: {
+                    _id: "$currency",
+                    revenue: { $sum: "$amount" },
+                    orders: { $sum: 1 }
+                }
+            },
+            { $sort: { revenue: -1 } as any }
+        ];
+
+        const [dailyResult, totalResult, topSpendersResult, currencyResult] = await Promise.all([
             collection.aggregate(dailyPipeline).toArray(),
             collection.aggregate(totalPipeline).toArray(),
-            collection.aggregate(topSpendersPipeline).toArray()
+            collection.aggregate(topSpendersPipeline).toArray(),
+            collection.aggregate(currencyPipeline).toArray()
         ]);
 
         const totalStats = totalResult[0] || { totalRevenue: 0, totalOrders: 0, avgOrderValue: 0 };
@@ -937,7 +1588,8 @@ export class PaymentSystem {
             totalRevenue: totalStats.totalRevenue,
             totalOrders: totalStats.totalOrders,
             avgOrderValue: totalStats.avgOrderValue,
-            topSpenders: topSpendersResult.map(r => ({ userId: r._id, total: r.total }))
+            topSpenders: topSpendersResult.map(r => ({ userId: r._id, total: r.total })),
+            byCurrency: currencyResult.map(r => ({ currency: r._id, revenue: r.revenue, orders: r.orders }))
         };
     }
 
@@ -967,4 +1619,24 @@ export class PaymentSystem {
 
         return { refunds, total };
     }
+
+    /**
+     * 记录 Stripe 事件（简易审计）
+     */
+    private static async logStripeEvent(eventType: string, payload: any) {
+        try {
+            const collection = MongoDBService.getCollection('payment_events');
+        await collection.insertOne({
+            eventId: payload?.eventId,
+            eventType,
+            payload,
+            createdAt: Date.now()
+        }, { bypassDocumentValidation: true });
+        if (payload?.eventId) {
+            await collection.createIndex({ eventId: 1 }, { unique: true });
+        }
+    } catch (err) {
+        console.error('[PaymentSystem] 记录 Stripe 事件失败', err);
+    }
+}
 }

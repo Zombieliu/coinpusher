@@ -4,18 +4,28 @@ export interface ReqGetUsers {
     limit?: number;
     search?: string;
     status?: string;
+    channel?: string;
+    platform?: 'ios' | 'android' | 'pc';
+    web3Bound?: boolean;
 }
 
 export interface ResGetUsers {
-    users: Array<{
-        userId: string;
-        username: string;
-        gold: number;
-        status: string;
-        lastLoginTime: number;
-        createdAt: number;
-    }>;
+    users: UserSummary[];
     total: number;
     page: number;
     limit: number;
+}
+
+export interface UserSummary {
+    userId: string;
+    username: string;
+    gold: number;
+    status: string;
+    lastLoginTime: number;
+    createdAt: number;
+    channel?: string;
+    campaign?: string;
+    platform?: 'ios' | 'android' | 'pc';
+    clientVersion?: string;
+    web3Bound?: boolean;
 }

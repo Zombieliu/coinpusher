@@ -32,9 +32,20 @@ services:
       - NODE_ENV=production
       - MONGODB_URI=mongodb://mongodb:27017
       - PORT=3000
+      - DB_NAME=coinpusher_game
+      - COLLECTION_NAME=users
+      - DRAGONFLY_URL=redis://dragonflydb:6379
+      # Stripe 支付（请在部署环境中填入真实值，避免把密钥提交到仓库）
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:?missing_STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:?missing_STRIPE_WEBHOOK_SECRET}
+      # 使用根路径 query（Stripe 不允许 fragment）；静态服会返回 index.html
+      - STRIPE_SUCCESS_URL=http://localhost:7457/?orderId={ORDER_ID}&sessionId={CHECKOUT_SESSION_ID}&userId={USER_ID}&stripe-success=1
+      - STRIPE_CANCEL_URL=http://localhost:7457/?orderId={ORDER_ID}&userId={USER_ID}&stripe-cancel=1
     depends_on:
       mongodb:
         condition: service_healthy
+      dragonflydb:
+        condition: service_started
     networks:
       - oops-coinpusher-network
     healthcheck:
@@ -56,6 +67,7 @@ services:
       - NODE_ENV=production
       - MONGODB_URI=mongodb://mongodb:27017
       - PORT=3001
+      - DISABLE_IP_WHITELIST=true
     depends_on:
       - gate-server
     networks:
@@ -74,8 +86,33 @@ services:
       - NODE_ENV=production
       - MONGODB_URI=mongodb://mongodb:27017
       - PORT=3002
+      - SERVER_URL_MATCH=http://match-server:3001
+      - MATCH_INTERNAL_URL=http://match-server:3001
+      - GATE_URL=http://gate-server:3000
+      # 客户端访问房间 WebSocket 的外网地址（本地开发走宿主机端口映射）
+      # - SERVER_URL_ROOM=ws://127.0.0.1:3002/
+      # - SERVER_URL_ROOM=ws://192.168.50.57:3002/
+      - SERVER_URL_ROOM=ws://192.168.50.197:3002/
+      - RUST_ROOM_ENABLED=true
+      - RUST_ROOM_HOST=physics-worker
+      - RUST_ROOM_PORT=9000
+      - DISABLE_IP_WHITELIST=true
+      - INTERNAL_SECRET_KEY=local-dev-secret-1234567890abcdef
+      - ENABLE_SNAPSHOT_SIGNATURE=false
     depends_on:
       - match-server
+      - physics-worker
+    networks:
+      - oops-coinpusher-network
+
+  physics-worker:
+    build:
+      context: ./physics-worker
+      dockerfile: Dockerfile
+    container_name: oops-coinpusher-physics
+    restart: unless-stopped
+    ports:
+      - "39000:9000"
     networks:
       - oops-coinpusher-network
 
@@ -93,6 +130,16 @@ services:
       - NEXT_PUBLIC_API_URL=http://gate-server:3000
     depends_on:
       - gate-server
+    networks:
+      - oops-coinpusher-network
+
+  dragonflydb:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
+    container_name: oops-coinpusher-dragonfly
+    restart: unless-stopped
+    command: ["--logtostderr"]
+    ports:
+      - "6379:6379"
     networks:
       - oops-coinpusher-network
 

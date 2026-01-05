@@ -15,17 +15,18 @@ export class NetworkManager {
     room: RoomService = null!;
 
     // 当前端点配置
-    private endpoints: NetworkEndpoints = NetworkConfig.endpoints;
+    private endpoints: NetworkEndpoints = NetworkConfig.resolvedEndpoints;
 
     init(overrides?: Partial<NetworkEndpoints>) {
         if (overrides) {
             NetworkConfig.overrideEndpoints(overrides);
         }
 
-        this.endpoints = NetworkConfig.endpoints;
+        // 每次 init 都重新读取（覆盖 earlier init），便于运行时更新 docker/局域网地址
+        this.endpoints = NetworkConfig.resolvedEndpoints;
         this.gate = new GateService(this.endpoints.gateUrl);
         this.match = new MatchService();
         this.room = new RoomService();
-        console.log(`[NetworkManager] Initialized with Gate: ${this.endpoints.gateUrl}`);
+        console.log(`[NetworkManager] Initialized with Gate: ${this.endpoints.gateUrl}, Match (fallback): ${this.endpoints.matchUrl}`);
     }
 }

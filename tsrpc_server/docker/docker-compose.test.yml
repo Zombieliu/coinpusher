@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:6.0
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: coinpusher_test
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+
+  dragonfly:
+    image: docker.dragonflydb/dragonfly
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["--cache_mode"]
+
+  stripe-mock:
+    image: stripemock/stripe-mock:latest
+    restart: unless-stopped
+    ports:
+      - "12111:12111"
+    environment:
+      - STRIPE_MOCK_PORT=12111
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:12111"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+networks:
+  default:
+    name: oops-coinpusher-test-net

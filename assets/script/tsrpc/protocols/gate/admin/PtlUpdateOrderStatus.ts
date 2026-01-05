@@ -1,4 +1,4 @@
-import { OrderStatus } from "../../../../server/gate/bll/PaymentSystem";
+import { OrderStatus } from "../../../types/payment";
 
 export interface ReqUpdateOrderStatus {
     __ssoToken?: string;

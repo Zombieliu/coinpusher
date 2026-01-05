@@ -48,7 +48,8 @@ export const ApiGetShopProducts = apiWrapper<ReqGetShopProducts, ResGetShopProdu
 
         return {
             products,
-            hotProducts: []  // TODO: 实现热门商品逻辑
+            // 简单热门榜：按价格倒序取前3，后续可替换为真实销量/点击量
+            hotProducts: products.slice(0, 3)
         };
     }
 );

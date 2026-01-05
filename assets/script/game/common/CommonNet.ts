@@ -64,8 +64,8 @@ export class CommonNet {
                 timeout: ShareConfig.heartbeat_timeout
             },
             json: ShareConfig.json,
-            // logger: console,
-            // logMsg: true,
+            logger: console,
+            logMsg: false,   // 关闭 [SendMsg]/[RecvMsg] 控制台刷屏
         });
         this.flowClientMsg(wsc);
         this.flowAuth(wsc);

@@ -10,6 +10,8 @@
  */
 
 import { UserDB } from '../data/UserDB';
+import { MongoDBService } from '../db/MongoDBService';
+import { DragonflyDBService } from '../db/DragonflyDBService';
 import { ObjectId } from 'mongodb';
 
 /** 任务类型 */
@@ -204,8 +206,53 @@ export class TaskSystem {
     /**
      * 内存存储（生产环境应使用MongoDB）
      */
-    private static userTasksMap = new Map<string, UserTask[]>();
-    private static userCheckinMap = new Map<string, CheckinData>();
+    private static userTasksMap = new Map<string, UserTask[]>();    // 内存缓存
+    private static userCheckinMap = new Map<string, CheckinData>(); // 内存缓存
+    private static readonly TASK_COLLECTION = 'user_tasks';
+    private static readonly CHECKIN_COLLECTION = 'user_checkins';
+    private static throttle = new Map<string, { count: number; resetAt: number }>();
+
+    private static isEnabled(userId?: string): boolean {
+        const flag = process.env.FEATURE_TASK_ENABLED;
+        if (flag === '0' || flag === 'false') return false;
+        const pct = Number(process.env.FEATURE_TASK_PCT || '100');
+        if (!userId) return pct >= 100;
+        const hash = require('crypto').createHash('md5').update(userId).digest();
+        return hash[0] < pct * 2.55;
+    }
+
+    private static passThrottle(userId: string, action: string, limit = 10, windowMs = 2000): boolean {
+        const key = `${userId}:${action}`;
+        const now = Date.now();
+        const rec = this.throttle.get(key);
+        if (!rec || rec.resetAt < now) {
+            this.throttle.set(key, { count: 1, resetAt: now + windowMs });
+            return true;
+        }
+        if (rec.count >= limit) return false;
+        rec.count += 1;
+        return true;
+    }
+
+    private static async allowRate(userId: string, action: string, limit: number, windowMs: number) {
+        const name = `task:${action}`;
+        if (DragonflyDBService.ready()) {
+            try {
+                const res = await DragonflyDBService.tryAcquireWindow(name, userId, limit, windowMs);
+                return res.allowed;
+            } catch {
+                // fallback
+            }
+        }
+        return this.passThrottle(userId, action, limit, windowMs);
+    }
+
+    static async ensureIndexes() {
+        const taskCol = MongoDBService.getCollection<UserTask>(this.TASK_COLLECTION);
+        await taskCol.createIndex({ userId: 1, taskType: 1, taskId: 1 }, { unique: true });
+        const checkinCol = MongoDBService.getCollection<CheckinData>(this.CHECKIN_COLLECTION);
+        await checkinCol.createIndex({ userId: 1 }, { unique: true });
+    }
 
     /**
      * 获取用户任务列表
@@ -213,10 +260,20 @@ export class TaskSystem {
     static async getUserTasks(userId: string, taskType: TaskType): Promise<UserTask[]> {
         const key = `${userId}_${taskType}`;
 
+        // 先尝试内存缓存
+        let cached = this.userTasksMap.get(key);
+        if (!cached) {
+            // 尝试从 Mongo 读取
+            const collection = MongoDBService.getCollection<UserTask>(this.TASK_COLLECTION);
+            cached = await collection.find({ userId, taskType }).toArray();
+            if (cached.length > 0) {
+                this.userTasksMap.set(key, cached);
+            }
+        }
+
         // 检查是否需要刷新任务
         await this.refreshTasksIfNeeded(userId, taskType);
 
-        // 返回用户任务列表
         const allTasks = this.userTasksMap.get(key) || [];
         return allTasks.filter(t => t.taskType === taskType);
     }
@@ -237,16 +294,23 @@ export class TaskSystem {
                 ? this.DAILY_TASKS
                 : this.WEEKLY_TASKS;
 
+            const createdAt = Date.now();
             const userTasks: UserTask[] = tasks.map(config => ({
                 taskId: config.taskId,
                 taskType: config.taskType,
                 status: TaskStatus.Active,
                 currentProgress: 0,
                 goalValue: config.goalValue,
-                reward: config.reward
+                reward: config.reward,
+                createdAt
             }));
 
             this.userTasksMap.set(key, userTasks);
+
+            // 持久化
+            const collection = MongoDBService.getCollection<UserTask>(this.TASK_COLLECTION);
+            await collection.deleteMany({ userId, taskType });
+            await collection.insertMany(userTasks.map(t => ({ ...t, userId })));
         }
     }
 
@@ -329,6 +393,23 @@ export class TaskSystem {
             }
         }
 
+        // 更新缓存
+        this.userTasksMap.set(dailyKey, dailyTasks);
+        this.userTasksMap.set(weeklyKey, weeklyTasks);
+
+        // 持久化
+        if (updatedTasks.length > 0) {
+            const collection = MongoDBService.getCollection<UserTask>(this.TASK_COLLECTION);
+            const all = [...dailyTasks, ...weeklyTasks];
+            const bulk = collection.initializeUnorderedBulkOp();
+            for (const t of all) {
+                bulk.find({ userId, taskId: t.taskId, taskType: t.taskType })
+                    .upsert()
+                    .updateOne({ $set: { ...t, userId } });
+            }
+            await bulk.execute();
+        }
+
         return updatedTasks;
     }
 
@@ -341,14 +422,24 @@ export class TaskSystem {
         return task?.goalType || null;
     }
 
+    /** 任务系统是否开启（灰度） */
+    static isFeatureEnabled(userId?: string) {
+        return this.isEnabled(userId);
+    }
+
     /**
      * 领取任务奖励
      */
-    static async claimTaskReward(userId: string, taskId: string): Promise<{
+    static async claimTaskReward(userId: string, taskId: string, ctx?: { ip?: string; deviceId?: string }): Promise<{
         success: boolean;
         reward?: TaskReward;
         error?: string;
     }> {
+        if (!this.isEnabled(userId)) return { success: false, error: 'feature_disabled' };
+        const key = `${userId}|${ctx?.ip || 'noip'}|${ctx?.deviceId || 'nodev'}`;
+        if (!await this.allowRate(key, 'claim_task', 10, 5000)) {
+            return { success: false, error: 'too_many_requests' };
+        }
         // 查找任务
         const task = this.findUserTask(userId, taskId);
 
@@ -370,26 +461,27 @@ export class TaskSystem {
             return { success: false, error: '用户不存在' };
         }
 
-        // 更新用户数据
-        const updates: any = {
+        await UserDB.updateUser(userId, {
             gold: user.gold + (task.reward.gold || 0)
-        };
+        });
 
         if (task.reward.tickets) {
             await UserDB.addTickets(userId, task.reward.tickets);
         }
-
-        if (task.reward.exp) {
-            // TODO: 更新经验值（需要实现等级系统）
-        }
-
-        await UserDB.updateUser(userId, updates);
 
         // 更新任务状态
         task.status = TaskStatus.Claimed;
         task.claimedAt = Date.now();
 
         console.log(`[TaskSystem] 用户 ${userId} 领取任务奖励：${taskId}`);
+
+        // 持久化
+        const collection = MongoDBService.getCollection<UserTask>(this.TASK_COLLECTION);
+        await collection.updateOne(
+            { userId, taskId: task.taskId, taskType: task.taskType },
+            { $set: { ...task, userId } },
+            { upsert: true }
+        );
 
         return {
             success: true,
@@ -413,28 +505,22 @@ export class TaskSystem {
     /**
      * 签到
      */
-    static async checkin(userId: string): Promise<{
+    static async checkin(userId: string, ctx?: { ip?: string; deviceId?: string }): Promise<{
         success: boolean;
         reward?: TaskReward;
         checkinDays?: number;
         consecutiveDays?: number;
         error?: string;
     }> {
+        if (!this.isEnabled(userId)) return { success: false, error: 'feature_disabled' };
+        const key = `${userId}|${ctx?.ip || 'noip'}|${ctx?.deviceId || 'nodev'}`;
+        if (!await this.allowRate(key, 'checkin', 3, 5000)) {
+            return { success: false, error: 'too_many_requests' };
+        }
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-        // 获取签到数据
-        let checkinData = this.userCheckinMap.get(userId);
-
-        if (!checkinData) {
-            checkinData = {
-                userId,
-                checkinDays: 0,
-                consecutiveDays: 0,
-                lastCheckinDate: '',
-                checkinHistory: []
-            };
-            this.userCheckinMap.set(userId, checkinData);
-        }
+        // 获取签到数据（缓存或Mongo）
+        let checkinData = await this.getCheckinInfo(userId);
 
         // 检查是否已签到
         if (checkinData.lastCheckinDate === today) {
@@ -478,6 +564,15 @@ export class TaskSystem {
 
         console.log(`[TaskSystem] 用户 ${userId} 签到成功！连续${checkinData.consecutiveDays}天`);
 
+        // 持久化
+        const collection = MongoDBService.getCollection<CheckinData>(this.CHECKIN_COLLECTION);
+        await collection.updateOne(
+            { userId },
+            { $set: checkinData },
+            { upsert: true }
+        );
+        this.userCheckinMap.set(userId, checkinData);
+
         return {
             success: true,
             reward,
@@ -489,8 +584,12 @@ export class TaskSystem {
     /**
      * 获取签到信息
      */
-    static getCheckinInfo(userId: string): CheckinData {
+    static async getCheckinInfo(userId: string): Promise<CheckinData> {
         let checkinData = this.userCheckinMap.get(userId);
+        if (checkinData) return checkinData;
+
+        const collection = MongoDBService.getCollection<CheckinData>(this.CHECKIN_COLLECTION);
+        checkinData = await collection.findOne({ userId }) as CheckinData | null;
 
         if (!checkinData) {
             checkinData = {
@@ -500,9 +599,10 @@ export class TaskSystem {
                 lastCheckinDate: '',
                 checkinHistory: []
             };
-            this.userCheckinMap.set(userId, checkinData);
+            await collection.insertOne(checkinData);
         }
 
+        this.userCheckinMap.set(userId, checkinData);
         return checkinData;
     }
 

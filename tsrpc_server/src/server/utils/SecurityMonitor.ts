@@ -67,6 +67,7 @@ export interface MonitoringStats {
 }
 
 export class SecurityMonitor {
+    static enabled = process.env.SECURITY_MONITOR_ENABLED !== 'false';
     private static events: SecurityEvent[] = [];
     private static readonly MAX_EVENTS = 10000;
 
@@ -119,6 +120,19 @@ export class SecurityMonitor {
             autoResponse?: string;
         }
     ): SecurityEvent {
+        if (!this.enabled) {
+            return {
+                id: 'disabled',
+                timestamp: Date.now(),
+                type,
+                level,
+                source,
+                target: options?.target,
+                details,
+                blocked: false
+            };
+        }
+
         const event: SecurityEvent = {
             id: `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             timestamp: Date.now(),

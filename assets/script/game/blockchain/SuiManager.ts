@@ -239,7 +239,7 @@ export class SuiManager extends Component {
         // 查找 Canvas
         const canvas = find('Canvas');
         if (!canvas) {
-            throw new Error('[SuiManager] Canvas 未找到');
+            throw new Error('[SuiManager] Canvas node not found');
         }
 
         // 查找或创建 SuiManager 节点
@@ -432,15 +432,15 @@ export class SuiManager extends Component {
 
         if (!passkeyAvailable) {
             console.warn('[SuiManager] ⚠️ ================================');
-            console.warn('[SuiManager] ⚠️ Passkey 功能不可用！');
-            console.warn('[SuiManager] ⚠️ dubhe.js 不包含 PasskeyKeypair 和 BrowserPasskeyProvider');
-            console.warn('[SuiManager] ⚠️ 请使用以下替代方案：');
-            console.warn('[SuiManager] ⚠️   1. 游客模式（Skip 按钮）');
-            console.warn('[SuiManager] ⚠️   2. 钱包扩展（Sui Wallet、Suiet）');
-            console.warn('[SuiManager] ⚠️   3. 或联系作者获取包含 Passkey 的完整版 dubhe.js');
+            console.warn('[SuiManager] ⚠️ Passkey is unavailable.');
+            console.warn('[SuiManager] ⚠️ dubhe.js does not include PasskeyKeypair or BrowserPasskeyProvider');
+            console.warn('[SuiManager] ⚠️ Try one of these alternatives:');
+            console.warn('[SuiManager] ⚠️   1. Guest mode (Skip button)');
+            console.warn('[SuiManager] ⚠️   2. Wallet extension (Sui Wallet, Suiet)');
+            console.warn('[SuiManager] ⚠️   3. Ask the developer for a dubhe.js build with Passkey');
             console.warn('[SuiManager] ⚠️ ================================');
         } else {
-            console.log('[SuiManager] ✅ Passkey 功能可用！');
+            console.log('[SuiManager] ✅ Passkey is available!');
         }
 
         console.log('[SuiManager] 💾 Setting _suiModules...');
@@ -780,12 +780,12 @@ export class SuiManager extends Component {
         const { PasskeyKeypair, BrowserPasskeyProvider } = this._suiModules;
         if (!PasskeyKeypair || !BrowserPasskeyProvider) {
             const error = new Error(
-                'Passkey 功能不可用！\n\n' +
-                '原因：dubhe.js 不包含 PasskeyKeypair 和 BrowserPasskeyProvider\n\n' +
-                '解决方案：\n' +
-                '1. 使用"跳过登录"按钮（游客模式）\n' +
-                '2. 使用钱包扩展（Sui Wallet 或 Suiet）\n' +
-                '3. 联系开发者获取包含 Passkey 的完整版 dubhe.js'
+                'Passkey is unavailable.\n\n' +
+                'Reason: dubhe.js does not include PasskeyKeypair and BrowserPasskeyProvider.\n\n' +
+                'Suggested actions:\n' +
+                '1. Use the \"Skip\" button (guest mode)\n' +
+                '2. Use a wallet extension (Sui Wallet or Suiet)\n' +
+                '3. Contact the developer for a dubhe.js build that includes Passkey'
             );
             console.error('[SuiManager]', error.message);
             throw error;
@@ -864,7 +864,7 @@ export class SuiManager extends Component {
                     console.info('[SuiManager] New passkey created:', address);
                 } catch (e) {
                     console.error('[SuiManager] Failed to create passkey:', e);
-                    throw new Error(`创建 Passkey 失败: ${e instanceof Error ? e.message : String(e)}`);
+                    throw new Error(`Failed to create Passkey: ${e instanceof Error ? e.message : String(e)}`);
                 }
             }
         }
@@ -1019,7 +1019,7 @@ export class SuiManager extends Component {
             return balance;
         } catch (error) {
             console.error('[SuiManager] Balance query failed:', error);
-            throw new Error(`无法查询余额: ${error instanceof Error ? error.message : '网络错误'}`);
+            throw new Error(`Failed to query balance: ${error instanceof Error ? error.message : 'Network error'}`);
         }
     }
 
@@ -1162,7 +1162,7 @@ export class SuiManager extends Component {
                 console.info('[SuiManager] 📋 Transaction result:', result);
             } catch (signError) {
                 console.error('[SuiManager] ❌ Failed to sign/execute session creation transaction:', signError);
-                throw new Error(`Session 创建失败：签名或执行交易时出错 - ${signError instanceof Error ? signError.message : String(signError)}`);
+                throw new Error(`Session creation failed: error while signing or executing transaction - ${signError instanceof Error ? signError.message : String(signError)}`);
             }
 
             if (result && result.digest) {
@@ -1198,7 +1198,7 @@ export class SuiManager extends Component {
             // 提供更详细的错误信息
             if (e instanceof Error) {
                 if (e.message.includes('Insufficient gas')) {
-                    throw new Error('余额不足，无法创建 Session。请先获取测试币。');
+                    throw new Error('Insufficient balance to create session. Please request test tokens first.');
                 }
             }
 
@@ -1332,7 +1332,7 @@ export class SuiManager extends Component {
                 }
             }
 
-            throw new Error('未检测到钱包扩展，请先安装 Sui Wallet 或 Suiet Wallet');
+            throw new Error('No wallet extension detected. Please install Sui Wallet or Suiet Wallet.');
         } catch (error) {
             console.error('[SuiManager] Failed to connect wallet:', error);
             throw error;
@@ -1353,7 +1353,7 @@ export class SuiManager extends Component {
      */
     public async signAndExecuteWithWallet(tx: Transaction): Promise<any> {
         if (!this.walletExtension || !this.walletAddress) {
-            throw new Error('钱包未连接，请先调用 connectWalletExtension()');
+            throw new Error('Wallet is not connected. Call connectWalletExtension() first.');
         }
 
         try {

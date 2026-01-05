@@ -122,6 +122,15 @@ export class CommonFactory {
 
         // 在处理接收到的数据之前，通常要进行加密/解密
         hs.flows.preRecvDataFlow.push((v: any) => {
+            // 记录原始请求体（用于 Stripe 等签名校验）
+            try {
+                if ((v.conn as any)?.data) {
+                    const raw = (v.conn as any).data as Uint8Array;
+                    (v.conn as any).rawBodyBuffer = Buffer.from(raw);
+                    (v.conn as any).rawBodyString = Buffer.from(raw).toString();
+                }
+            } catch { /* ignore */ }
+
             if (v.data instanceof Uint8Array) {
                 v.data = Security.decrypt(v.data);
             }

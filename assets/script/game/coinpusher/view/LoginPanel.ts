@@ -125,22 +125,22 @@ export class LoginPanel extends UIView {
         }
 
         this._updateStatus(
-            '欢迎来到游戏！\n\n' +
-            '🔐 使用用户名登录\n' +
-            '💰 服务端控制金币\n'
+            'Welcome to the game!\n\n' +
+            '🔐 Sign in with a username\n' +
+            '💰 Coins are managed by the server\n'
         );
         this._isLoggingIn = false;
 
-        // 自动登录功能：尝试以上次的用户名登录
-        const lastUsername = oops.storage.getGlobalData('lastUsername');
+        // 自动登录功能：尝试以上次的用户名登录（localStorage 优先）
+        const lastUsername = this._loadPersisted('lastUsername');
         if (lastUsername) {
             this._username = lastUsername;
-            this._updateStatus(`检测到上次登录：${this._username}，正在自动登录...`);
+            this._updateStatus(`Found your last login: ${this._username}. Signing in automatically...`);
             this._autoLogin();
         } else {
             // 默认显示游客模式
             this._username = "guest_" + Math.floor(oops.random.getRandomFloat(0,1) * 10000);
-            this._updateStatus(`您是新玩家。将以用户名 "${this._username}" 登录`);
+            this._updateStatus(`New player detected. You will sign in as "${this._username}"`);
         }
     }
 
@@ -153,10 +153,11 @@ export class LoginPanel extends UIView {
         if (this._isLoggingIn) return;
         this._isLoggingIn = true;
 
-        this._updateStatus("正在尝试自动登录服务器...");
+        this._updateStatus("Signing in automatically...");
         try {
             // 1. Gate Login
             const gateRes = await NetworkManager.instance.gate.login(this._username);
+            this._persistSession(gateRes.userId, gateRes.token, this._username);
             
             // 2. Initialize Match Client and Start Match
             // 从 Gate Server 返回的 login 结果中获取 matchUrl
@@ -165,24 +166,39 @@ export class LoginPanel extends UIView {
             const matchRes = await NetworkManager.instance.match.startMatch(gateRes.token);
 
             // 3. Connect to Room Server
-            this._updateStatus("正在连接游戏房间...");
+            this._updateStatus("Connecting to match server...");
             const connected = await NetworkManager.instance.room.connect(matchRes.serverUrl);
 
             if (!connected) {
                 throw new Error("Failed to connect to Room Server.");
             }
-            
-            // 更新本地金币（由服务端返回）
-            smc.coinPusher.CoinModel.totalGold = gateRes.gold;
-            oops.message.dispatchEvent(GameConfig.EVENT_LIST.GOLD_CHANGED, gateRes.gold);
 
-            if (gateRes.offlineReward > 0) {
-                oops.gui.open(UIID.OfflineReward, { gold: gateRes.offlineReward });
+            this._updateStatus("Joining room...");
+            await NetworkManager.instance.room.joinRoom(matchRes.roomId, gateRes.userId);
+
+            if (smc.coinPusher?.Physics) {
+                smc.coinPusher.Physics.roomService = NetworkManager.instance.room;
+                console.log('[LoginPanel] ✓ RoomService attached to PhysicsComp');
+            } else {
+                console.warn('[LoginPanel] PhysicsComp not ready when attaching RoomService');
             }
+            
+            const lastGold = oops.storage.getGlobalData('lastGold');
+            const goldFromServer = gateRes.gold;
+            const finalGold = (goldFromServer ?? lastGold ?? GameConfig.INIT_GOLD_NUM) as number;
+            smc.coinPusher.CoinModel.totalGold = finalGold;
+            oops.storage.setGlobalData('lastGold', finalGold);
+            oops.message.dispatchEvent(GameConfig.EVENT_LIST.GOLD_CHANGED, finalGold);
+
+            // 暂时屏蔽离线奖励弹窗，防止触发 LayerUI 错误
+            // if (gateRes.offlineReward > 0) {
+            //     oops.gui.open(UIID.OfflineReward, { gold: gateRes.offlineReward });
+            // }
 
             // 保存用户名
             oops.storage.setGlobalData("lastUsername", this._username);
             oops.storage.setGlobalData('hasPasskeyLogin', true); // 仍然使用这个flag来表示已登录
+            this._persistSession(gateRes.userId, gateRes.token, this._username);
 
             setTimeout(() => {
                 this._enterGame();
@@ -190,7 +206,7 @@ export class LoginPanel extends UIView {
 
         } catch (error) {
             console.error('[LoginPanel] Auto login failed:', error);
-            this._updateStatus(`自动登录失败: ${error instanceof Error ? error.message : String(error)}\n\n请点击登录按钮手动重试`);
+            this._updateStatus(`Auto login failed: ${error instanceof Error ? error.message : String(error)}\n\nPlease tap Login to retry`);
             this._isLoggingIn = false;
         }
     }
@@ -219,10 +235,11 @@ export class LoginPanel extends UIView {
         oops.audio.playEffect('click');
         this._isLoggingIn = true;
 
-        this._updateStatus('正在登录 Gate 服务器...');
+        this._updateStatus('Signing in to gate server...');
         try {
             // 1. Gate Login
             const gateRes = await NetworkManager.instance.gate.login(this._username);
+            oops.storage.set('USER_ID', gateRes.userId);
             
             // 2. Initialize Match Client and Start Match
             // 从 Gate Server 返回的 login 结果中获取 matchUrl
@@ -231,19 +248,36 @@ export class LoginPanel extends UIView {
             const matchRes = await NetworkManager.instance.match.startMatch(gateRes.token);
 
             // 3. Connect to Room Server
-            this._updateStatus("正在连接游戏房间...");
+            this._updateStatus("Connecting to match server...");
             const connected = await NetworkManager.instance.room.connect(matchRes.serverUrl);
 
             if (!connected) {
                 throw new Error("Failed to connect to Room Server.");
             }
+
+            this._updateStatus("Joining room...");
+            await NetworkManager.instance.room.joinRoom(matchRes.roomId, gateRes.userId);
+
+            if (smc.coinPusher?.Physics) {
+                smc.coinPusher.Physics.roomService = NetworkManager.instance.room;
+                console.log('[LoginPanel] ✓ RoomService attached to PhysicsComp (guest login)');
+            } else {
+                console.warn('[LoginPanel] PhysicsComp not ready when attaching RoomService (guest login)');
+            }
             
-            // 更新本地金币（由服务端返回）
-            smc.coinPusher.CoinModel.totalGold = gateRes.gold;
-            oops.message.dispatchEvent(GameConfig.EVENT_LIST.GOLD_CHANGED, gateRes.gold);
+            const lastGold = oops.storage.getGlobalData('lastGold');
+            const goldFromServer = gateRes.gold;
+            const finalGold = (goldFromServer ?? lastGold ?? GameConfig.INIT_GOLD_NUM) as number;
+            smc.coinPusher.CoinModel.totalGold = finalGold;
+            oops.storage.setGlobalData('lastGold', finalGold);
+            oops.message.dispatchEvent(GameConfig.EVENT_LIST.GOLD_CHANGED, finalGold);
 
             if (gateRes.offlineReward > 0) {
-                oops.gui.open(UIID.OfflineReward, { gold: gateRes.offlineReward });
+                console.log(
+                    '[LoginPanel] Offline reward available but popup disabled temporarily:',
+                    gateRes.offlineReward
+                );
+                // oops.gui.open(UIID.OfflineReward, { gold: gateRes.offlineReward });
             }
 
             // 保存用户名
@@ -256,7 +290,7 @@ export class LoginPanel extends UIView {
 
         } catch (error) {
             console.error('[LoginPanel] Login failed:', error);
-            this._updateStatus(`登录失败: ${error instanceof Error ? error.message : String(error)}\n\n请点击登录按钮重试`);
+            this._updateStatus(`Login failed: ${error instanceof Error ? error.message : String(error)}\n\nPlease tap Login to retry`);
             this._isLoggingIn = false;
         }
     }
@@ -267,7 +301,7 @@ export class LoginPanel extends UIView {
     public onBtnSkip() {
         console.log('[LoginPanel] onBtnSkip called');
         oops.audio.playEffect('click');
-        this._updateStatus('以游客模式进入游戏');
+        this._updateStatus('Entering as guest');
 
         // Note: 这里可以考虑是否也走 TSRPC Login，用 guest_xxx 登录
         // 为了简化，目前直接进入游戏
@@ -297,4 +331,22 @@ export class LoginPanel extends UIView {
         oops.message.dispatchEvent(GameEvent.LoginSuccess);
         oops.message.dispatchEvent(InitializeEvent.Logined);
 }
+
+    // ========== 会话持久化 ==========
+    private _persistSession(userId: string, token: string, username: string) {
+        oops.storage.set('USER_ID', userId);
+        oops.storage.setGlobalData("lastUsername", username);
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('USER_ID', userId);
+            localStorage.setItem('persist_userId', userId);
+            localStorage.setItem('persist_token', token || '');
+            localStorage.setItem('persist_username', username);
+            localStorage.setItem('lastUsername', username);
+        }
+    }
+
+    private _loadPersisted(key: string): string | null {
+        const fromLocal = (typeof localStorage !== 'undefined') ? localStorage.getItem(key) : null;
+        return (fromLocal ?? oops.storage.getGlobalData(key) ?? null) as string | null;
+    }
 }

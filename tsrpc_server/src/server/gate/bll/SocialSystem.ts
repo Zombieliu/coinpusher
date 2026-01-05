@@ -13,6 +13,7 @@ import { MongoDBService } from '../db/MongoDBService';
 import { DragonflyDBService } from '../db/DragonflyDBService';
 import { UserDB } from '../data/UserDB';
 import { ObjectId } from 'mongodb';
+import crypto from 'crypto';
 
 /** 好友状态 */
 export enum FriendStatus {
@@ -60,6 +61,51 @@ export class SocialSystem {
     private static readonly MAX_REQUESTS = 50;           // 最大申请数
     private static readonly DAILY_GIFT_LIMIT = 20;      // 每日赠送上限
     private static readonly GIFT_AMOUNT = 50;            // 赠送金币数
+    private static readonly COLLECTION_USER = 'user_social';
+    private static readonly COLLECTION_REQUESTS = 'friend_requests';
+    private static throttle = new Map<string, { count: number; resetAt: number }>();
+
+    private static isEnabled(userId?: string): boolean {
+        const flag = process.env.FEATURE_FRIEND_ENABLED;
+        if (flag === '0' || flag === 'false') return false;
+        const pct = Number(process.env.FEATURE_FRIEND_PCT || '100');
+        if (!userId) return pct >= 100;
+        const hash = crypto.createHash('md5').update(userId).digest();
+        return hash[0] < pct * 2.55;
+    }
+
+    private static passThrottle(key: string, limit = 10, windowMs = 2000): boolean {
+        const now = Date.now();
+        const rec = this.throttle.get(key);
+        if (!rec || rec.resetAt < now) {
+            this.throttle.set(key, { count: 1, resetAt: now + windowMs });
+            return true;
+        }
+        if (rec.count >= limit) return false;
+        rec.count += 1;
+        return true;
+    }
+
+    private static async allowRate(key: string, action: string, limit: number, windowMs: number) {
+        if (DragonflyDBService.ready()) {
+            try {
+                const res = await DragonflyDBService.tryAcquireWindow(`friend:${action}`, key, limit, windowMs);
+                return res.allowed;
+            } catch {
+                // fallback
+            }
+        }
+        return this.passThrottle(key, limit, windowMs);
+    }
+
+    static async ensureIndexes() {
+        const userCol = MongoDBService.getCollection<UserSocialData>(this.COLLECTION_USER);
+        await userCol.createIndex({ userId: 1 }, { unique: true });
+        const reqCol = MongoDBService.getCollection<FriendRequest>(this.COLLECTION_REQUESTS);
+        await reqCol.createIndex({ requestId: 1 }, { unique: true });
+        await reqCol.createIndex({ toUserId: 1, status: 1 });
+        await reqCol.createIndex({ fromUserId: 1, status: 1 });
+    }
 
     /**
      * 在线状态Key前缀
@@ -72,12 +118,18 @@ export class SocialSystem {
     static async sendFriendRequest(
         fromUserId: string,
         toUserId: string,
-        message?: string
+        message?: string,
+        ctx?: { ip?: string; deviceId?: string }
     ): Promise<{
         success: boolean;
         error?: string;
         requestId?: string;
     }> {
+        if (!this.isEnabled(fromUserId)) return { success: false, error: 'feature_disabled' };
+        const key = `${fromUserId}|${ctx?.ip || 'noip'}|${ctx?.deviceId || 'nodev'}`;
+        if (!await this.allowRate(key, 'friend_req', 5, 3000)) {
+            return { success: false, error: 'too_many_requests' };
+        }
         if (fromUserId === toUserId) {
             return { success: false, error: '不能添加自己为好友' };
         }
@@ -121,7 +173,7 @@ export class SocialSystem {
         };
 
         // 保存到MongoDB
-        const collection = MongoDBService.getCollection('friend_requests');
+        const collection = MongoDBService.getCollection(this.COLLECTION_REQUESTS);
         await collection.insertOne(request);
 
         // 更新社交数据
@@ -147,7 +199,7 @@ export class SocialSystem {
         error?: string;
     }> {
         // 获取申请
-        const collection = MongoDBService.getCollection<FriendRequest>('friend_requests');
+        const collection = MongoDBService.getCollection<FriendRequest>(this.COLLECTION_REQUESTS);
         const request = await collection.findOne({ requestId });
 
         if (!request) {
@@ -218,7 +270,7 @@ export class SocialSystem {
         success: boolean;
         error?: string;
     }> {
-        const collection = MongoDBService.getCollection<FriendRequest>('friend_requests');
+        const collection = MongoDBService.getCollection<FriendRequest>(this.COLLECTION_REQUESTS);
         const request = await collection.findOne({ requestId });
 
         if (!request) {
@@ -493,7 +545,7 @@ export class SocialSystem {
      * 获取用户社交数据
      */
     private static async getUserSocialData(userId: string): Promise<UserSocialData> {
-        const collection = MongoDBService.getCollection<UserSocialData>('user_social');
+        const collection = MongoDBService.getCollection<UserSocialData>(this.COLLECTION_USER);
         let data = await collection.findOne({ userId }) as UserSocialData | null;
 
         if (!data) {
@@ -516,8 +568,8 @@ export class SocialSystem {
     /**
      * 更新用户社交数据
      */
-    private static async updateUserSocialData(userId: string, data: UserSocialData): Promise<void> {
-        const collection = MongoDBService.getCollection<UserSocialData>('user_social');
+    static async updateUserSocialData(userId: string, data: UserSocialData): Promise<void> {
+        const collection = MongoDBService.getCollection<UserSocialData>(this.COLLECTION_USER);
         await collection.updateOne(
             { userId },
             { $set: data },

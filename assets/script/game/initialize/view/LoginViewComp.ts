@@ -59,7 +59,7 @@ export class LoginViewComp extends CCViewVM<Initialize> {
             }
         } catch (err: any) {
             console.error('[LoginViewComp] Health check failed', err);
-            oops.gui.toast('服务器健康检查失败');
+            oops.gui.toast('Health check failed');
         }
     }
 
@@ -111,6 +111,13 @@ export class LoginViewComp extends CCViewVM<Initialize> {
             return;
         }
 
+        // 适配当前主机，刷新 NetworkManager 端点（docker/局域网）
+        const resolved = NetworkConfig.resolvedEndpoints;
+        NetworkManager.instance.init({
+            gateUrl: resolved.gateUrl,
+            matchUrl: resolved.matchUrl
+        });
+
         const username = (this.eb_name.string?.trim() || NAMES[NAMES.length * Math.random() | 0]);
 
         const selection = this._getSelectedServer();
@@ -120,16 +127,25 @@ export class LoginViewComp extends CCViewVM<Initialize> {
             console.warn('[LoginViewComp] No specific server selected, using NetworkConfig defaults');
         }
 
+        // 根据当前访问主机适配网关/匹配地址（docker/局域网）
+        const resolved2 = NetworkConfig.resolvedEndpoints;
+        GameServerConfig.match = GameServerConfig.match || resolved2.matchUrl || NetworkConfig.endpoints.matchUrl || "";
+        NetworkConfig.overrideEndpoints({
+            gateUrl: resolved2.gateUrl,
+            matchUrl: resolved2.matchUrl
+        });
+
         this._isLoggingIn = true;
         try {
             const gateRes = await NetworkManager.instance.gate.login(username);
+            oops.storage.set('USER_ID', gateRes.userId);
             // 将服务器返回的 token 存为 SSO_TOKEN，供 Match/Room 请求使用
             if (gateRes.token) {
                 oops.storage.set('SSO_TOKEN', gateRes.token);
             }
             const matchUrl = this._resolveMatchUrl(gateRes.matchUrl);
             if (!matchUrl) {
-                throw new Error('匹配服务器地址为空');
+                throw new Error('Match server address is empty');
             }
             console.log('[LoginViewComp] Using match:', matchUrl);
 
@@ -138,28 +154,46 @@ export class LoginViewComp extends CCViewVM<Initialize> {
 
             const connected = await NetworkManager.instance.room.connect(matchRes.serverUrl);
             if (!connected) {
-                throw new Error('无法连接房间服务器');
+                throw new Error('Unable to connect to room server');
+            }
+
+            await NetworkManager.instance.room.joinRoom(matchRes.roomId, gateRes.userId);
+
+            if (smc.coinPusher?.Physics) {
+                smc.coinPusher.Physics.roomService = NetworkManager.instance.room;
+                console.log('[LoginViewComp] ✓ RoomService attached to PhysicsComp');
+            } else {
+                console.warn('[LoginViewComp] PhysicsComp not ready when attaching RoomService');
             }
 
             if (smc.coinPusher) {
                 const gold = gateRes.gold ?? smc.coinPusher.CoinModel.totalGold;
                 smc.coinPusher.CoinModel.totalGold = gold;
+                oops.storage.setGlobalData('lastGold', gold);
                 oops.message.dispatchEvent(GameConfig.EVENT_LIST.GOLD_CHANGED, gold);
             } else {
-                console.warn('[LoginViewComp] CoinPusher entity not ready when syncing gold');
+                // 兜底：先存储，等场景初始化时再同步
+                const gold = gateRes.gold ?? 0;
+                oops.storage.setGlobalData('lastGold', gold);
+                console.warn('[LoginViewComp] CoinPusher entity not ready when syncing gold, stored lastGold:', gold);
             }
 
             if (gateRes.offlineReward > 0) {
-                oops.gui.open(UIID.OfflineReward, { gold: gateRes.offlineReward });
+                console.log(
+                    '[LoginViewComp] Offline reward available but popup disabled temporarily:',
+                    gateRes.offlineReward
+                );
+                // oops.gui.open(UIID.OfflineReward, { gold: gateRes.offlineReward });
             }
 
             oops.storage.set("lastUsername", username);
             oops.storage.set('hasPasskeyLogin', true);
 
             smc.initialize.login(username, selection?.rawHost ?? "");
+            // 主游戏界面改为在摄像机动画结束后打开（参见 CoinPusher.startGame）
         } catch (error: any) {
             console.error('[LoginViewComp] Login failed:', error);
-            oops.gui.toast(`登录失败：${error?.message ?? error}`);
+            oops.gui.toast(`Login failed: ${error?.message ?? error}`);
         } finally {
             this._isLoggingIn = false;
         }
@@ -209,19 +243,20 @@ export class LoginViewComp extends CCViewVM<Initialize> {
     }
 
     private _resolveMatchUrl(url?: string): string | undefined {
+        const fallback = NetworkConfig.resolvedEndpoints.matchUrl ?? NetworkConfig.endpoints.matchUrl;
         if (!url) {
-            return NetworkConfig.endpoints.matchUrl;
+            return fallback;
         }
 
         try {
             const parsed = new URL(url);
             if (this._isLoopbackHost(parsed.hostname)) {
-                return NetworkConfig.endpoints.matchUrl ?? url;
+                return fallback ?? url;
             }
             return url;
         } catch (error) {
             console.warn('[LoginViewComp] Invalid matchUrl received:', url, error);
-            return NetworkConfig.endpoints.matchUrl ?? url;
+            return fallback ?? url;
         }
     }
 

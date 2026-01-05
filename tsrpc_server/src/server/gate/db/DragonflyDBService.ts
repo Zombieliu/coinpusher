@@ -75,6 +75,11 @@ export class DragonflyDBService {
         }
     }
 
+    /** 当前是否已连接 */
+    static ready(): boolean {
+        return this.isConnected;
+    }
+
     /**
      * 获取客户端
      */
@@ -242,6 +247,71 @@ export class DragonflyDBService {
             userId: item.value,
             score: item.score
         }));
+    }
+
+    // ==================== 简易分布式限流（滑动窗口） ====================
+    /**
+     * 尝试在窗口期内获取配额（滑动窗口，原子 Lua）
+     */
+    static async tryAcquireWindow(
+        name: string,
+        identifier: string,
+        maxRequests: number,
+        windowMs: number
+    ): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+        if (!this.isConnected) {
+            throw new Error('[DragonflyDB] Not connected');
+        }
+        const key = `rl:${name}:${identifier}`;
+        const seqKey = `${key}:seq`;
+        const now = Date.now();
+        const windowStart = now - windowMs;
+        const ttlSeconds = Math.ceil(windowMs / 1000) + 10;
+
+        const script = `
+            local key = KEYS[1]
+            local seq_key = KEYS[2]
+            local now = tonumber(ARGV[1])
+            local window_start = tonumber(ARGV[2])
+            local max_requests = tonumber(ARGV[3])
+            local window_ms = tonumber(ARGV[4])
+            local ttl_seconds = tonumber(ARGV[5])
+
+            redis.call('ZREMRANGEBYSCORE', key, 0, window_start)
+            local current = redis.call('ZCARD', key)
+            local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+            local reset_at = now + window_ms
+            if #oldest >= 2 then
+                reset_at = tonumber(oldest[2]) + window_ms
+            end
+
+            if current < max_requests then
+                local seq = redis.call('INCR', seq_key)
+                local member = tostring(now) .. ':' .. tostring(seq)
+                redis.call('ZADD', key, now, member)
+                redis.call('EXPIRE', key, ttl_seconds)
+                redis.call('EXPIRE', seq_key, ttl_seconds)
+                return {1, max_requests - current - 1, reset_at}
+            else
+                return {0, 0, reset_at}
+            end
+        `;
+
+        const result = await this.client.eval(script, {
+            keys: [key, seqKey],
+            arguments: [
+                now.toString(),
+                windowStart.toString(),
+                maxRequests.toString(),
+                windowMs.toString(),
+                ttlSeconds.toString()
+            ]
+        }) as [number, number, number];
+
+        const allowed = result[0] === 1;
+        const remaining = result[1];
+        const resetAt = result[2];
+        return { allowed, remaining, resetAt };
     }
 
     // ==================== 缓存操作 ====================
@@ -434,6 +504,10 @@ export class DragonflyDBService {
      * Ping检查
      */
     static async ping(): Promise<boolean> {
+        if (!this.client || !this.isConnected) {
+            console.warn('[DragonflyDB] Ping skipped: client not initialized');
+            return false;
+        }
         try {
             const result = await this.client.ping();
             return result === 'PONG';

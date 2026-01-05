@@ -50,7 +50,7 @@ CREATE_ROOM='{
     "reward_line_z": -0.5,
     "push_min_z": -8.8,
     "push_max_z": -6.0,
-    "push_speed": 1.5
+    "push_speed": 0.2
   }
 }'
 

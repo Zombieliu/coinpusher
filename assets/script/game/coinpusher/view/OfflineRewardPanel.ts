@@ -66,7 +66,7 @@ export class OfflineRewardPanel extends UIView {
         }
 
         // 显示成功提示
-        oops.gui.toast(`成功领取 ${this._gold} 金币！`);
+        oops.gui.toast(`Claimed ${this._gold} coins!`);
 
         // 关闭弹窗
         this.close();

@@ -5,7 +5,7 @@ import { AdminAuthMiddleware } from "../../middleware/AdminAuthMiddleware";
 import { AdminPermission } from "../../bll/AdminUserSystem";
 import { NotificationSystem } from "../../bll/NotificationSystem";
 
-export default async function (call: ApiCall<ReqUnbanUser, ResUnbanUser>) {
+export async function ApiUnbanUser(call: ApiCall<ReqUnbanUser, ResUnbanUser>) {
     const auth = await AdminAuthMiddleware.requirePermission(
         call,
         AdminPermission.BanUsers
