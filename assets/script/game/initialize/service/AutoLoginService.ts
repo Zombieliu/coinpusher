@@ -1,5 +1,6 @@
 import { oops } from "../../../../../extensions/oops-plugin-framework/assets/core/Oops";
 import { smc } from "../../common/ecs/SingletonModuleComp";
+import { ecs } from "../../../../../extensions/oops-plugin-framework/assets/libs/ecs/ECS";
 import { GameServerConfig } from "../../common/config/GameServerConfig";
 import { NetworkManager } from "../../network/NetworkManager";
 import { GameConfig } from "../../coinpusher/model/GameConfig";
@@ -8,6 +9,7 @@ import { ShareConfig } from "../../../tsrpc/models/ShareConfig";
 import { NetworkConfig } from "../../config/NetworkConfig";
 import { GameEvent } from "../../common/config/GameEvent";
 import { InitializeEvent } from "../InitializeEvent";
+import { ApiClient } from "../../network/ApiClient";
 
 type StatusReporter = (msg: string) => void;
 
@@ -49,6 +51,8 @@ export class AutoLoginService {
         if (gateRes.token) {
             oops.storage.set('SSO_TOKEN', gateRes.token);
         }
+        // 同步到 ApiClient，避免后续金币接口使用空用户
+        ApiClient.instance.setUserId(gateRes.userId);
 
         const matchUrl = this.resolveMatchUrl(gateRes.matchUrl, selection);
         if (!matchUrl) {
@@ -67,6 +71,14 @@ export class AutoLoginService {
 
         this.report(report, "Joining room and syncing coins…");
         await NetworkManager.instance.room.joinRoom(matchRes.roomId, gateRes.userId);
+
+        // 确保客户端实体存在，并绑定房间服务以接收快照
+        if (!smc.coinPusher) {
+            smc.coinPusher = ecs.getEntity<any>(require("../../coinpusher/CoinPusher").CoinPusher);
+        }
+        if (smc.coinPusher?.Physics) {
+            smc.coinPusher.Physics.roomService = NetworkManager.instance.room;
+        }
 
         if (smc.coinPusher?.Physics) {
             smc.coinPusher.Physics.roomService = NetworkManager.instance.room;

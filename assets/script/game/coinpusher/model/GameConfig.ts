@@ -22,14 +22,31 @@ export const GameConfig = {
     // ========== 推动台配置 ==========
     /** 推动台最小 Z 位置 */
     PUSH_MIN_POS_Z: -8.8,
-    /** 推动台最大 Z 位置 */
+    /** 推动台最大 Z 位置（与 Rust 物理保持一致） */
     PUSH_MAX_POS_Z: -6,
+    /** 客户端可视推板最小 Z（映射后的位置，更靠前以覆盖台面前半） */
+    CLIENT_PUSH_MIN_Z: -7.5,
+    /** 客户端可视推板最大 Z（映射后的位置） */
+    CLIENT_PUSH_MAX_Z: -4.5,
+    /** 服务器物理推板最小 Z（Rust） */
+    SERVER_PUSH_MIN_Z: -13.97,
+    /** 服务器物理推板最大 Z（Rust） */
+    SERVER_PUSH_MAX_Z: -10.5,
+    /** 客户端映射后整体前移偏移（正值向玩家方向） */
+    SERVER_TO_CLIENT_Z_BIAS: 0,
+    /**
+     * 服务端推台 Z 与本地场景的偏移
+     * 服务器推台行程 [-13.97, -10.5]，prefab pushBox 初始约 -7.44
+     * 建议保持 6.5 左右，使可视推板回到台面上
+     */
+    // 服务器推板 Z → 前端推杆 Z 的偏移（让物理推杆对齐 prefab 位置）
+    PUSH_Z_OFFSET: 6.5,
     /** 推台可视模型相对物理推台 X 偏移（基于 prefab 实测） */
     PUSH_VISUAL_OFFSET_X: 0,
-    /** 推台可视模型相对物理推台 Y 偏移：pushModel(0.4) - pushBox(1.038) */
+    /** 推台可视模型相对物理推台 Y 偏移（prefab 实测：pushModel 比 pushBox 低 0.638） */
     PUSH_VISUAL_OFFSET_Y: -0.638,
-    /** 推台可视模型相对物理推台 Z 偏移：pushModel(-13.93) - pushBox(-7.438) */
-    PUSH_VISUAL_OFFSET_Z: -4,
+    /** 推台可视模型相对物理推台 Z 偏移（prefab 实测：pushModel 比 pushBox 后移 6.492） */
+    PUSH_VISUAL_OFFSET_Z: -6.492,
     /** 推动台初始 X 位置 */
     PUSH_INIT_POS_X: 0,
     /** 推动台初始 Y 位置 */
@@ -40,8 +57,15 @@ export const GameConfig = {
     // ========== 金币配置 ==========
     /** 金币尺寸 */
     GOLD_SIZE: 0.5,
-    /** 金币掉落 Y 位置 */
-    GOLD_DROP_POS_Y: 10,
+    /** 金币掉落 Y 位置（与服务器 drop_height=3 对齐） */
+    GOLD_DROP_POS_Y: 3,
+    /**
+     * 兜底的金币掉落 Z 位置（仅在无法获取 pushNode 世界坐标时使用）
+     * 取推板行程中段，尽量落在跑道上而非背板
+     */
+    GOLD_DROP_POS_Z: -7.2,
+    /** X 方向安全边距（生成/投币时预留半个金币宽） */
+    GOLD_SPAWN_MARGIN_X: 0.25,
     /** 台面金币 Y 位置 */
     GOLD_ON_STAND_POS_Y: 0.25,
     /** 台面金币最小 Z 位置 */
@@ -55,7 +79,7 @@ export const GameConfig = {
 
     // ========== 调试开关 ==========
     /** 物理快照日志开关，默认关闭避免刷屏 */
-    PHYSICS_LOG_VERBOSE: false,
+    PHYSICS_LOG_VERBOSE: true,
 
     // ========== 金币检查配置 ==========
     /** 金币检查最大帧数 */
@@ -84,6 +108,10 @@ export const GameConfig = {
     JACKPOT_DROP_BASE_Y: 10,
     /** 大奖掉落 Y 随机范围 */
     JACKPOT_DROP_Y_RANDOM: 2,
+
+    // ========== 客户端兜底开关 ==========
+    /** 禁用本地兜底铺币/本地推板动画（调试或强制依赖服务器时设为 true） */
+    DISABLE_FALLBACK_COINS: false,
 
     // ========== 物理分组配置 ==========
     GROUP_MASK_LIST: {

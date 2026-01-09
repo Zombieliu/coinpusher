@@ -29,11 +29,11 @@ export class PhysicsWorld {
     private _coinIdCounter: number = 1;
 
     // 游戏参数 (与 GameConfig 保持一致)
-    readonly PUSH_MIN_Z = -8.8;
-    readonly PUSH_MAX_Z = -6.0;
-    readonly PUSH_SPEED = 1.5;
-    readonly GOLD_RADIUS = 0.5;
-    readonly GOLD_HEIGHT = 0.1; // 假设厚度
+    readonly PUSH_MIN_Z = -13.97;
+    readonly PUSH_MAX_Z = -10.5;
+    readonly PUSH_SPEED = 2.3;
+    readonly GOLD_RADIUS = 0.59;
+    readonly GOLD_HEIGHT = 0.18; // 靠近原版厚度
 
     // 推板状态
     private _pushDir: number = 1; // 1: 向 Z 轴正方向 (推), -1: 收回
@@ -55,10 +55,10 @@ export class PhysicsWorld {
     /** 初始化静态环境（地板、墙壁） */
     private _initStaticEnvironment() {
         // 1. 主地板 (台面)
-        // 范围大约 X[-5, 5], Z[-10, 0]
+        // 覆盖 Z ∈ [-15, 5]，前缘通过收集判定处理
         const groundDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(0, -0.1, -5);
         const groundBody = this.world.createRigidBody(groundDesc);
-        // 创建一个大盒子作为地板
+        // 创建一个盒子作为地板
         const groundCollider = RAPIER.ColliderDesc.cuboid(10.0, 0.1, 10.0)
             .setFriction(0.5)
             .setRestitution(0.2);
@@ -70,6 +70,8 @@ export class PhysicsWorld {
         this._createWall(0.0, 2.0, -11.0, 10.0, 2.0, 0.5); // 后墙 (里侧)
         
         // 前方 (Z > -0.5) 是掉落区，不做墙壁
+
+        // 3. 前缘斜坡（暂时移除以避免 WASM setRotation 崩溃，可改用 mesh 或稳定配置后再加）
     }
 
     private _createWall(x: number, y: number, z: number, hx: number, hy: number, hz: number) {
@@ -90,8 +92,8 @@ export class PhysicsWorld {
         this.pushPlatformBody = this.world.createRigidBody(bodyDesc);
 
         // 推板形状：宽大扁平的盒子
-        // 宽度 8 (X[-4, 4]), 高度 0.4, 深度 2
-        const collider = RAPIER.ColliderDesc.cuboid(4.0, 0.4, 2.0)
+        // 宽度 8 (X[-4, 4]), 高度 2, 深度 4，避免过深挡住台面
+        const collider = RAPIER.ColliderDesc.cuboid(4.0, 1.0, 4.0)
             .setFriction(0.3)
             .setRestitution(0.1);
         
@@ -121,12 +123,12 @@ export class PhysicsWorld {
     }
 
     /** 生成金币 */
-    dropCoin(x: number, z: number = -6.0): number {
+    dropCoin(x: number, z: number = -11.5): number {
         const coinId = this._coinIdCounter++;
         
         // 动态刚体
         const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
-            .setTranslation(x, 10.0, z) // 从高空 Y=10 掉落
+            .setTranslation(x, 3.0, z) // 原版掉落高度
             .setCcdEnabled(true); // 开启连续碰撞检测，防止穿透
 
         const body = this.world.createRigidBody(bodyDesc);
@@ -167,6 +169,14 @@ export class PhysicsWorld {
             const pos = body.translation();
             const rot = body.rotation();
 
+            // 推台前缘掉落收集：靠近前沿，避免初始铺币被误收
+            if (pos.z > -0.3 && Math.abs(pos.x) < 4.2 && pos.y < 0.8) {
+                idsToRemove.push(id);
+                removedIds.push(id);
+                collectedIds.push(id);
+                return;
+            }
+
             // 检查是否掉落到底部 (Y < -5) -> 销毁
             if (pos.y < -5.0) {
                 idsToRemove.push(id);
@@ -178,6 +188,13 @@ export class PhysicsWorld {
                     collectedIds.push(id);
                 }
             } else {
+                // 更靠近前缘的兜底判定
+                if (pos.z > -0.1 && Math.abs(pos.x) < 4.2 && pos.y < 0.8) {
+                    idsToRemove.push(id);
+                    removedIds.push(id);
+                    collectedIds.push(id);
+                    return;
+                }
                 // 还在台面上，检查是否需要同步
                 const currentState = {
                     p: { x: Number(pos.x.toFixed(2)), y: Number(pos.y.toFixed(2)), z: Number(pos.z.toFixed(2)) },
@@ -214,6 +231,13 @@ export class PhysicsWorld {
                 this._lastCoinStates.delete(id); // 清理上一帧状态
             }
         });
+
+        // 调试：输出本帧收集/移除统计，便于排查挂边问题
+        if (removedIds.length || collectedIds.length) {
+            console.log(
+                `[PhysicsWorld] step removed=${removedIds.length} collected=${collectedIds.length} remaining=${this.coins.size}`
+            );
+        }
 
         return {
             coins: coinStates,        // 只包含有变化的硬币

@@ -47,3 +47,8 @@ admin-dashboard/out/
 admin-dashboard/playwright-report/
 admin-dashboard/test-results/
 admin-dashboard/pnpm-lock.yaml
+
+# Environment secrets (do not commit)
+.env
+.env.local
+.env.*

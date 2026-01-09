@@ -12,6 +12,8 @@ import { SecurityUtil } from "../security/SecurityUtil";
 export class RoomService {
     client: WsClient<ServiceTypeRoom> | null = null;
     private _physicsListenerAttached = false;
+    /** 仅首个快照打印一次统计，排查位置/坐标系问题 */
+    private _loggedSnapshotStats = false;
 
     // ========== 快照缓冲区 ==========
     snapshots: { serverTick: number, clientTime: number, data: MsgSyncPhysics }[] = [];
@@ -194,6 +196,41 @@ export class RoomService {
             });
             // 保持缓冲区长度
             if (this.snapshots.length > 60) this.snapshots.shift();
+
+            // 仅前 20 条快照打印摘要，排查金币消失/removed 情况（避免刷屏）
+            if (this.snapshots.length <= 20) {
+                const removedCount = msg.removed?.length ?? 0;
+                const coinCount = msg.coins?.length ?? 0;
+                console.log(`[RoomService] Snapshot tick=${msg.serverTick} coins=${coinCount} removed=${removedCount}`);
+            }
+
+            // 首次快照打印位置范围，便于定位“金币看不见/掉下去”
+            if (!this._loggedSnapshotStats) {
+                const coins = msg.coins ?? [];
+                if (coins.length > 0) {
+                    const stats = coins.reduce(
+                        (acc, c) => {
+                            acc.minX = Math.min(acc.minX, c.p.x);
+                            acc.maxX = Math.max(acc.maxX, c.p.x);
+                            acc.minY = Math.min(acc.minY, c.p.y);
+                            acc.maxY = Math.max(acc.maxY, c.p.y);
+                            acc.minZ = Math.min(acc.minZ, c.p.z);
+                            acc.maxZ = Math.max(acc.maxZ, c.p.z);
+                            return acc;
+                        },
+                        { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity }
+                    );
+                    console.log(
+                        `[RoomService] First snapshot stats tick=${msg.serverTick} coins=${coins.length} ` +
+                        `x[${stats.minX.toFixed(2)}, ${stats.maxX.toFixed(2)}] ` +
+                        `y[${stats.minY.toFixed(2)}, ${stats.maxY.toFixed(2)}] ` +
+                        `z[${stats.minZ.toFixed(2)}, ${stats.maxZ.toFixed(2)}]`
+                    );
+                } else {
+                    console.warn(`[RoomService] First snapshot contains 0 coins, tick=${msg.serverTick}`);
+                }
+                this._loggedSnapshotStats = true;
+            }
 
             // 更新估计的 serverTick
             this.estimatedServerTick = msg.serverTick;

@@ -8,20 +8,13 @@ use crate::protocol::{PlayerId, RoomEvent};
 #[derive(Debug, Clone)]
 pub enum Event {
     /// 玩家加入
-    PlayerJoin {
-        player_id: PlayerId,
-    },
+    PlayerJoin { player_id: PlayerId },
 
     /// 玩家离开
-    PlayerLeave {
-        player_id: PlayerId,
-    },
+    PlayerLeave { player_id: PlayerId },
 
     /// 玩家投币
-    PlayerDropCoin {
-        player_id: PlayerId,
-        x: f32,
-    },
+    PlayerDropCoin { player_id: PlayerId, x: f32 },
 
     /// 钱包操作结果
     WalletResult {
@@ -33,18 +26,14 @@ pub enum Event {
 
 impl Event {
     /// 应用事件到房间状态
-    pub fn apply(
-        self,
-        room: &mut super::room_state::RoomState,
-        out_events: &mut Vec<RoomEvent>,
-    ) {
+    pub fn apply(self, room: &mut super::room_state::RoomState, out_events: &mut Vec<RoomEvent>) {
         use super::room_state::PlayerInfo;
 
         match self {
             Event::PlayerJoin { player_id } => {
-                room.players.entry(player_id.clone()).or_insert(PlayerInfo {
-                    id: player_id,
-                });
+                room.players
+                    .entry(player_id.clone())
+                    .or_insert(PlayerInfo { id: player_id });
                 tracing::info!("Player joined room: {}", room.id);
             }
 

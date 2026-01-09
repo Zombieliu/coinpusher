@@ -158,6 +158,7 @@ export class GameViewComp extends ecs.Comp {
             console.warn('[GameViewComp] Push visual node (pushModel) not found!');
         } else {
             console.log('[GameViewComp] ✓ Push visual node found:', this.pushVisualNode.name);
+            // 不再强制缩放，使用 prefab/场景内原始尺寸
         }
 
         if (!this.touchPlane) {

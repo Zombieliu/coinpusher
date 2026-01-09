@@ -91,8 +91,8 @@ services:
       - GATE_URL=http://gate-server:3000
       # 客户端访问房间 WebSocket 的外网地址（本地开发走宿主机端口映射）
       # - SERVER_URL_ROOM=ws://127.0.0.1:3002/
-      # - SERVER_URL_ROOM=ws://192.168.50.57:3002/
-      - SERVER_URL_ROOM=ws://192.168.50.197:3002/
+      - SERVER_URL_ROOM=ws://192.168.50.57:3002/
+      # - SERVER_URL_ROOM=ws://192.168.50.197:3002/
       - RUST_ROOM_ENABLED=true
       - RUST_ROOM_HOST=physics-worker
       - RUST_ROOM_PORT=9000

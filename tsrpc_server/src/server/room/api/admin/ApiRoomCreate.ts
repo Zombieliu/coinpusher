@@ -60,9 +60,9 @@ export async function ApiRoomCreate(call: ApiCall<ReqRoomCreate, ResRoomCreate>)
             coin_radius: 0.5,
             coin_height: 0.1,
             reward_line_z: -0.5,
-            push_min_z: -7.0,
-            push_max_z: -6.2,
-            push_speed: 0.8
+            push_min_z: -13.97,
+            push_max_z: -10.5,
+            push_speed: 2.3
         };
 
         rustClient.createRoom(roomId, roomConfig);
@@ -83,12 +83,18 @@ export async function ApiRoomCreate(call: ApiCall<ReqRoomCreate, ResRoomCreate>)
 }
 
 const SYSTEM_PLAYER_ID: PlayerId = 'system';
-const INITIAL_COIN_POSITIONS: number[] = [-2.5, -1.25, 0, 1.25, 2.5];
+// 更密集的初始投币分布，进入房间时台面即被铺满
+const INITIAL_X_POSITIONS: number[] = [-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5];
+const INITIAL_ROWS = 3; // 投 3 排，共 24 枚
 
 function spawnInitialCoins(rustClient: ReturnType<typeof getRustRoomClient>, roomId: string) {
     rustClient.playerJoin(roomId, SYSTEM_PLAYER_ID);
-    for (const x of INITIAL_COIN_POSITIONS) {
-        rustClient.playerDropCoin(roomId, SYSTEM_PLAYER_ID, x);
+
+    for (let r = 0; r < INITIAL_ROWS; r++) {
+        for (const x of INITIAL_X_POSITIONS) {
+            rustClient.playerDropCoin(roomId, SYSTEM_PLAYER_ID, x);
+        }
     }
+
     rustClient.playerLeave(roomId, SYSTEM_PLAYER_ID);
 }

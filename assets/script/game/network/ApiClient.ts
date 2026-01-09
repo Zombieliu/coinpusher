@@ -1,5 +1,6 @@
 import { GateService } from "./GateService";
 import { NetworkManager } from "./NetworkManager";
+import { oops } from "../../../../extensions/oops-plugin-framework/assets/core/Oops";
 
 /**
  * @file ApiClient.ts
@@ -26,17 +27,53 @@ export class ApiClient {
      * 设置用户ID（在登录成功后调用）
      */
     setUserId(userId: string) {
+        if (!userId) {
+            console.warn("[ApiClient] setUserId called with empty value, ignored");
+            return;
+        }
         this._userId = userId;
+        // 兜底持久化，确保刷新后仍可读取
+        try {
+            oops.storage.set("USER_ID", userId);
+            if (typeof localStorage !== "undefined") {
+                localStorage.setItem("USER_ID", userId);
+                localStorage.setItem("persist_userId", userId);
+            }
+        } catch {
+            // 非浏览器环境可能没有 localStorage，静默忽略
+        }
     }
 
     /**
      * 获取当前用户ID
      */
     get userId(): string {
-        if (!this._userId) {
-            console.warn("[ApiClient] User ID not set, using empty string");
+        if (this._userId) {
+            return this._userId;
         }
-        return this._userId;
+
+        // 尝试从本地存储恢复
+        const stored = this._loadStoredUserId();
+        if (stored) {
+            this._userId = stored;
+            return stored;
+        }
+
+        throw new Error("[ApiClient] 用户未登录，无法调用金币接口。请先完成登录。");
+    }
+
+    /**
+     * 从 oops.storage 或 localStorage 中读取用户 ID
+     */
+    private _loadStoredUserId(): string | null {
+        const fromOops = oops.storage.get("USER_ID");
+        if (fromOops) return fromOops.toString();
+
+        if (typeof localStorage !== "undefined") {
+            const id = localStorage.getItem("USER_ID") || localStorage.getItem("persist_userId");
+            if (id) return id;
+        }
+        return null;
     }
 
     /**

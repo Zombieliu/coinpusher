@@ -23,8 +23,8 @@ fn create_test_config() -> RoomConfig {
         coin_height: 0.1,
         reward_line_z: -0.5,
         push_min_z: -8.8,
-        push_max_z: -6.0,
-        push_speed: 0.2,
+        push_max_z: -3.0,
+        push_speed: 1.5,
     }
 }
 
@@ -122,10 +122,7 @@ fn bench_room_manager_create_destroy(c: &mut Criterion) {
             );
 
             // 销毁房间
-            manager.handle_msg_from_node(
-                FromNode::DestroyRoom { room_id: id },
-                &mut outgoing,
-            );
+            manager.handle_msg_from_node(FromNode::DestroyRoom { room_id: id }, &mut outgoing);
 
             black_box(manager);
         });

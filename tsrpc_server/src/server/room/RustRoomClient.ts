@@ -19,6 +19,7 @@ import { HttpClient } from 'tsrpc';
 import { serviceProto as ServiceProtoGate, ServiceType as ServiceTypeGate } from '../../tsrpc/protocols/ServiceProtoGate';
 import { signInternalRequest } from '../utils/SecurityUtils';
 import { SnapshotValidator, SignedSnapshot } from '../utils/SnapshotValidator';
+import { PhysicsComp } from './bll/physics/PhysicsComp';
 
 const rustIntegrationEnabled = (() => {
     const raw = process.env.RUST_ROOM_ENABLED;
@@ -647,16 +648,27 @@ async function handleRustSnapshot(msg: Extract<ToNode, { type: 'Snapshot' }>) {
         return;
     }
 
+    // 同步 PhysicsComp 的 serverTick，供 Ping 等接口返回正确 tick
+    const physicsComp = room.get(PhysicsComp);
+    if (physicsComp) {
+        physicsComp.serverTick = msg.tick;
+    }
+
     // 转换 Rust 快照格式为客户端协议格式
+    // 确保发给客户端的数据字段完整，避免 ParseServerOutputError
+    const sanitizedCoins = normalizedCoins
+        .map(coin => ({
+            id: coin.id,
+            p: coin.p,
+            r: coin.r
+        }))
+        .filter(c => Number.isFinite(c.id) && c.p && c.r);
+
     const clientSnapshot = {
         serverTick: msg.tick,
         pushZ: msg.push_z,
         pushSpeed: msg.push_velocity,
-        coins: normalizedCoins.map(coin => ({
-            id: coin.id,
-            p: coin.p,
-            r: coin.r
-        })),
+        coins: sanitizedCoins,
         // 如果有收集事件，标记为 removed
         removed: msg.events
             .filter(e => e.kind === 'CoinCollected')
@@ -724,20 +736,29 @@ async function handleRustDeltaSnapshot(msg: Extract<ToNode, { type: 'DeltaSnapsh
         return;
     }
 
+    const physicsComp = room.get(PhysicsComp);
+    if (physicsComp) {
+        physicsComp.serverTick = msg.tick;
+    }
+
     // 应用增量更新到客户端缓存
     const rustClient = getRustRoomClient();
     const allCoins = rustClient['applyDeltaSnapshot'](msg.room_id, msg);
 
     // 转换为客户端协议格式（发送完整状态）
+    const sanitizedCoins = allCoins
+        .map(coin => ({
+            id: coin.id,
+            p: coin.p,
+            r: coin.r
+        }))
+        .filter(c => Number.isFinite(c.id) && c.p && c.r);
+
     const clientSnapshot = {
         serverTick: msg.tick,
         pushZ: msg.push_z,
         pushSpeed: msg.push_velocity,
-        coins: allCoins.map(coin => ({
-            id: coin.id,
-            p: coin.p,
-            r: coin.r
-        })),
+        coins: sanitizedCoins,
         // 收集的硬币标记为 removed
         removed: [
             ...msg.removed,

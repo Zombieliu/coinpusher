@@ -113,15 +113,21 @@ export class GamePanel extends UIView {
     }
 
     onUpdate(dt: number): void {
-        if (!this._isActive) {
-            return;
-        }
+        this._tick(dt);
+    }
 
-        // 倒计时更新
+    // 兼容 Cocos 原生 update 回调，防止 onUpdate 未被 Layer 调用时倒计时停滞
+    update(dt: number): void {
+        this._tick(dt);
+    }
+
+    /** 每帧更新逻辑（倒计时与点击节流） */
+    private _tick(dt: number) {
+        if (!this._isActive) return;
+
         this._countdownTime -= dt;
         this._updateTime();
 
-        // 点击限流
         if (!this._checkCanClick) {
             this._checkCanClickTime += dt;
             if (this._checkCanClickTime >= GameConfig.GAMEPANEL_CAN_CLICK_INTERVAL) {
@@ -210,7 +216,15 @@ export class GamePanel extends UIView {
 
     /** 若进入场景后台面没有金币，创建本地兜底金币（30 枚），避免“空台面”视觉问题 */
     private _ensureFallbackCoins(retry: number = 120, delayMs: number = 250) {
+        // 调试期关闭兜底，直接依赖服务器快照
+        if (GameConfig.DISABLE_FALLBACK_COINS) {
+            return;
+        }
         console.log(`[GamePanel] ensureFallbackCoins retry=${retry}`);
+        // 若已连接房间（有服务器快照），不要再铺本地兜底金币，防止与服务器状态冲突
+        if (NetworkManager.instance?.room?.client) {
+            return;
+        }
         if (!smc.coinPusher) {
             if (retry > 0) {
                 setTimeout(() => this._ensureFallbackCoins(retry - 1, delayMs), delayMs);
@@ -270,10 +284,18 @@ export class GamePanel extends UIView {
         const stepZ = Math.max(0.3, halfZ * 0.25);
         const stepX = Math.max(0.6, halfX * 0.2);
 
+        // 推板前缘（世界坐标），兜底铺币时禁止生成在推板上或其后方
+        const pushFrontZ = (physics.pushNode?.worldPosition.z ?? 0) + halfZ;
+        const safeFrontMargin = 0.2;
+
         for (let z = GOLD_ON_STAND_POS_MIN_Z; z < GOLD_ON_STAND_POS_MAX_Z && count < 30; z += stepZ) {
             for (let x = -GOLD_ON_STAND_POS_MAX_X; x <= GOLD_ON_STAND_POS_MAX_X && count < 30; x += stepX) {
                 // 使用世界坐标落点，再转为 coinParent 的本地坐标
                 const worldPos = new Vec3(x, baseY, z).add(physics.pushNode?.worldPosition ?? Vec3.ZERO);
+                // 跳过推板覆盖区域，避免金币出现在推板表面
+                if (worldPos.z <= pushFrontZ + safeFrontMargin) {
+                    continue;
+                }
                 const node = physics.createCoin(worldPos);
                 if (node) {
                     // 仅作视觉铺币，避免重力立即掉落：设置为静态刚体或关闭重力
@@ -317,7 +339,11 @@ export class GamePanel extends UIView {
     private _updateGoldDisplay() {
         // 允许在 CoinPusher 尚未完全初始化时也更新显示，避免 _goldSynced 一直为 false
         const coinModel = smc.coinPusher?.CoinModel;
-        const displayValue = Math.max(0, Math.floor(coinModel?.totalGold ?? this._getPlayerGold()));
+        // 避免被初始 0 覆盖掉服务器/存储里的非零金币
+        const candidate = (typeof coinModel?.totalGold === 'number' && coinModel.totalGold > 0)
+            ? coinModel.totalGold
+            : this._getPlayerGold();
+        const displayValue = Math.max(0, Math.floor(candidate));
 
         if (this.numFont) {
             console.log('[GamePanel] Updating NumFont display:', displayValue);
@@ -396,12 +422,18 @@ export class GamePanel extends UIView {
      */
     private _getPlayerGold(): number {
         const modelGold = smc.coinPusher?.CoinModel?.totalGold;
-        if (typeof modelGold === 'number') {
+        // 模型里有正值则直接使用，避免被 0 覆盖
+        if (typeof modelGold === 'number' && modelGold > 0) {
             return modelGold;
         }
+        // 尝试从存储恢复（兼容字符串）
         const stored = oops.storage.getGlobalData?.('lastGold');
         const parsed = typeof stored === 'string' ? parseInt(stored, 10) : stored;
-        return (typeof parsed === 'number' && !isNaN(parsed)) ? parsed : 0;
+        if (typeof parsed === 'number' && !isNaN(parsed) && parsed > 0) {
+            return parsed;
+        }
+        // 最终兜底：返回模型值（可能为 0）或 0
+        return typeof modelGold === 'number' ? modelGold : 0;
     }
 
     /** 如果 prefab 未绑定金币文本，运行时自动创建一个角标 */
@@ -473,9 +505,10 @@ export class GamePanel extends UIView {
     private _ensureInitialGold() {
         const applyInitGold = () => {
             const stored = oops.storage.getGlobalData?.('lastGold');
-            if (typeof stored === 'number' && stored >= 0 && smc.coinPusher?.CoinModel) {
-                smc.coinPusher.CoinModel.totalGold = stored;
-                oops.message.dispatchEvent(GameConfig.EVENT_LIST.GOLD_CHANGED, stored);
+            const parsed = typeof stored === 'string' ? parseInt(stored, 10) : stored;
+            if (typeof parsed === 'number' && !isNaN(parsed) && parsed >= 0 && smc.coinPusher?.CoinModel) {
+                smc.coinPusher.CoinModel.totalGold = parsed;
+                oops.message.dispatchEvent(GameConfig.EVENT_LIST.GOLD_CHANGED, parsed);
                 return;
             }
             // 若没有存储且没有服务器值，则保持 0，等待后续登录/服务器同步
@@ -492,17 +525,23 @@ export class GamePanel extends UIView {
 
     /** 兜底：若 coinPusher 未创建则在 UI 侧自动创建一个实体，避免金币为 0 */
     private _ensureCoinPusher() {
-        if (!smc.coinPusher) {
-            try {
-                smc.coinPusher = ecs.getEntity<CoinPusher>(CoinPusher);
-                console.log('[GamePanel] CoinPusher entity auto-created');
-                const gold = smc.coinPusher.CoinModel?.totalGold ?? 0;
-                oops.message.dispatchEvent(GameConfig.EVENT_LIST.GOLD_CHANGED, gold);
-                // CoinPusher 就绪后再尝试铺币
-                this._ensureFallbackCoins();
-            } catch (err) {
-                console.warn('[GamePanel] Failed to auto-create CoinPusher:', err);
+        if (smc.coinPusher) return;
+
+        try {
+            smc.coinPusher = ecs.getEntity<CoinPusher>(CoinPusher);
+            console.log('[GamePanel] CoinPusher entity auto-created');
+            const gold = smc.coinPusher.CoinModel?.totalGold ?? 0;
+            oops.message.dispatchEvent(GameConfig.EVENT_LIST.GOLD_CHANGED, gold);
+            // 如果已经有房间连接，则绑定 RoomService，避免只渲染本地模式
+            if (NetworkManager.instance?.room) {
+                smc.coinPusher.Physics.roomService = NetworkManager.instance.room;
             }
+            // 仅在未连接服务器时才铺本地兜底金币
+            if (!NetworkManager.instance?.room?.client) {
+                this._ensureFallbackCoins();
+            }
+        } catch (err) {
+            console.warn('[GamePanel] Failed to auto-create CoinPusher:', err);
         }
     }
 
@@ -632,11 +671,12 @@ export class GamePanel extends UIView {
         const pushScale = pushNode?.worldScale ?? Vec3.ONE;
         const halfWidth = pushCollider ? (pushCollider.size.x * pushScale.x * 0.5) : GameConfig.GOLD_ON_STAND_POS_MAX_X;
         const centerX = pushNode ? pushNode.worldPosition.x : 0;
+        const margin = GameConfig.GOLD_SPAWN_MARGIN_X ?? (GameConfig.GOLD_SIZE * 0.5);
 
         const offsetX = 0; // 去掉偏移，避免落到左右边界外
         let worldX = centerX + ((touchX - screenWidth * 0.5) / (screenWidth * 0.5)) * halfWidth + offsetX;
-        const clampMin = centerX - halfWidth;
-        const clampMax = centerX + halfWidth;
+        const clampMin = centerX - halfWidth + margin;
+        const clampMax = centerX + halfWidth - margin;
         if (worldX < clampMin || worldX > clampMax) {
             console.warn(`[GamePanel] Touch X ${worldX.toFixed(2)} out of range, clamping`);
             worldX = Math.max(clampMin, Math.min(worldX, clampMax));

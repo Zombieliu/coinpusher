@@ -18,15 +18,10 @@ pub type TransactionId = String;
 #[serde(tag = "type")]
 pub enum FromNode {
     /// 创建房间
-    CreateRoom {
-        room_id: RoomId,
-        config: RoomConfig,
-    },
+    CreateRoom { room_id: RoomId, config: RoomConfig },
 
     /// 销毁房间
-    DestroyRoom {
-        room_id: RoomId,
-    },
+    DestroyRoom { room_id: RoomId },
 
     /// 玩家加入房间
     PlayerJoin {
@@ -100,13 +95,14 @@ impl Default for RoomConfig {
     fn default() -> Self {
         Self {
             gravity: -20.0,
-            drop_height: 10.0,
-            coin_radius: 0.5,
-            coin_height: 0.1,
+            drop_height: 3.0,
+            coin_radius: 0.59,
+            coin_height: 0.18,
             reward_line_z: -0.5,
-            push_min_z: -8.8,
-            push_max_z: -6.0,
-            push_speed: 0.2,
+            // 原版推板行程（更靠后，配合大深度 collider 仍能推到前排）
+            push_min_z: -13.97,
+            push_max_z: -10.5,
+            push_speed: 2.3,
             snapshot_rate: 30.0,
         }
     }
@@ -162,10 +158,7 @@ pub enum ToNode {
     },
 
     /// 房间已关闭
-    RoomClosed {
-        room_id: RoomId,
-        reason: String,
-    },
+    RoomClosed { room_id: RoomId, reason: String },
 }
 
 /// 硬币状态
@@ -225,7 +218,5 @@ pub enum RoomEvent {
     },
 
     /// 硬币已收集（通用）
-    CoinCollected {
-        coin_ids: Vec<CoinId>,
-    },
+    CoinCollected { coin_ids: Vec<CoinId> },
 }

@@ -70,6 +70,13 @@ export class PhysicsComp extends ecs.Comp {
     // ========== Temp 对象（避免 GC） ==========
     private _tempVec3 = new Vec3();
     private _tempQuat = new Quat();
+    // 服务器坐标系 -> 客户端世界坐标系的 Z 轴偏移（随推板动态计算）
+    private _serverToClientZ = GameConfig.PUSH_Z_OFFSET ?? 0;
+    /** 服务器金币在前端的显示缩放（原版大小） */
+    private readonly COIN_RENDER_SCALE = 1.0;
+
+    /** 是否已收到首个服务器快照（用于清理本地兜底币） */
+    private _hasFirstSnapshot = false;
 
     // ========== 推台初始缓存 ==========
     private _pushBaseCaptured = false;
@@ -78,6 +85,21 @@ export class PhysicsComp extends ecs.Comp {
     private _pushVisualOffset = new Vec3();
     private _tempWorldPosA = new Vec3();
     private _tempWorldPosB = new Vec3();
+    private _predictedCoins: Map<number, Node> = new Map();
+    private _predictedBirth: Map<number, number> = new Map(); // 预测币创建时间戳
+
+    /** 清理当前所有可视金币/预测金币 */
+    private _clearAllCoins() {
+        this._coinNodes.forEach(node => node.destroy());
+        this._coinNodes.clear();
+        this._predictedCoins.forEach(node => node.destroy());
+        this._predictedCoins.clear();
+        this._predictedBirth.clear();
+        this._coinPool.clear();
+        if (this.coinParent) {
+            this.coinParent.removeAllChildren();
+        }
+    }
     private _cachedPushNode: Node | null = null;
     private _cachedVisualNode: Node | null = null;
 
@@ -142,22 +164,26 @@ export class PhysicsComp extends ecs.Comp {
         }
 
         const snapshots = this.roomService.snapshots;
-        // 若持续未收到快照，启动兜底本地模式动画 + 静态金币
+        // 首个快照到达时，清理本地兜底金币，避免静态占位
+        if (!this._hasFirstSnapshot && snapshots.length > 0) {
+            this._clearAllCoins();
+            this._hasFirstSnapshot = true;
+        }
+
+        // 若未收到快照，立即启用兜底本地铺币与推板动画
         if (!snapshots.length) {
-            this._noSnapshotAccum += dt;
-            if (this._noSnapshotAccum > 1.0) {
-                if (!this._fallbackLocalActive) {
-                    console.warn('[PhysicsComp] No snapshots for 1s, enabling fallback local visuals');
-                    this._fallbackLocalActive = true;
-                    this._createInitialCoinsLocal();
-                    this._localModeInitialized = true;
-                }
-                this._animateLocalPush(dt);
+            if (!this._fallbackLocalActive) {
+                console.warn('[PhysicsComp] No snapshots yet, enabling fallback local visuals immediately');
+                this._fallbackLocalActive = true;
+                this._createInitialCoinsLocal();
+                this._localModeInitialized = true;
             }
+            this._animateLocalPush(dt);
             return;
         } else {
             if (this._fallbackLocalActive) {
-                console.log('[PhysicsComp] Snapshots resumed, disabling fallback local visuals');
+                console.log('[PhysicsComp] Snapshots resumed, clearing fallback coins');
+                this._clearAllCoins();
                 this._fallbackLocalActive = false;
             }
             this._noSnapshotAccum = 0;
@@ -167,6 +193,7 @@ export class PhysicsComp extends ecs.Comp {
         if (snapshots.length === 1) {
             const snapshot = snapshots[0];
             this._renderSnapshot(snapshot);
+            this._ensureVisibleCoinsWhenServerEmpty(snapshot, dt);
             return;
         }
 
@@ -185,7 +212,9 @@ export class PhysicsComp extends ecs.Comp {
         if (!prev || !next) {
             // 快照不足，使用最新快照直接渲染
             if (snapshots.length > 0) {
-                this._renderSnapshot(snapshots[snapshots.length - 1]);
+                const latest = snapshots[snapshots.length - 1];
+                this._renderSnapshot(latest);
+                this._ensureVisibleCoinsWhenServerEmpty(latest, dt);
             }
             return;
         }
@@ -195,6 +224,57 @@ export class PhysicsComp extends ecs.Comp {
 
         // 4. 插值金币
         this._interpolateCoins(prev, next, alpha);
+
+        // 5. 如果服务器快照没有金币，保持本地视觉金币别“闪一下就没了”
+        this._ensureVisibleCoinsWhenServerEmpty(next, dt);
+
+        // 6. 清理超时预测币，避免悬空残影
+        this._cleanupPredictedCoins();
+    }
+
+    /** 移除超时未确认的预测币，避免悬空残影 */
+    private _cleanupPredictedCoins(timeoutMs: number = 1200) {
+        if (this._predictedCoins.size === 0) return;
+        const now = Date.now();
+        const toRemove: number[] = [];
+        this._predictedBirth.forEach((birth, id) => {
+            if (now - birth > timeoutMs) {
+                toRemove.push(id);
+            }
+        });
+        toRemove.forEach(id => {
+            const node = this._predictedCoins.get(id);
+            if (node) {
+                node.destroy();
+            }
+            this._predictedCoins.delete(id);
+            this._predictedBirth.delete(id);
+        });
+    }
+
+    /**
+     * 当服务器快照为空台面时，自动补充本地静态金币，避免玩家看到瞬间清空
+     */
+    private _ensureVisibleCoinsWhenServerEmpty(snapshot: any, dt: number) {
+        if (GameConfig.DISABLE_FALLBACK_COINS) return;
+        if (!this.coinParent || !this.coinPrefab) return;
+
+        const serverCoinCount = snapshot?.data?.coins?.length ?? 0;
+        const hasChildren = this.coinParent.children.length > 0;
+        const hasTracked = this._coinNodes.size > 0;
+
+        // 仅在服务器明确为 0 且本地也空的时候补充；若已有服务器金币则不干预
+        if (serverCoinCount === 0 && !hasChildren && !hasTracked) {
+            if (!this._fallbackLocalActive) {
+                console.warn('[PhysicsComp] Server reports 0 coins, restoring local fallback visuals');
+                this._fallbackLocalActive = true;
+                this._localModeInitialized = false; // 允许重新铺设
+            }
+            // 复用本地模式铺币 + 推板动画
+            this._createInitialCoinsLocal();
+            this._localModeInitialized = true;
+            this._animateLocalPush(dt);
+        }
     }
 
     /**
@@ -383,7 +463,8 @@ export class PhysicsComp extends ecs.Comp {
         pos: { x: number; y: number; z: number } | Vec3,
         rot: { x: number; y: number; z: number; w: number } | Quat
     ) {
-        let node = this._coinNodes.get(coinId);
+        // 优先复用预测金币节点，避免“双影”
+        let node = this._coinNodes.get(coinId) || this._predictedCoins.get(coinId);
 
         if (!node) {
             // 创建新金币
@@ -415,17 +496,30 @@ export class PhysicsComp extends ecs.Comp {
             }
         }
 
-        // 更新位置和旋转
-        if (pos instanceof Vec3) {
-            node.setPosition(pos);
-        } else {
-            node.setPosition(pos.x, pos.y, pos.z);
-        }
+        // 更新位置和旋转（使用世界坐标），仅对 Y 做上下限保护，避免硬币半埋或漂浮
+        const px = pos instanceof Vec3 ? pos.x : pos.x;
+        const py = pos instanceof Vec3 ? pos.y : pos.y;
+        // 映射服务器 Z 到客户端推台坐标系并夹住范围
+        const pz = this._mapServerZToClient(pos instanceof Vec3 ? pos.z : pos.z);
+
+        // 台面实际高度约 0.0~0.5，把可视 Y 夹到一个合理区间
+        const clampedY = Math.min(Math.max(0.05, py), 0.25);
+        node.setWorldPosition(px, clampedY, pz);
 
         if (rot instanceof Quat) {
-            node.setRotation(rot);
+            node.setWorldRotation(rot);
         } else {
-            node.setRotation(rot.x, rot.y, rot.z, rot.w);
+            node.setWorldRotation(rot.x, rot.y, rot.z, rot.w);
+        }
+
+        // 缩放至与服务器物理尺寸一致（默认 prefab 偏大）
+        node.setWorldScale(this.COIN_RENDER_SCALE, this.COIN_RENDER_SCALE, this.COIN_RENDER_SCALE);
+
+        // 如果是预测节点，去掉预测标记并登记为正式节点
+        if (this._predictedCoins.has(coinId)) {
+            this._predictedCoins.delete(coinId);
+            this._predictedBirth.delete(coinId);
+            this._coinNodes.set(coinId, node);
         }
     }
 
@@ -486,11 +580,29 @@ export class PhysicsComp extends ecs.Comp {
             node = instantiate(this.coinPrefab);
         }
 
-        // 设置初始位置（从高处掉落，使用世界坐标避免父节点偏移）
+        // 设置初始位置（与服务器参数一致，避免空中跳变）
         node.parent = this.coinParent;
-        node.setWorldPosition(x, 10.0, -6.0);
+        const dropY = GameConfig.GOLD_DROP_POS_Y ?? 3.0;
+        // 优先使用 pushNode 的世界坐标，避免落到背板/跑道外
+        let dropZ = GameConfig.GOLD_DROP_POS_Z ?? -7.2;
+        if (this.pushNode) {
+            this.pushNode.getWorldPosition(this._tempWorldPosA);
+            dropZ = this._tempWorldPosA.z;
+        }
+        node.setWorldPosition(x, dropY, dropZ);
+
+        // 预测币只做视觉，移除刚体避免悬空/穿模
+        const rigidBody = node.getComponent(RigidBody);
+        if (rigidBody) {
+            rigidBody.enabled = false;
+            node.removeComponent(RigidBody);
+        }
 
         this._predictedCoins.set(coinId, node);
+        this._predictedBirth.set(coinId, Date.now());
+
+        // 缩放与服务器尺寸一致
+        node.setWorldScale(this.COIN_RENDER_SCALE, this.COIN_RENDER_SCALE, this.COIN_RENDER_SCALE);
 
         return node;
     }
@@ -621,8 +733,11 @@ export class PhysicsComp extends ecs.Comp {
             console.log('[PhysicsComp] Disabled RigidBody for local coin');
         }
 
-        node.setPosition(x, y, z);
+        node.setPosition(x, y, this._clampWorldZ(z));
         node.parent = this.coinParent;
+
+        // 缩放与服务器尺寸一致
+        node.setWorldScale(this.COIN_RENDER_SCALE, this.COIN_RENDER_SCALE, this.COIN_RENDER_SCALE);
 
         // 生成临时ID存储（用于后续管理）
         const tempId = Date.now() + Math.random();
@@ -652,7 +767,22 @@ export class PhysicsComp extends ecs.Comp {
             this._localPushDir = 1;
         }
 
-        this._syncPushNodeZ(nextZ);
+        // 本地模式不需要对服务器坐标做偏移
+        this._syncPushNodeZ(nextZ, /*applyMapping*/ false);
+    }
+
+    /** 将服务器坐标映射到客户端推台坐标 */
+    private _mapServerZToClient(serverZ: number): number {
+        const sMin = GameConfig.SERVER_PUSH_MIN_Z ?? -13.97;
+        const sMax = GameConfig.SERVER_PUSH_MAX_Z ?? -10.5;
+        // 目标映射区间：使用前移的可视推台范围，让金币更靠前
+        const cMin = GameConfig.CLIENT_PUSH_MIN_Z ?? GameConfig.PUSH_MIN_POS_Z ?? -8.8;
+        const cMax = GameConfig.CLIENT_PUSH_MAX_Z ?? GameConfig.PUSH_MAX_POS_Z ?? -6.0;
+        const sRange = sMax - sMin;
+        const cRange = cMax - cMin;
+        if (Math.abs(sRange) < 1e-5) return serverZ;
+        const tClamped = Math.max(0, Math.min(1, (serverZ - sMin) / sRange));
+        return cMin + tClamped * cRange + (GameConfig.SERVER_TO_CLIENT_Z_BIAS ?? 0);
     }
 
     // ========== 清理 ==========
@@ -718,13 +848,14 @@ export class PhysicsComp extends ecs.Comp {
     /**
      * 同步推台及可视节点的 Z 轴位移
      */
-    private _syncPushNodeZ(targetZ: number) {
+    private _syncPushNodeZ(targetZ: number, applyMapping: boolean = true) {
         if (!this.pushNode) return;
 
         this._ensurePushBaseCache();
 
         const pos = this.pushNode.position;
-        this.pushNode.setPosition(pos.x, pos.y, targetZ);
+        const mappedZ = applyMapping ? this._mapServerZToClient(targetZ) : targetZ;
+        this.pushNode.setPosition(pos.x, pos.y, mappedZ);
 
         if (this.pushVisualNode) {
             this.pushNode.getWorldPosition(this._tempWorldPosA);

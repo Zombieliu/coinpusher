@@ -173,8 +173,8 @@ mod tests {
             coin_height: 0.1,
             reward_line_z: -0.5,
             push_min_z: -8.8,
-            push_max_z: -6.0,
-            push_speed: 0.2,
+            push_max_z: -3.0,
+            push_speed: 1.5,
             snapshot_rate: 30.0,
         }
     }
@@ -316,10 +316,11 @@ mod tests {
         // 第一次会发送 DeltaSnapshot，所有硬币都在 added 列表中
         match &outgoing[0] {
             ToNode::DeltaSnapshot { added, .. } => {
-                assert_eq!(added.len(), 1); // 应该有一个硬币
+                // 初始铺满，数量应大于 20（取一部分增量）
+                assert!(added.len() > 20);
             }
             ToNode::Snapshot { coins, .. } => {
-                assert_eq!(coins.len(), 1); // 应该有一个硬币
+                assert!(coins.len() > 20);
             }
             _ => panic!("Expected Snapshot or DeltaSnapshot message"),
         }
@@ -353,8 +354,14 @@ mod tests {
 
         // 应该生成2个快照（可能是 Snapshot 或 DeltaSnapshot）
         assert_eq!(outgoing.len(), 2);
-        assert!(matches!(outgoing[0], ToNode::Snapshot { .. } | ToNode::DeltaSnapshot { .. }));
-        assert!(matches!(outgoing[1], ToNode::Snapshot { .. } | ToNode::DeltaSnapshot { .. }));
+        assert!(matches!(
+            outgoing[0],
+            ToNode::Snapshot { .. } | ToNode::DeltaSnapshot { .. }
+        ));
+        assert!(matches!(
+            outgoing[1],
+            ToNode::Snapshot { .. } | ToNode::DeltaSnapshot { .. }
+        ));
     }
 
     #[test]

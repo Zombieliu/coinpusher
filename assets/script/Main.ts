@@ -36,9 +36,6 @@ export class Main extends Root {
     start() {
         // 清除上一个版本的本地存储数据，数据结构有变化，避免报错（仅在调试模式）
         console.log("[Main] run() - Initializing game...");
-        if (DEBUG) {
-            oops.storage.clear();
-        }
         NetworkManager.instance.init();
         // 处理来自 Stripe 回调的场景（成功 / 取消页面）
         void paymentService.handleReturnFromUrl();

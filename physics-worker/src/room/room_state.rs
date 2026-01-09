@@ -179,6 +179,10 @@ impl RoomState {
     /// 设置快照推送频率（用于自适应调整）
     pub fn set_snapshot_rate(&mut self, rate: f32) {
         self.config.snapshot_rate = rate.max(5.0).min(60.0); // 限制在 5-60 Hz 之间
-        tracing::info!("Room {} snapshot rate adjusted to {} Hz", self.id, self.config.snapshot_rate);
+        tracing::info!(
+            "Room {} snapshot rate adjusted to {} Hz",
+            self.id,
+            self.config.snapshot_rate
+        );
     }
 }

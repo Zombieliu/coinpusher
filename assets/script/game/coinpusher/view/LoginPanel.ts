@@ -43,6 +43,7 @@ import { DiscordManager } from "../../discord/DiscordManager";
 import { smc } from "../../common/ecs/SingletonModuleComp";
 import { NetworkManager } from "../../network/NetworkManager";
 import { GameConfig } from "../model/GameConfig";
+import { ApiClient } from "../../network/ApiClient";
 
 const { ccclass, property } = _decorator;
 
@@ -158,6 +159,7 @@ export class LoginPanel extends UIView {
             // 1. Gate Login
             const gateRes = await NetworkManager.instance.gate.login(this._username);
             this._persistSession(gateRes.userId, gateRes.token, this._username);
+            ApiClient.instance.setUserId(gateRes.userId);
             
             // 2. Initialize Match Client and Start Match
             // 从 Gate Server 返回的 login 结果中获取 matchUrl
@@ -175,6 +177,15 @@ export class LoginPanel extends UIView {
 
             this._updateStatus("Joining room...");
             await NetworkManager.instance.room.joinRoom(matchRes.roomId, gateRes.userId);
+
+            // 确保客户端实体存在并绑定房间服务（避免后续 UI 侧缺失 smc.coinPusher）
+            if (!smc.coinPusher) {
+                smc.coinPusher = ecs.getEntity<any>(require("../CoinPusher").CoinPusher);
+            }
+            if (smc.coinPusher?.Physics) {
+                smc.coinPusher.Physics.roomService = NetworkManager.instance.room;
+                console.log('[LoginPanel] ✓ RoomService attached to PhysicsComp (auto login)');
+            }
 
             if (smc.coinPusher?.Physics) {
                 smc.coinPusher.Physics.roomService = NetworkManager.instance.room;
@@ -240,6 +251,7 @@ export class LoginPanel extends UIView {
             // 1. Gate Login
             const gateRes = await NetworkManager.instance.gate.login(this._username);
             oops.storage.set('USER_ID', gateRes.userId);
+            ApiClient.instance.setUserId(gateRes.userId);
             
             // 2. Initialize Match Client and Start Match
             // 从 Gate Server 返回的 login 结果中获取 matchUrl
@@ -257,6 +269,15 @@ export class LoginPanel extends UIView {
 
             this._updateStatus("Joining room...");
             await NetworkManager.instance.room.joinRoom(matchRes.roomId, gateRes.userId);
+
+            // 确保客户端实体存在并绑定房间服务
+            if (!smc.coinPusher) {
+                smc.coinPusher = ecs.getEntity<any>(require("../CoinPusher").CoinPusher);
+            }
+            if (smc.coinPusher?.Physics) {
+                smc.coinPusher.Physics.roomService = NetworkManager.instance.room;
+                console.log('[LoginPanel] ✓ RoomService attached to PhysicsComp (manual login)');
+            }
 
             if (smc.coinPusher?.Physics) {
                 smc.coinPusher.Physics.roomService = NetworkManager.instance.room;

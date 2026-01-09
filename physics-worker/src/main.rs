@@ -31,7 +31,8 @@ async fn main() -> Result<()> {
     tracing::info!("🚀 Rust Room Service starting...");
 
     // 配置
-    let tcp_addr = std::env::var("ROOM_SERVICE_ADDR").unwrap_or_else(|_| "127.0.0.1:9000".to_string());
+    let tcp_addr =
+        std::env::var("ROOM_SERVICE_ADDR").unwrap_or_else(|_| "127.0.0.1:9000".to_string());
     let tick_rate_hz = std::env::var("TICK_RATE")
         .ok()
         .and_then(|s| s.parse().ok())
@@ -60,9 +61,7 @@ async fn main() -> Result<()> {
                     let to_node_rx = to_node_tx_for_accept.subscribe(); // 每个连接订阅broadcast
 
                     tokio::spawn(async move {
-                        if let Err(e) =
-                            net::handle_client(stream, from_node_tx, to_node_rx).await
-                        {
+                        if let Err(e) = net::handle_client(stream, from_node_tx, to_node_rx).await {
                             tracing::error!("Client handler error: {}", e);
                         }
                     });
@@ -111,7 +110,10 @@ async fn main() -> Result<()> {
 
             // 定期日志
             if room_manager.room_count() > 0 {
-                tracing::trace!("Tick completed. Active rooms: {}", room_manager.room_count());
+                tracing::trace!(
+                    "Tick completed. Active rooms: {}",
+                    room_manager.room_count()
+                );
             }
         }
     });

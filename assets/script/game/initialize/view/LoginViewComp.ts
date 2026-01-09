@@ -17,6 +17,7 @@ import { InitializeEvent } from "../InitializeEvent";
 import { NetworkManager } from "../../network/NetworkManager";
 import { GameConfig } from "../../coinpusher/model/GameConfig";
 import { NetworkConfig } from "../../config/NetworkConfig";
+import { ApiClient } from "../../network/ApiClient";
 
 const { ccclass, property } = _decorator;
 
@@ -139,6 +140,7 @@ export class LoginViewComp extends CCViewVM<Initialize> {
         try {
             const gateRes = await NetworkManager.instance.gate.login(username);
             oops.storage.set('USER_ID', gateRes.userId);
+            ApiClient.instance.setUserId(gateRes.userId);
             // 将服务器返回的 token 存为 SSO_TOKEN，供 Match/Room 请求使用
             if (gateRes.token) {
                 oops.storage.set('SSO_TOKEN', gateRes.token);
@@ -159,6 +161,10 @@ export class LoginViewComp extends CCViewVM<Initialize> {
 
             await NetworkManager.instance.room.joinRoom(matchRes.roomId, gateRes.userId);
 
+            // 确保客户端实体存在并绑定房间服务
+            if (!smc.coinPusher) {
+                smc.coinPusher = ecs.getEntity<any>(require("../../coinpusher/CoinPusher").CoinPusher);
+            }
             if (smc.coinPusher?.Physics) {
                 smc.coinPusher.Physics.roomService = NetworkManager.instance.room;
                 console.log('[LoginViewComp] ✓ RoomService attached to PhysicsComp');
