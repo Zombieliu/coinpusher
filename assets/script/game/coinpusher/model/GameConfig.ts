@@ -22,31 +22,25 @@ export const GameConfig = {
     // ========== 推动台配置 ==========
     /** 推动台最小 Z 位置 */
     PUSH_MIN_POS_Z: -8.8,
-    /** 推动台最大 Z 位置（与 Rust 物理保持一致） */
-    PUSH_MAX_POS_Z: -6,
-    /** 客户端可视推板最小 Z（映射后的位置，更靠前以覆盖台面前半） */
-    CLIENT_PUSH_MIN_Z: -7.5,
-    /** 客户端可视推板最大 Z（映射后的位置） */
-    CLIENT_PUSH_MAX_Z: -4.5,
-    /** 服务器物理推板最小 Z（Rust） */
-    SERVER_PUSH_MIN_Z: -13.97,
-    /** 服务器物理推板最大 Z（Rust） */
-    SERVER_PUSH_MAX_Z: -10.5,
-    /** 客户端映射后整体前移偏移（正值向玩家方向） */
-    SERVER_TO_CLIENT_Z_BIAS: 0,
+    /** 推动台最大 Z 位置（客户端可视，与服务器一致） */
+    PUSH_MAX_POS_Z: -6.0,
+    /** 服务器物理推板最小 Z（与客户端一致） */
+    SERVER_PUSH_MIN_Z: -8.8,
+    /** 服务器物理推板最大 Z（与客户端一致） */
+    SERVER_PUSH_MAX_Z: -6.0,
     /**
      * 服务端推台 Z 与本地场景的偏移
      * 服务器推台行程 [-13.97, -10.5]，prefab pushBox 初始约 -7.44
      * 建议保持 6.5 左右，使可视推板回到台面上
      */
-    // 服务器推板 Z → 前端推杆 Z 的偏移（让物理推杆对齐 prefab 位置）
-    PUSH_Z_OFFSET: 6.5,
+    // 服务器/客户端同一坐标系，不再额外平移
+    PUSH_Z_OFFSET: 0,
     /** 推台可视模型相对物理推台 X 偏移（基于 prefab 实测） */
     PUSH_VISUAL_OFFSET_X: 0,
     /** 推台可视模型相对物理推台 Y 偏移（prefab 实测：pushModel 比 pushBox 低 0.638） */
     PUSH_VISUAL_OFFSET_Y: -0.638,
     /** 推台可视模型相对物理推台 Z 偏移（prefab 实测：pushModel 比 pushBox 后移 6.492） */
-    PUSH_VISUAL_OFFSET_Z: -6.492,
+    PUSH_VISUAL_OFFSET_Z: 0,
     /** 推动台初始 X 位置 */
     PUSH_INIT_POS_X: 0,
     /** 推动台初始 Y 位置 */

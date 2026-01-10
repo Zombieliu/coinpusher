@@ -499,11 +499,12 @@ export class PhysicsComp extends ecs.Comp {
         // 更新位置和旋转（使用世界坐标），仅对 Y 做上下限保护，避免硬币半埋或漂浮
         const px = pos instanceof Vec3 ? pos.x : pos.x;
         const py = pos instanceof Vec3 ? pos.y : pos.y;
-        // 映射服务器 Z 到客户端推台坐标系并夹住范围
-        const pz = this._mapServerZToClient(pos instanceof Vec3 ? pos.z : pos.z);
+        // 映射到可视坐标：服务器 Z + 固定偏移
+        const pz = pos instanceof Vec3 ? pos.z : pos.z;
 
         // 台面实际高度约 0.0~0.5，把可视 Y 夹到一个合理区间
-        const clampedY = Math.min(Math.max(0.05, py), 0.25);
+        // 原版台面厚度较薄，0.05 下限 + 上限 0.35 更贴合
+        const clampedY = Math.min(Math.max(0.05, py), 0.35);
         node.setWorldPosition(px, clampedY, pz);
 
         if (rot instanceof Quat) {
@@ -773,16 +774,7 @@ export class PhysicsComp extends ecs.Comp {
 
     /** 将服务器坐标映射到客户端推台坐标 */
     private _mapServerZToClient(serverZ: number): number {
-        const sMin = GameConfig.SERVER_PUSH_MIN_Z ?? -13.97;
-        const sMax = GameConfig.SERVER_PUSH_MAX_Z ?? -10.5;
-        // 目标映射区间：使用前移的可视推台范围，让金币更靠前
-        const cMin = GameConfig.CLIENT_PUSH_MIN_Z ?? GameConfig.PUSH_MIN_POS_Z ?? -8.8;
-        const cMax = GameConfig.CLIENT_PUSH_MAX_Z ?? GameConfig.PUSH_MAX_POS_Z ?? -6.0;
-        const sRange = sMax - sMin;
-        const cRange = cMax - cMin;
-        if (Math.abs(sRange) < 1e-5) return serverZ;
-        const tClamped = Math.max(0, Math.min(1, (serverZ - sMin) / sRange));
-        return cMin + tClamped * cRange + (GameConfig.SERVER_TO_CLIENT_Z_BIAS ?? 0);
+        return serverZ;
     }
 
     // ========== 清理 ==========

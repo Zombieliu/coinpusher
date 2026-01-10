@@ -99,9 +99,9 @@ impl Default for RoomConfig {
             coin_radius: 0.59,
             coin_height: 0.18,
             reward_line_z: -0.5,
-            // 原版推板行程（更靠后，配合大深度 collider 仍能推到前排）
-            push_min_z: -13.97,
-            push_max_z: -10.5,
+            // 与客户端一致的推板行程
+            push_min_z: -8.8,
+            push_max_z: -6.0,
             push_speed: 2.3,
             snapshot_rate: 30.0,
         }

@@ -82,22 +82,23 @@ impl PhysicsWorld {
 
     /// 创建静态环境（地板、墙壁）
     fn create_static_environment(rigid_bodies: &mut RigidBodySet, colliders: &mut ColliderSet) {
-        // 主地板：覆盖 Z ∈ [-15, 5]，前缘由收集判定处理
+        // 主地板：与客户端 prefab 对齐，Y=0 表面，覆盖 Z ∈ [-9, 5]，前缘到 5 留给掉落
         let ground_body = RigidBodyBuilder::fixed()
-            .translation(vector![0.0, -0.1, -5.0])
+            .translation(vector![0.0, 0.0, -2.0])
             .build();
         let ground_handle = rigid_bodies.insert(ground_body);
-        let ground_collider = ColliderBuilder::cuboid(10.0, 0.1, 10.0)
+        // 半尺寸：X=10, Y=0.05（厚度0.1），Z=7（覆盖 -9..5）
+        let ground_collider = ColliderBuilder::cuboid(10.0, 0.05, 7.0)
             .friction(0.5)
             .restitution(0.2)
             .build();
         colliders.insert_with_parent(ground_collider, ground_handle, rigid_bodies);
 
-        // 左右墙长度与地板一致
-        Self::create_wall(rigid_bodies, colliders, -6.0, 2.0, -5.0, 0.5, 2.0, 10.0);
-        Self::create_wall(rigid_bodies, colliders, 6.0, 2.0, -5.0, 0.5, 2.0, 10.0);
-        // 后墙
-        Self::create_wall(rigid_bodies, colliders, 0.0, 2.0, -12.0, 10.0, 2.0, 0.5);
+        // 左右墙：与地板覆盖区一致，Y 高 2m，厚 0.5m
+        Self::create_wall(rigid_bodies, colliders, -6.0, 1.0, -2.0, 0.5, 1.0, 7.0);
+        Self::create_wall(rigid_bodies, colliders, 6.0, 1.0, -2.0, 0.5, 1.0, 7.0);
+        // 后墙：放在 -9 处，避免硬币穿出
+        Self::create_wall(rigid_bodies, colliders, 0.0, 1.0, -9.0, 10.0, 1.0, 0.5);
     }
 
     fn create_wall(
@@ -124,8 +125,9 @@ impl PhysicsWorld {
         colliders: &mut ColliderSet,
         start_z: f32,
     ) -> RigidBodyHandle {
+        // 与原版 prefab 对齐：y=0.4，中心在台面上方
         let body = RigidBodyBuilder::kinematic_position_based()
-            .translation(vector![0.0, 0.5, start_z])
+            .translation(vector![0.0, 0.4, start_z])
             .build();
         let handle = rigid_bodies.insert(body);
 
@@ -168,12 +170,12 @@ impl PhysicsWorld {
     fn create_initial_coins(&mut self) {
         // 初始化铺币：减少 Z 行数，增加 X 间距，避免重叠
         const GOLD_ON_STAND_POS_Y: f32 = 0.17;
-        const GOLD_ON_STAND_POS_MAX_X: f32 = 3.8;   // 放宽覆盖更多宽度
-        // 让铺币更靠前且行更密，覆盖前半台面
-        const GOLD_MIN_Z: f32 = -11.0;              // 起点
-        const GOLD_MAX_Z: f32 = -7.0;               // 终点
-        const GOLD_STEP_X: f32 = 1.4;               // 横向间距
-        const GOLD_STEP_Z: f32 = 1.4;               // 纵向间距
+        const GOLD_ON_STAND_POS_MAX_X: f32 = 3.7;   // 原版宽度
+        // 服务器坐标与客户端一致：直接用客户端原版铺币范围
+        const GOLD_MIN_Z: f32 = -8.0;
+        const GOLD_MAX_Z: f32 = -5.5;
+        const GOLD_STEP_X: f32 = 1.35;
+        const GOLD_STEP_Z: f32 = 1.35;
 
         let mut coin_count = 0;
         let mut z = GOLD_MIN_Z;
